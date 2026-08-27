@@ -1,12 +1,19 @@
 const API = import.meta.env.VITE_API_URL || '/api'
 
+// Clave única donde vive el JWT de esta app (ver App.jsx)
+const TOKEN_KEY = 'tf_token'
+
+// Purga defensiva: clave 'token' genérica usada por otras apps/estados viejos
+// en este mismo origen y que provocaba "Bearer <basura>" -> 422 en la API.
+try { localStorage.removeItem('token') } catch { /* noop */ }
+
 let onAuthError = null
 export function setAuthErrorCallback(cb) {
   onAuthError = cb
 }
 
 function getToken() {
-  return localStorage.getItem('token') || ''
+  return localStorage.getItem(TOKEN_KEY) || ''
 }
 
 async function handleResponse(res) {
