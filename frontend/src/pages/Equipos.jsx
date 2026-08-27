@@ -19,11 +19,30 @@ import { Add as AddIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon } from
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Chip from '@mui/material/Chip'
+import FormControl from '@mui/material/FormControl'
+import InputLabel from '@mui/material/InputLabel'
+import Select from '@mui/material/Select'
+import MenuItem from '@mui/material/MenuItem'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
 
+const POSICIONES = ['ARQUERO', 'DEFENSOR', 'MEDIOCAMPISTA', 'DELANTERO']
+const PIERNAS = ['DERECHA', 'IZQUIERDA', 'AMBIDESTRO']
 const emptyEquipo = { nombre: '', delegado_email: '', delegado_documento: '' }
-const emptyJugador = { nombre: '', numero_camiseta: 10, documento_identidad: '' }
+const emptyJugador = {
+  nombre: '', numero_camiseta: 10, documento_identidad: '',
+  posicion: '', fecha_nacimiento: '', telefono: '', pierna_habil: '', altura_cm: '',
+}
+
+function calcEdad(fecha) {
+  if (!fecha) return null
+  const nac = new Date(fecha)
+  const hoy = new Date()
+  let e = hoy.getFullYear() - nac.getFullYear()
+  const m = hoy.getMonth() - nac.getMonth()
+  if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) e--
+  return e
+}
 
 function JugadoresPanel({ equipo }) {
   const qc = useQueryClient()
@@ -51,7 +70,16 @@ function JugadoresPanel({ equipo }) {
 
   const handleAdd = (e) => {
     e.preventDefault()
-    addMut.mutate({ ...form, equipo_id: equipo.id })
+    // Los campos opcionales vacíos van como null para cumplir la validación del backend
+    addMut.mutate({
+      ...form,
+      equipo_id: equipo.id,
+      posicion: form.posicion || null,
+      pierna_habil: form.pierna_habil || null,
+      telefono: form.telefono || null,
+      fecha_nacimiento: form.fecha_nacimiento || null,
+      altura_cm: form.altura_cm ? Number(form.altura_cm) : null,
+    })
   }
 
   const activos = jugadores.filter((j) => j.activo).length
@@ -86,7 +114,13 @@ function JugadoresPanel({ equipo }) {
             >
               <ListItemText
                 primary={`#${j.numero_camiseta} ${j.nombre}`}
-                secondary={j.documento_identidad || ''}
+                secondary={[
+                  j.posicion,
+                  j.documento_identidad,
+                  calcEdad(j.fecha_nacimiento) != null ? `${calcEdad(j.fecha_nacimiento)} años` : null,
+                  j.altura_cm ? `${j.altura_cm} cm` : null,
+                  j.telefono,
+                ].filter(Boolean).join(' · ')}
               />
             </ListItemButton>
           ))}
@@ -94,7 +128,7 @@ function JugadoresPanel({ equipo }) {
         </List>
       </CardContent>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
         <form onSubmit={handleAdd}>
           <DialogTitle>Inscribir jugador</DialogTitle>
           <DialogContent>
@@ -102,8 +136,29 @@ function JugadoresPanel({ equipo }) {
               value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} />
             <TextField label="N° camiseta" type="number" fullWidth margin="normal"
               value={form.numero_camiseta} onChange={(e) => setForm({ ...form, numero_camiseta: Number(e.target.value) })} />
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="jug-pos-label">Posición</InputLabel>
+              <Select labelId="jug-pos-label" label="Posición" value={form.posicion}
+                onChange={(e) => setForm({ ...form, posicion: e.target.value })}>
+                {POSICIONES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Fecha de nacimiento" type="date" fullWidth margin="normal"
+              InputLabelProps={{ shrink: true }}
+              value={form.fecha_nacimiento} onChange={(e) => setForm({ ...form, fecha_nacimiento: e.target.value })} />
             <TextField label="Documento" fullWidth margin="normal"
               value={form.documento_identidad} onChange={(e) => setForm({ ...form, documento_identidad: e.target.value })} />
+            <TextField label="Teléfono" fullWidth margin="normal"
+              value={form.telefono} onChange={(e) => setForm({ ...form, telefono: e.target.value })} />
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="jug-pierna-label">Pierna hábil</InputLabel>
+              <Select labelId="jug-pierna-label" label="Pierna hábil" value={form.pierna_habil}
+                onChange={(e) => setForm({ ...form, pierna_habil: e.target.value })}>
+                {PIERNAS.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Altura (cm)" type="number" fullWidth margin="normal"
+              value={form.altura_cm} onChange={(e) => setForm({ ...form, altura_cm: e.target.value })} />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOpen(false)}>Cancelar</Button>

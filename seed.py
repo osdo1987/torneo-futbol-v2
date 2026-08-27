@@ -9,6 +9,7 @@ Crea:
     - Dos torneos con equipos, jugadores, fases y partidos
 """
 import os
+from datetime import date
 from app import create_app
 from app.extensions import db
 from app.models.user import User
@@ -69,8 +70,19 @@ def run():
             db.session.add(eq)
             db.session.flush()
             if nombre == 'Leones':
-                for jname, num in [('Carlos Rivas', 1), ('Mateo Silva', 2), ('Luis Prado', 3)]:
-                    db.session.add(Jugador(equipo_id=eq.id, nombre=jname, numero_camiseta=num, documento_identidad=f'DOC-{num}'))
+                jugadores_demo = [
+                    {'nombre': 'Carlos Rivas', 'numero_camiseta': 1, 'documento_identidad': 'DOC-1',
+                     'posicion': 'ARQUERO', 'fecha_nacimiento': date(1998, 3, 15),
+                     'telefono': '+5491122334401', 'pierna_habil': 'DERECHA', 'altura_cm': 185},
+                    {'nombre': 'Mateo Silva', 'numero_camiseta': 2, 'documento_identidad': 'DOC-2',
+                     'posicion': 'DEFENSOR', 'fecha_nacimiento': date(2000, 7, 22),
+                     'telefono': '+5491122334402', 'pierna_habil': 'IZQUIERDA', 'altura_cm': 178},
+                    {'nombre': 'Luis Prado', 'numero_camiseta': 3, 'documento_identidad': 'DOC-3',
+                     'posicion': 'DELANTERO', 'fecha_nacimiento': date(1995, 11, 30),
+                     'telefono': '+5491122334403', 'pierna_habil': 'DERECHA', 'altura_cm': 181},
+                ]
+                for jd in jugadores_demo:
+                    db.session.add(Jugador(equipo_id=eq.id, **jd))
             equipos_t1.append(eq)
 
         # Partidos de la fase

@@ -11,7 +11,15 @@ class Jugador(db.Model):
     numero_camiseta = db.Column(db.Integer, nullable=False, default=0)
     documento_identidad = db.Column(db.String(50), nullable=True)
     activo = db.Column(db.Boolean, nullable=False, default=True)
-    # Atributos adicionales en JSON (posicion, edad, etc.)
+
+    # Datos deportivos
+    posicion = db.Column(db.String(20), nullable=True)          # ARQUERO/DEFENSOR/MEDIOCAMPISTA/DELANTERO
+    fecha_nacimiento = db.Column(db.Date, nullable=True)
+    telefono = db.Column(db.String(30), nullable=True)
+    pierna_habil = db.Column(db.String(15), nullable=True)      # DERECHA/IZQUIERDA/AMBIDESTRO
+    altura_cm = db.Column(db.Integer, nullable=True)
+
+    # Atributos adicionales en JSON (extensión libre)
     atributos = db.Column(db.JSON, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
