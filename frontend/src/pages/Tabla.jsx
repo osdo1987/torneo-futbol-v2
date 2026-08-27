@@ -44,6 +44,8 @@ export default function Tabla({ selectedTorneoId }) {
                 <TableCell align="center">GF</TableCell>
                 <TableCell align="center">GC</TableCell>
                 <TableCell align="center">DF</TableCell>
+                <TableCell align="center">TA</TableCell>
+                <TableCell align="center">TR</TableCell>
                 <TableCell align="center"><b>PTS</b></TableCell>
               </TableRow>
             </TableHead>
@@ -59,11 +61,13 @@ export default function Tabla({ selectedTorneoId }) {
                   <TableCell align="center">{f.GF}</TableCell>
                   <TableCell align="center">{f.GC}</TableCell>
                   <TableCell align="center">{f.DF > 0 ? `+${f.DF}` : f.DF}</TableCell>
+                  <TableCell align="center">{f.TA}</TableCell>
+                  <TableCell align="center">{f.TR}</TableCell>
                   <TableCell align="center"><b>{f.PTS}</b></TableCell>
                 </TableRow>
               ))}
               {posiciones.length === 0 && (
-                <TableRow><TableCell colSpan={10} align="center">Sin resultados.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={12} align="center">Sin resultados.</TableCell></TableRow>
               )}
             </TableBody>
           </Table>

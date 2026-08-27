@@ -18,5 +18,6 @@ class TorneoSchema(ma.SQLAlchemyAutoSchema):
     puntos_empate = fields.Int(load_default=1)
     puntos_derrota = fields.Int(load_default=0)
     inscripciones_jugadores_abiertas = fields.Bool(load_default=False)
+    reglas = fields.Raw(allow_none=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)

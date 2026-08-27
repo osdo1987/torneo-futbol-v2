@@ -96,5 +96,24 @@ class PartidoService:
         return partido, None
 
     @staticmethod
+    def registrar_walkover(partido, bando):
+        """W por inasistencia: gana el bando presente con marcador configurado."""
+        if partido.resultado != 'PENDIENTE':
+            return None, 'El resultado ya fue registrado'
+        if bando not in ('LOCAL', 'VISITANTE'):
+            return None, "bando debe ser 'LOCAL' o 'VISITANTE'"
+        from app.services.reglas import reglas_normalizadas
+        reglas = reglas_normalizadas(partido.torneo)
+        gw = int(reglas.get('marcador_w') or 3)
+        if bando == 'LOCAL':
+            partido.goles_local, partido.goles_visitante = gw, 0
+            partido.resultado = 'W_LOCAL'
+        else:
+            partido.goles_local, partido.goles_visitante = 0, gw
+            partido.resultado = 'W_VISITANTE'
+        db.session.commit()
+        return partido, None
+
+    @staticmethod
     def get_eventos(partido_id):
         return EventoPartido.query.filter_by(partido_id=partido_id).order_by(EventoPartido.minuto).all()

@@ -1,6 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
+from marshmallow import ValidationError
+from app.extensions import db
 from app.services.torneo_service import TorneoService
+from app.services.fixture_service import FixtureService
+from app.services.reglas import ReglasSchema
 from app.schemas.torneo_schema import TorneoSchema
 from app.schemas.equipo_schema import EquipoSchema
 from app.schemas.partido_schema import PartidoSchema
@@ -142,3 +146,40 @@ def delete_torneo(torneo_id):
         return jsonify({'error': 'No autorizado'}), 403
     TorneoService.delete(torneo)
     return jsonify({'message': 'Torneo eliminado'}), 200
+
+
+@torneo_bp.route('/<int:torneo_id>/reglas', methods=['PUT'])
+@jwt_required()
+def actualizar_reglas(torneo_id):
+    """Actualiza el reglamento configurable del torneo."""
+    user = get_current_user()
+    torneo = TorneoService.get_by_id(torneo_id)
+    if not torneo:
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    try:
+        reglas = ReglasSchema().load(data)
+    except ValidationError as e:
+        return jsonify({'error': e.messages}), 400
+    torneo.reglas = reglas
+    db.session.commit()
+    return jsonify({'message': 'Reglamento actualizado', 'reglas': reglas}), 200
+
+
+@torneo_bp.route('/<int:torneo_id>/fixture', methods=['POST'])
+@jwt_required()
+def generar_fixture(torneo_id):
+    """Genera el fixture todos-contra-todos según las reglas del torneo."""
+    user = get_current_user()
+    torneo = TorneoService.get_by_id(torneo_id)
+    if not torneo:
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    resumen, error = FixtureService.generar(torneo, reemplazar=bool(data.get('reemplazar')))
+    if error:
+        return jsonify({'error': error}), 400
+    return jsonify({'message': 'Fixture generado', **resumen}), 201

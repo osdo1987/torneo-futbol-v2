@@ -7,6 +7,8 @@ RESULTADO_PARTIDO = [
     'LOCAL_GANO',
     'VISITANTE_GANO',
     'EMPATE',
+    'W_LOCAL',
+    'W_VISITANTE',
 ]
 
 

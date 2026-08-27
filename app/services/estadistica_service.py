@@ -1,18 +1,37 @@
+from datetime import date
+
 from app.models.partido import Partido
 from app.models.equipo import Equipo
 from app.models.evento_partido import EventoPartido
 from app.models.jugador import Jugador
+from app.models.torneo import Torneo
+from app.services.reglas import reglas_normalizadas
+
+# Resultados que cuentan como partido jugado
+RESULTADOS_JUGADOS = ['LOCAL_GANO', 'VISITANTE_GANO', 'EMPATE', 'W_LOCAL', 'W_VISITANTE']
 
 
 class EstadisticaService:
     """Cálculo on-the-fly de tabla de posiciones, goleadores y estadísticas."""
 
+    # Claves de ordenamiento por criterio de desempate (de mayor a menor valor deseado)
+    CRITERIOS = {
+        'DIF_GOL': lambda r: -r['DF'],
+        'GOLES_FAVOR': lambda r: -r['GF'],
+        'MENOS_AMARILLAS': lambda r: r['TA'],
+        'MENOS_ROJAS': lambda r: r['TR'],
+        'GOLES_CONTRA': lambda r: r['GC'],
+    }
+
     @staticmethod
     def tabla_posiciones(torneo_id):
+        torneo = Torneo.query.get(torneo_id)
+        reglas = reglas_normalizadas(torneo) if torneo else {}
+
         equipos = Equipo.query.filter_by(torneo_id=torneo_id).all()
         partidos = Partido.query.filter(
             Partido.torneo_id == torneo_id,
-            Partido.resultado.in_(['LOCAL_GANO', 'VISITANTE_GANO', 'EMPATE'])
+            Partido.resultado.in_(RESULTADOS_JUGADOS)
         ).all()
 
         stats = {e.id: {
@@ -20,7 +39,13 @@ class EstadisticaService:
             'equipo': e.nombre,
             'PJ': 0, 'PG': 0, 'PE': 0, 'PP': 0,
             'GF': 0, 'GC': 0, 'DF': 0, 'PTS': 0,
+            'TA': 0, 'TR': 0,
         } for e in equipos}
+
+        # Puntos configurables del torneo (con defaults del modelo)
+        pv = getattr(torneo, 'puntos_victoria', 3) if torneo else 3
+        pe = getattr(torneo, 'puntos_empate', 1) if torneo else 1
+        pd = getattr(torneo, 'puntos_derrota', 0) if torneo else 0
 
         for p in partidos:
             local = stats[p.equipo_local_id]
@@ -34,25 +59,49 @@ class EstadisticaService:
             visitante['GF'] += gv
             visitante['GC'] += gl
 
-            if p.resultado == 'LOCAL_GANO':
+            gano_local = p.resultado in ('LOCAL_GANO', 'W_LOCAL')
+            gano_visit = p.resultado in ('VISITANTE_GANO', 'W_VISITANTE')
+            if gano_local:
                 local['PG'] += 1
                 visitante['PP'] += 1
-                local['PTS'] += 3
-            elif p.resultado == 'VISITANTE_GANO':
+                local['PTS'] += pv
+                visitante['PTS'] += pd
+            elif gano_visit:
                 visitante['PG'] += 1
                 local['PP'] += 1
-                visitante['PTS'] += 3
+                visitante['PTS'] += pv
+                local['PTS'] += pd
             else:
                 local['PE'] += 1
                 visitante['PE'] += 1
-                local['PTS'] += 1
-                visitante['PTS'] += 1
+                local['PTS'] += pe
+                visitante['PTS'] += pe
+
+        # Tarjetas por equipo (fair play)
+        eventos = (EventoPartido.query
+                   .join(Partido, EventoPartido.partido_id == Partido.id)
+                   .filter(Partido.torneo_id == torneo_id,
+                           EventoPartido.tipo.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']))
+                   .all())
+        for ev in eventos:
+            equipo_id = ev.equipo_id
+            if not equipo_id and ev.jugador_id:
+                jugador = Jugador.query.get(ev.jugador_id)
+                equipo_id = jugador.equipo_id if jugador else None
+            if equipo_id in stats:
+                if ev.tipo == 'TARJETA_AMARILLA':
+                    stats[equipo_id]['TA'] += 1
+                else:
+                    stats[equipo_id]['TR'] += 1
 
         filas = list(stats.values())
         for f in filas:
             f['DF'] = f['GF'] - f['GC']
 
-        filas.sort(key=lambda r: (-r['PTS'], -r['DF'], -r['GF'], r['equipo']))
+        # Orden: puntos, luego criterios de desempate configurables
+        orden = (reglas.get('desempates') if isinstance(reglas, dict) else None) or []
+        funcs = [EstadisticaService.CRITERIOS[c] for c in orden if c in EstadisticaService.CRITERIOS]
+        filas.sort(key=lambda r: (-r['PTS'], *[f(r) for f in funcs], r['equipo']))
         for i, f in enumerate(filas, start=1):
             f['pos'] = i
         return filas

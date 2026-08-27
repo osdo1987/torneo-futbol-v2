@@ -138,6 +138,9 @@ El menú lateral (`AdminLayout`) se adapta al rol del usuario autenticado.
 - `POST /api/auth/register-organizador` (SUPERADMIN)
 - `GET/POST/PUT/DELETE /api/organizadores`
 - `GET/POST/PUT/DELETE /api/torneos` y `POST /api/torneos/<id>/estado`
+- `PUT /api/torneos/<id>/reglas` — reglamento configurable (formato, rondas, desempates, categoría de edad, plantilla, W, sanciones)
+- `POST /api/torneos/<id>/fixture` — genera fixture todos-contra-todos (1 o 2 rondas) según reglas
+- `POST /api/partidos/<id>/w` — W por inasistencia (marcador configurable)
 - `GET/POST/PUT/DELETE /api/equipos` y `/api/equipos/<id>/jugadores`
 - `GET/POST/PUT/DELETE /api/jugadores` y `POST /api/jugadores/<id>/liberar`
 - `GET/POST /api/partidos`, `POST /api/partidos/<id>/programar|aplazar|resultado|marcador`

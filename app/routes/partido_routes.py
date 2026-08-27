@@ -129,3 +129,20 @@ def actualizar_marcador(partido_id):
     if error:
         return jsonify({'error': error}), 400
     return jsonify(partido_schema.dump(partido)), 200
+
+
+@partido_bp.route('/<int:partido_id>/w', methods=['POST'])
+@jwt_required()
+def registrar_walkover(partido_id):
+    """W por inasistencia (marcador configurable en el reglamento del torneo)."""
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    partido, error = PartidoService.registrar_walkover(partido, (data.get('bando') or '').upper())
+    if error:
+        return jsonify({'error': error}), 400
+    return jsonify(partido_schema.dump(partido)), 200

@@ -33,6 +33,8 @@ class Torneo(db.Model):
     puntos_empate = db.Column(db.Integer, nullable=False, default=1)
     puntos_derrota = db.Column(db.Integer, nullable=False, default=0)
     inscripciones_jugadores_abiertas = db.Column(db.Boolean, nullable=False, default=False)
+    # Reglamento configurable (JSON validado por app.services.reglas.ReglasSchema)
+    reglas = db.Column(db.JSON, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
