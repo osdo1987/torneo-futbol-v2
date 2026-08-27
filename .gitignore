@@ -1,0 +1,35 @@
+# --- Python y Entornos Virtuales ---
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+env/
+ENV/
+
+# --- Node / Frontend (Raíz y subcarpeta frontend) ---
+node_modules/
+frontend/node_modules/
+dist/
+build/
+
+# --- Configuración Local y Secretos ---
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- IDEs, Editores y Sistema Operativo ---
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+.DS_Store
+Thumbs.db
+
+# --- Logs ---
+*.log

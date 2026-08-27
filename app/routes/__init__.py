@@ -1,0 +1,1 @@
+# Paquete de rutas (blueprints). Los módulos se registran en create_app
