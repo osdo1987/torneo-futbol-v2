@@ -35,3 +35,4 @@ Thumbs.db
 *.log
 # --- Flags temporales ---
 *.flag
+*.pdf
