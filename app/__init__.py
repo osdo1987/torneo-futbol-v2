@@ -7,21 +7,20 @@ def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
 
-    CORS(app)
-
-    # Swagger UI
-    app.config['SWAGGER'] = {
-        'title': 'Torneo Futbol API',
-        'uiversion': 3
-    }
-
     # Init extensions
+    cors.init_app(app)
     db.init_app(app)
     migrate.init_app(app, db)
     jwt.init_app(app)
     ma.init_app(app)
     bcrypt.init_app(app)
     swagger.init_app(app)
+
+    # Swagger UI
+    app.config['SWAGGER'] = {
+        'title': 'Torneo Futbol API',
+        'uiversion': 3
+    }
 
     # Register Blueprints
     from app.routes.auth_routes import auth_bp

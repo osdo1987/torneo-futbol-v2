@@ -1,0 +1,22 @@
+# Git
+.git
+.gitignore
+
+# Python
+__pycache__/
+**/__pycache__
+*.py[cod]
+venv/
+.venv/
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+
+# Entorno y logs
+.env
+*.log
+*.flag
+docker-up.log
