@@ -1,5 +1,7 @@
 from datetime import date
 
+from sqlalchemy import or_
+
 from app.models.partido import Partido
 from app.models.equipo import Equipo
 from app.models.evento_partido import EventoPartido
@@ -102,8 +104,80 @@ class EstadisticaService:
         orden = (reglas.get('desempates') if isinstance(reglas, dict) else None) or []
         funcs = [EstadisticaService.CRITERIOS[c] for c in orden if c in EstadisticaService.CRITERIOS]
         filas.sort(key=lambda r: (-r['PTS'], *[f(r) for f in funcs], r['equipo']))
+        n_final = reglas.get('clasifican_a_final') if isinstance(reglas, dict) else None
         for i, f in enumerate(filas, start=1):
             f['pos'] = i
+            f['clasifica'] = bool(n_final) and i <= n_final
+        return filas
+
+    @staticmethod
+    def sanciones(torneo_id):
+        """Sanciones acumuladas por jugador según el reglamento.
+
+        - Cada 2 amarillas acumuladas -> sanción de reglas.fechas_doble_amarilla fechas
+        - Roja directa -> sanción de reglas.fechas_roja_directa fechas
+        - Cada fecha se cumple con una jornada jugada por su equipo posterior
+          a la tarjeta que generó la sanción (bloqueo hasta jornada N).
+        """
+        torneo = Torneo.query.get(torneo_id)
+        reglas = reglas_normalizadas(torneo) if torneo else {}
+        f_doble = int(reglas.get('fechas_doble_amarilla') or 0)
+        f_roja = int(reglas.get('fechas_roja_directa') or 0)
+
+        eventos = (EventoPartido.query
+                   .join(Partido, EventoPartido.partido_id == Partido.id)
+                   .filter(Partido.torneo_id == torneo_id,
+                           EventoPartido.tipo.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']),
+                           EventoPartido.jugador_id.isnot(None))
+                   .all())
+
+        por_jugador = {}
+        for ev in eventos:
+            por_jugador.setdefault(ev.jugador_id, []).append(ev)
+
+        filas = []
+        for jugador_id, evs in por_jugador.items():
+            j = Jugador.query.get(jugador_id)
+            if not j:
+                continue
+            evs = sorted(evs, key=lambda e: (e.partido.jornada or 0, e.id))
+            amarillas = sum(1 for e in evs if e.tipo == 'TARJETA_AMARILLA')
+            rojas = sum(1 for e in evs if e.tipo == 'TARJETA_ROJA')
+
+            bloqueado_hasta = 0
+            acumuladas = 0
+            for e in evs:
+                jr = e.partido.jornada or 0
+                if e.tipo == 'TARJETA_ROJA':
+                    if f_roja > 0:
+                        bloqueado_hasta = max(bloqueado_hasta, jr + f_roja)
+                else:
+                    acumuladas += 1
+                    if f_doble > 0 and acumuladas % 2 == 0:
+                        bloqueado_hasta = max(bloqueado_hasta, jr + f_doble)
+
+            prox = (Partido.query
+                    .filter(Partido.torneo_id == torneo_id,
+                            Partido.resultado == 'PENDIENTE',
+                            or_(Partido.equipo_local_id == j.equipo_id,
+                                Partido.equipo_visitante_id == j.equipo_id))
+                    .order_by(Partido.jornada)
+                    .first())
+            prox_jornada = prox.jornada if prox else None
+            suspendido = bool(prox_jornada is not None and bloqueado_hasta >= prox_jornada)
+
+            filas.append({
+                'jugador_id': j.id,
+                'jugador': j.nombre,
+                'equipo_id': j.equipo_id,
+                'equipo': j.equipo.nombre if j.equipo else 'Sin equipo',
+                'amarillas': amarillas,
+                'rojas': rojas,
+                'suspendido_hasta_jornada': bloqueado_hasta or None,
+                'suspendido': suspendido,
+            })
+
+        filas.sort(key=lambda r: (not r['suspendido'], -r['rojas'], -r['amarillas'], r['jugador']))
         return filas
 
     @staticmethod

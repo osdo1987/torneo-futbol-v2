@@ -183,3 +183,19 @@ def generar_fixture(torneo_id):
     if error:
         return jsonify({'error': error}), 400
     return jsonify({'message': 'Fixture generado', **resumen}), 201
+
+
+@torneo_bp.route('/<int:torneo_id>/fase-final', methods=['POST'])
+@jwt_required()
+def generar_fase_final(torneo_id):
+    """Clasifica los primeros N según tabla y crea el cruce final/semifinales."""
+    user = get_current_user()
+    torneo = TorneoService.get_by_id(torneo_id)
+    if not torneo:
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    resumen, error = FixtureService.generar_fase_final(torneo)
+    if error:
+        return jsonify({'error': error}), 400
+    return jsonify({'message': 'Fase final generada', **resumen}), 201

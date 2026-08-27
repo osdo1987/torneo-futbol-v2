@@ -240,6 +240,16 @@ export default function Torneos({ user, selectedTorneoId, onSelectTorneo }) {
     onError: (e) => toast.show(e.message, 'error'),
   })
 
+  const finalMut = useMutation({
+    mutationFn: (id) => apiPost(`/torneos/${id}/fase-final`, {}),
+    onSuccess: (d) => {
+      qc.invalidateQueries(['partidos'])
+      const cruces = (d.partidos || []).map((p) => `${p.local} vs ${p.visitante}`).join(' | ')
+      toast.show(`${d.message}: ${cruces}`, 'success')
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
   const handleCreate = (e) => {
     e.preventDefault()
     createMut.mutate({ ...form, organizador_id: user?.organizadorId })
@@ -311,6 +321,13 @@ export default function Torneos({ user, selectedTorneoId, onSelectTorneo }) {
                     onClick={(e) => { e.stopPropagation(); fixtureMut.mutate(t.id) }}
                   >
                     Generar fixture
+                  </Button>
+                  <Button
+                    size="small" variant="outlined" color="warning"
+                    disabled={finalMut.isPending}
+                    onClick={(e) => { e.stopPropagation(); finalMut.mutate(t.id) }}
+                  >
+                    Fase final
                   </Button>
                   <IconButton
                     size="small" color="error"

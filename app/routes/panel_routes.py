@@ -20,6 +20,20 @@ def tabla_posiciones(torneo_id):
     return jsonify({'torneo': torneo.nombre, 'posiciones': filas}), 200
 
 
+@panel_bp.route('/<int:torneo_id>/sanciones', methods=['GET'])
+@jwt_required()
+def sanciones(torneo_id):
+    """Sanciones acumuladas por jugador según el reglamento del torneo."""
+    user = get_current_user()
+    torneo = TorneoService.get_by_id(torneo_id)
+    if not torneo:
+        return jsonify({'error': 'Torneo no encontrado'}), 404
+    if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    filas = EstadisticaService.sanciones(torneo_id)
+    return jsonify({'torneo': torneo.nombre, 'sanciones': filas}), 200
+
+
 @panel_bp.route('/<int:torneo_id>/goleadores', methods=['GET'])
 @jwt_required()
 def goleadores(torneo_id):
@@ -46,11 +60,12 @@ def resumen(torneo_id):
 
     from app.models.equipo import Equipo
     from app.models.partido import Partido
+    from app.services.estadistica_service import RESULTADOS_JUGADOS
     equipos = Equipo.query.filter_by(torneo_id=torneo_id).count()
     partidos = Partido.query.filter_by(torneo_id=torneo_id).count()
     jugados = Partido.query.filter(
         Partido.torneo_id == torneo_id,
-        Partido.resultado.in_(['LOCAL_GANO', 'VISITANTE_GANO', 'EMPATE'])
+        Partido.resultado.in_(RESULTADOS_JUGADOS)
     ).count()
     filas = EstadisticaService.tabla_posiciones(torneo_id)
 

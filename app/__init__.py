@@ -46,6 +46,8 @@ def create_app(config_class=Config):
     # Global Error Handler
     @app.errorhandler(Exception)
     def handle_exception(e):
+        if app.config.get('DEBUG'):
+            raise e  # en desarrollo, dejar que Flask muestre el traceback
         response = {
             "error": str(e),
             "message": "An internal error occurred"

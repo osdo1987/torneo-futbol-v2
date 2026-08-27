@@ -8,6 +8,7 @@ import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
 import Typography from '@mui/material/Typography'
+import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import { apiGet } from '../api'
@@ -28,7 +29,12 @@ export default function Tabla({ selectedTorneoId }) {
   return (
     <Box>
       <Typography variant="h5" fontWeight={700} mb={0.5}>Tabla de posiciones</Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>{data?.torneo}</Typography>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+        <Typography variant="body2" color="text.secondary">{data?.torneo}</Typography>
+        {posiciones.some((f) => f.clasifica) && (
+          <Chip label="Fila verde = clasifica a la fase final" color="success" size="small" />
+        )}
+      </Box>
 
       <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)' }}>
         <TableContainer>
@@ -51,7 +57,7 @@ export default function Tabla({ selectedTorneoId }) {
             </TableHead>
             <TableBody>
               {posiciones.map((f) => (
-                <TableRow key={f.equipo_id} hover>
+                <TableRow key={f.equipo_id} hover sx={f.clasifica ? { bgcolor: 'rgba(46,125,50,0.10)' } : undefined}>
                   <TableCell>{f.pos}</TableCell>
                   <TableCell fontWeight={600}>{f.equipo}</TableCell>
                   <TableCell align="center">{f.PJ}</TableCell>

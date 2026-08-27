@@ -25,6 +25,8 @@ const RESULTADOS = {
   LOCAL_GANO: ['Local ganó', 'success'],
   VISITANTE_GANO: ['Visitante ganó', 'success'],
   EMPATE: ['Empate', 'info'],
+  W_LOCAL: ['W (local)', 'secondary'],
+  W_VISITANTE: ['W (visitante)', 'secondary'],
 }
 export default function Partidos({ selectedTorneoId }) {
   const qc = useQueryClient()
@@ -70,6 +72,27 @@ export default function Partidos({ selectedTorneoId }) {
     onError: (e) => toast.show(e.message, 'error'),
   })
 
+  const [wOpen, setWOpen] = useState(null)
+  const [wForm, setWForm] = useState({ bando: 'LOCAL' })
+
+  const wMut = useMutation({
+    mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/w`, body),
+    onSuccess: () => {
+      qc.invalidateQueries(['partidos', selectedTorneoId])
+      qc.invalidateQueries(['tabla', selectedTorneoId])
+      qc.invalidateQueries(['resumen'])
+      toast.show('W registrado', 'success')
+      setWOpen(null)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const { data: sancionesData } = useQuery({
+    queryKey: ['sanciones', selectedTorneoId],
+    queryFn: () => apiGet(`/panel/${selectedTorneoId}/sanciones`),
+    enabled: !!selectedTorneoId,
+  })
+
   const handleCreate = (e) => {
     e.preventDefault()
     createMut.mutate({ ...form, torneo_id: selectedTorneoId, equipo_local_id: Number(form.equipo_local_id), equipo_visitante_id: Number(form.equipo_visitante_id) })
@@ -96,6 +119,22 @@ export default function Partidos({ selectedTorneoId }) {
         </div>
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Nuevo partido</Button>
       </Box>
+
+      {(sancionesData?.sanciones || []).length > 0 && (
+        <Alert severity="warning" icon={false} sx={{ mb: 3 }}>
+          <Typography variant="subtitle2" fontWeight={700} mb={1}>Sanciones acumuladas</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+            {sancionesData.sanciones.map((s) => (
+              <Chip key={s.jugador_id}
+                color={s.suspendido ? 'error' : 'default'}
+                variant={s.suspendido ? 'filled' : 'outlined'}
+                size="small"
+                label={`${s.jugador} (${s.equipo}) · 🟨${s.amarillas} 🟥${s.rojas}${s.suspendido ? ` · SUSPENDIDO hasta J${s.suspendido_hasta_jornada}` : ''}`}
+              />
+            ))}
+          </Box>
+        </Alert>
+      )}
 
       {partidos.length === 0 && <Alert severity="info">No hay partidos aún.</Alert>}
 
@@ -131,6 +170,10 @@ export default function Partidos({ selectedTorneoId }) {
                       </Button>
                       <Button size="small" color="error" onClick={() => { if (window.confirm('¿Aplazar partido?')) aplazarMut.mutate(p.id) }}>
                         Aplazar
+                      </Button>
+                      <Button size="small" variant="outlined" color="warning"
+                        onClick={() => { setWOpen(p); setWForm({ bando: 'LOCAL' }) }}>
+                        Registrar W
                       </Button>
                     </>
                   )}
@@ -189,6 +232,30 @@ export default function Partidos({ selectedTorneoId }) {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      <Dialog open={!!wOpen} onClose={() => setWOpen(null)} fullWidth maxWidth="xs">
+        <DialogTitle>Registrar W (inasistencia)</DialogTitle>
+        <DialogContent>
+          {wOpen && (
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {eqName(wOpen.equipo_local_id)} vs {eqName(wOpen.equipo_visitante_id)} — elige el equipo que se PRESENTÓ.
+              Gana por W con el marcador definido en el reglamento.
+            </Typography>
+          )}
+          <TextField select label="Gana por W" fullWidth value={wForm.bando}
+            onChange={(e) => setWForm({ bando: e.target.value })}>
+            <MenuItem value="LOCAL">Local — {wOpen ? eqName(wOpen.equipo_local_id) : ''}</MenuItem>
+            <MenuItem value="VISITANTE">Visitante — {wOpen ? eqName(wOpen.equipo_visitante_id) : ''}</MenuItem>
+          </TextField>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setWOpen(null)}>Cancelar</Button>
+          <Button variant="contained" color="warning" disabled={wMut.isPending}
+            onClick={() => wMut.mutate({ id: wOpen.id, body: wForm })}>
+            {wMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Registrar W'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )
