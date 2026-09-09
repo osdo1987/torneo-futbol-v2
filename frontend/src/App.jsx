@@ -1,9 +1,11 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
 import { useState, useEffect, useCallback } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { setAuthErrorCallback, apiGet } from './api'
 import AdminLayout from './components/AdminLayout'
 import Login from './pages/Login'
+import PublicLanding from './pages/PublicLanding'
+import LandingConfig from './pages/LandingConfig'
 import Dashboard from './pages/Dashboard'
 import Torneos from './pages/Torneos'
 import Equipos from './pages/Equipos'
@@ -15,6 +17,7 @@ import Config from './pages/Config'
 
 export default function App({ setDarkMode }) {
   const navigate = useNavigate()
+  const location = useLocation()
   const [user, setUser] = useState(() => {
     try { return JSON.parse(localStorage.getItem('tf_user')) || null } catch { return null }
   })
@@ -57,6 +60,14 @@ export default function App({ setDarkMode }) {
   }
 
   if (!user) {
+    // La landing pública debe verse sin sesión; el resto pide login
+    if (location.pathname.startsWith('/l/')) {
+      return (
+        <Routes>
+          <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
+        </Routes>
+      )
+    }
     return <Login onLogin={handleLogin} />
   }
 
@@ -101,6 +112,8 @@ export default function App({ setDarkMode }) {
       <Route path="/tabla" element={layoutPages(<Tabla user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/estadisticas" element={layoutPages(<Estadisticas user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/config" element={layoutPages(<Config user={user} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />
+      <Route path="/landing" element={layoutPages(<LandingConfig user={user} />)} />
+      <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
       <Route path="/" element={layoutPages(<Dashboard user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

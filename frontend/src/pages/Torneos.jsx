@@ -54,22 +54,25 @@ const DESEMPATE_LABELS = {
   GOLES_CONTRA: 'Menos goles en contra',
 }
 
-const toForm = (r = {}) => ({
-  formato_tipo: r.formato_tipo ?? 'ROUND_ROBIN',
-  rondas: r.rondas ?? 1,
-  clasifican_a_final: r.clasifican_a_final ?? '',
-  desempates: r.desempates ?? [...DESEMPATES_DISPONIBLES],
-  edad_min: r.edad_min ?? '',
-  edad_max: r.edad_max ?? '',
-  max_jugadores: r.max_jugadores ?? '',
-  bloquear_baja_tras_jugar: r.bloquear_baja_tras_jugar ?? false,
-  comodines_cantidad: r.comodines_cantidad ?? 0,
-  comodines_edad_min: r.comodines_edad_min ?? 30,
-  tolerancia_w_min: r.tolerancia_w_min ?? 10,
-  marcador_w: r.marcador_w ?? 3,
-  fechas_doble_amarilla: r.fechas_doble_amarilla ?? 1,
-  fechas_roja_directa: r.fechas_roja_directa ?? 2,
-})
+const toForm = (r) => {
+  const x = r || {}
+  return {
+  formato_tipo: x.formato_tipo ?? 'ROUND_ROBIN',
+  rondas: x.rondas ?? 1,
+  clasifican_a_final: x.clasifican_a_final ?? '',
+  desempates: x.desempates ?? [...DESEMPATES_DISPONIBLES],
+  edad_min: x.edad_min ?? '',
+  edad_max: x.edad_max ?? '',
+  max_jugadores: x.max_jugadores ?? '',
+  bloquear_baja_tras_jugar: x.bloquear_baja_tras_jugar ?? false,
+  comodines_cantidad: x.comodines_cantidad ?? 0,
+  comodines_edad_min: x.comodines_edad_min ?? 30,
+  tolerancia_w_min: x.tolerancia_w_min ?? 10,
+  marcador_w: x.marcador_w ?? 3,
+  fechas_doble_amarilla: x.fechas_doble_amarilla ?? 1,
+  fechas_roja_directa: x.fechas_roja_directa ?? 2,
+  }
+}
 
 function ReglasDialog({ torneo, onClose }) {
   const qc = useQueryClient()

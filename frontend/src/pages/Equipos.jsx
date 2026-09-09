@@ -15,7 +15,20 @@ import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
-import { Add as AddIcon, Delete as DeleteIcon, PersonAdd as PersonAddIcon } from '@mui/icons-material'
+import Checkbox from '@mui/material/Checkbox'
+import Table from '@mui/material/Table'
+import TableBody from '@mui/material/TableBody'
+import TableCell from '@mui/material/TableCell'
+import TableContainer from '@mui/material/TableContainer'
+import TableHead from '@mui/material/TableHead'
+import TableRow from '@mui/material/TableRow'
+import {
+  Add as AddIcon,
+  Delete as DeleteIcon,
+  PersonAdd as PersonAddIcon,
+  UploadFile as UploadFileIcon,
+  Download as DownloadIcon,
+} from '@mui/icons-material'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Chip from '@mui/material/Chip'
@@ -25,6 +38,7 @@ import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
+import { parseExcel, aPayload, descargarPlantilla } from '../lib/plantilla'
 
 const POSICIONES = ['ARQUERO', 'DEFENSOR', 'MEDIOCAMPISTA', 'DELANTERO']
 const PIERNAS = ['DERECHA', 'IZQUIERDA', 'AMBIDESTRO']
@@ -44,11 +58,26 @@ function calcEdad(fecha) {
   return e
 }
 
+function normName(s) {
+  return String(s || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function JugadoresPanel({ equipo }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyJugador)
+  const [impOpen, setImpOpen] = useState(false)
+  const [impParseando, setImpParseando] = useState(false)
+  const [impParseError, setImpParseError] = useState('')
+  const [impParseado, setImpParseado] = useState(null)
+  const [impSeleccion, setImpSeleccion] = useState(new Set())
+  const [impErrores, setImpErrores] = useState([])
 
   const { data: jugadores = [], isLoading, isError, error } = useQuery({
     queryKey: ['jugadores', equipo.id],
@@ -82,6 +111,53 @@ function JugadoresPanel({ equipo }) {
     })
   }
 
+  const impMut = useMutation({
+    mutationFn: (body) => apiPost(`/equipos/${equipo.id}/jugadores/importar`, body),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['jugadores', equipo.id])
+      const nErr = (res.errores || []).length
+      toast.show(
+        `Se crearon ${res.creados} jugadores${nErr ? ` (${nErr} con errores)` : ''}`,
+        nErr ? 'warning' : 'success'
+      )
+      setImpErrores(res.errores || [])
+      setImpParseado(null)
+      setImpSeleccion(new Set())
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const handleArchivo = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImpParseado(null)
+    setImpErrores([])
+    setImpParseError('')
+    setImpParseando(true)
+    try {
+      const r = await parseExcel(file)
+      setImpParseado(r)
+      setImpSeleccion(new Set(r.jugadores.map((_, i) => i)))
+    } catch (err) {
+      setImpParseError(err.message)
+    } finally {
+      setImpParseando(false)
+      e.target.value = ''
+    }
+  }
+
+  const toggleFila = (i) => {
+    const s = new Set(impSeleccion)
+    if (s.has(i)) s.delete(i)
+    else s.add(i)
+    setImpSeleccion(s)
+  }
+
+  const handleImportar = () => {
+    const elegidos = (impParseado?.jugadores || []).filter((_, i) => impSeleccion.has(i))
+    impMut.mutate({ jugadores: aPayload(elegidos) })
+  }
+
   const activos = jugadores.filter((j) => j.activo).length
 
   return (
@@ -91,9 +167,14 @@ function JugadoresPanel({ equipo }) {
           <Typography variant="h6" fontWeight={700}>Jugadores de {equipo.nombre}</Typography>
           <Chip label={`${activos} inscritos`} color="primary" />
         </Box>
-        <Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => setOpen(true)} sx={{ mb: 2 }}>
-          Inscribir jugador
-        </Button>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          <Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => setOpen(true)}>
+            Inscribir jugador
+          </Button>
+          <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImpOpen(true)}>
+            Importar plantilla
+          </Button>
+        </Box>
 
         {isLoading && <CircularProgress />}
         {isError && <Alert severity="error">{error.message}</Alert>}
@@ -167,6 +248,103 @@ function JugadoresPanel({ equipo }) {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      <Dialog open={impOpen} onClose={() => setImpOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>Importar plantilla de {equipo.nombre}</DialogTitle>
+        <DialogContent>
+          <Button size="small" startIcon={<DownloadIcon />} sx={{ mb: 2 }}
+            onClick={() => descargarPlantilla(equipo.nombre)}>
+            Descargar plantilla modelo
+          </Button>
+
+          <Button component="label" variant="outlined" startIcon={<UploadFileIcon />} disabled={impParseando}
+            sx={{ mb: 2, ml: 1 }}>
+            {impParseando ? 'Leyendo archivo…' : 'Elegir archivo Excel/CSV'}
+            <input type="file" hidden accept=".xlsx,.xls,.csv" onChange={handleArchivo} />
+          </Button>
+
+          {impParseError && <Alert severity="error" sx={{ mb: 2 }}>{impParseError}</Alert>}
+
+          {impParseado && (
+            <>
+              {impParseado.equipo && (
+                <Alert severity={normName(impParseado.equipo) === normName(equipo.nombre) ? 'success' : 'info'} sx={{ mb: 2 }}>
+                  Equipo detectado en el archivo: <strong>{impParseado.equipo}</strong>
+                  {normName(impParseado.equipo) !== normName(equipo.nombre)
+                    ? ' (los jugadores se inscribirán a este equipo: ' + equipo.nombre + ')'
+                    : ''}
+                </Alert>
+              )}
+              {impParseado.jugadores.length === 0
+                ? <Alert severity="warning">La plantilla no tiene filas de jugadores.</Alert>
+                : (
+                  <>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Se detectaron {impParseado.jugadores.length} filas. Marcá las que querés inscribir.
+                    </Typography>
+                    <TableContainer sx={{ maxHeight: 320, mb: 2 }}>
+                      <Table size="small" stickyHeader>
+                        <TableHead>
+                          <TableRow>
+                            <TableCell padding="checkbox" />
+                            <TableCell>Fila</TableCell>
+                            <TableCell>Nombre</TableCell>
+                            <TableCell>N°</TableCell>
+                            <TableCell>Posición</TableCell>
+                            <TableCell>Documento</TableCell>
+                            <TableCell>Nacimiento</TableCell>
+                            <TableCell>Altura</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {impParseado.jugadores.map((j, i) => (
+                            <TableRow key={i} hover selected={impSeleccion.has(i)}
+                              sx={{ bgcolor: !j.nombre ? '#fff4e5' : 'inherit' }}>
+                              <TableCell padding="checkbox">
+                                <Checkbox checked={impSeleccion.has(i)} onChange={() => toggleFila(i)} size="small" />
+                              </TableCell>
+                              <TableCell>{j._fila}</TableCell>
+                              <TableCell>
+                                {j.nombre || <Box component="span" color="error.main">Falta nombre</Box>}
+                              </TableCell>
+                              <TableCell>{j.numero_camiseta}</TableCell>
+                              <TableCell>{j.posicion}</TableCell>
+                              <TableCell>{j.documento_identidad}</TableCell>
+                              <TableCell>{j.fecha_nacimiento}</TableCell>
+                              <TableCell>{j.altura_cm}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </>
+                )
+              }
+            </>
+          )}
+
+          {impErrores.length > 0 && (
+            <Alert severity="warning" sx={{ mt: 1 }}>
+              <Typography variant="body2" sx={{ mb: 0.5 }}>{impErrores.length} fila(s) no se inscribieron:</Typography>
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {impErrores.map((er, i) => (
+                  <li key={i}>
+                    <Typography variant="body2">Fila {er.fila}: {er.error}</Typography>
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setImpOpen(false)}>Cerrar</Button>
+          <Button variant="contained" disabled={!impParseado || impSeleccion.size === 0 || impMut.isPending}
+            onClick={handleImportar}>
+            {impMut.isPending ? <CircularProgress size={18} color="inherit" />
+              : `Importar ${impSeleccion.size} jugador${impSeleccion.size === 1 ? '' : 'es'}`}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Card>
   )

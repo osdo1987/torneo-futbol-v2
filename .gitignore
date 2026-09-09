@@ -36,3 +36,10 @@ Thumbs.db
 # --- Flags temporales ---
 *.flag
 *.pdf
+
+# --- Archivos temporales de diseño ---
+landing-v1.html
+theme.html
+seed_extra.py
+champions-2.jpg
+champions_862x485_wmk.webp

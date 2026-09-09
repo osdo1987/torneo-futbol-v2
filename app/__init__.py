@@ -32,6 +32,7 @@ def create_app(config_class=Config):
     from app.routes.fase_routes import fase_bp
     from app.routes.evento_routes import evento_bp
     from app.routes.panel_routes import panel_bp
+    from app.routes.landing_routes import landing_bp
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(organizador_bp, url_prefix='/api/organizadores')
@@ -42,6 +43,7 @@ def create_app(config_class=Config):
     app.register_blueprint(fase_bp, url_prefix='/api/fases')
     app.register_blueprint(evento_bp, url_prefix='/api/eventos')
     app.register_blueprint(panel_bp, url_prefix='/api/panel')
+    app.register_blueprint(landing_bp, url_prefix='/api/landing')
 
     # Global Error Handler
     @app.errorhandler(Exception)

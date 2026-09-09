@@ -21,6 +21,7 @@ import {
   Leaderboard as LeaderboardIcon,
   Settings as SettingsIcon,
   Storefront as StorefrontIcon,
+  Public as PublicIcon,
 } from '@mui/icons-material'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
@@ -54,6 +55,7 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       { path: '/partidos', label: 'Partidos', icon: <SportsSoccerIcon /> },
       { path: '/tabla', label: 'Posiciones', icon: <TableChartIcon /> },
       { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
+      { path: '/landing', label: 'Landing', icon: <PublicIcon /> },
       { path: '/config', label: 'Configuración', icon: <SettingsIcon /> },
     ]
   }, [isSuperadmin])

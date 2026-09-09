@@ -73,3 +73,13 @@ export async function apiDelete(path) {
   })
   return handleResponse(res)
 }
+
+export async function apiUpload(path, file) {
+  const form = new FormData()
+  form.append('file', file)
+  const h = {}
+  const token = getToken()
+  if (token) h['Authorization'] = `Bearer ${token}`
+  const res = await fetch(`${API}${path}`, { method: 'POST', headers: h, body: form })
+  return handleResponse(res)
+}

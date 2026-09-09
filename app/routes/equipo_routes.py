@@ -105,3 +105,24 @@ def get_equipo_jugadores(equipo_id):
     from app.services.jugador_service import JugadorService
     jugadores = JugadorService.get_all(equipo_id=equipo_id)
     return jsonify(jugador_schema.dump(jugadores, many=True)), 200
+
+
+@equipo_bp.route('/<int:equipo_id>/jugadores/importar', methods=['POST'])
+@jwt_required()
+def importar_plantilla(equipo_id):
+    user = get_current_user()
+    equipo = EquipoService.get_by_id(equipo_id)
+    if not equipo:
+        return jsonify({'error': 'Equipo no encontrado'}), 404
+    if not ensure_torneo_organizador(user, equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    torneo = equipo.torneo
+    if not torneo.inscripciones_jugadores_abiertas and torneo.estado not in ('CREADO', 'INSCRIPCIONES_ABIERTAS'):
+        return jsonify({'error': 'Inscripciones de jugadores cerradas'}), 400
+    data = request.get_json() or {}
+    lista = data.get('jugadores') or []
+    if not isinstance(lista, list) or not lista:
+        return jsonify({'error': 'No se recibieron jugadores'}), 400
+    from app.services.jugador_service import JugadorService
+    resumen = JugadorService.importar_masivo(equipo, lista)
+    return jsonify(resumen), 200

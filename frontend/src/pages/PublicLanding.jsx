@@ -1,0 +1,860 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
+import CircularProgress from '@mui/material/CircularProgress'
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
+import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
+import StarIcon from '@mui/icons-material/Star'
+import ShieldIcon from '@mui/icons-material/Shield'
+import TrendingUpIcon from '@mui/icons-material/TrendingUp'
+import PublicIcon from '@mui/icons-material/Public'
+import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered'
+import BarChartIcon from '@mui/icons-material/BarChart'
+import CalendarMonthIcon from '@mui/icons-material/CalendarMonth'
+import SearchIcon from '@mui/icons-material/Search'
+import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
+import CloseIcon from '@mui/icons-material/Close'
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft'
+import ChevronRightIcon from '@mui/icons-material/ChevronRight'
+import { apiGet } from '../api'
+import { PUB, FONT_DISPLAY, FONT_BODY, ESTADO_META, teamStyle, teamAbbr, FORMAT_FECHA } from '../publicTheme'
+import '../publicLanding.css'
+
+const ZONES = {
+  direct: { color: PUB.green, label: 'Clasificación' },
+  playoff: { color: PUB.yellow, label: 'Play-offs' },
+  eliminated: { color: PUB.red, label: 'Eliminados' },
+}
+
+function zonesFor(rows) {
+  const n = rows.length
+  const direct = rows.filter((r) => r.clasifica).length
+  const playoff = Math.floor((n - direct) / 2)
+  return rows.map((r) => (r.pos <= direct ? 'direct' : r.pos <= direct + playoff ? 'playoff' : 'eliminated'))
+}
+
+function SectionTitle({ children, sx }) {
+  return (
+    <Typography sx={{ fontSize: { xs: 15, sm: 19 }, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', borderLeft: '4px solid #00f0ff', pl: 1.5, color: PUB.fg, lineHeight: 1.2, ...sx }}>
+      {children}
+    </Typography>
+  )
+}
+
+function ZoneLegend({ labels }) {
+  const items = labels.filter((l) => l)
+  if (!items.length) return null
+  return (
+    <Box className="pl-fade-up" sx={{ display: 'flex', gap: { xs: 2.5, sm: 5 }, flexWrap: 'wrap', mb: 2.5 }}>
+      {items.map((l) => (
+        <Box key={l.label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box sx={{ width: 12, height: 12, borderRadius: '3px', bgcolor: l.color }} />
+          <Typography sx={{ fontSize: 13, color: l.color }}>{l.label}</Typography>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+const TABS = [
+  { key: 'resultados', label: 'Resultados' },
+  { key: 'posiciones', label: 'Posiciones' },
+  { key: 'estadisticas', label: 'Estadísticas' },
+  { key: 'calendario', label: 'Calendario' },
+]
+
+const TOURNEY_ICONS = [StarIcon, ShieldIcon, TrendingUpIcon, PublicIcon]
+const NO_RESULTADO = ['PENDIENTE', 'POSTERGADO']
+
+function useToday() {
+  return useMemo(() => new Date().toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' }), [])
+}
+
+function TeamBadge({ name, size = 40 }) {
+  const st = teamStyle()
+  return (
+    <Box sx={{
+      width: size, height: size, borderRadius: 4, background: st.g,
+      border: `1px solid ${st.b}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    }}>
+      <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, color: st.t, fontSize: Math.round(size * 0.34), letterSpacing: '.02em' }}>
+        {teamAbbr(name)}
+      </Typography>
+    </Box>
+  )
+}
+
+function TabBtn({ active, onClick, children, sx }) {
+  return (
+    <Box
+      component="button"
+      onClick={onClick}
+      sx={{
+        position: 'relative', px: 2.2, py: 1.2, fontFamily: FONT_DISPLAY, fontSize: 16, textTransform: 'uppercase', letterSpacing: '.04em',
+        whiteSpace: 'nowrap', background: 'none', border: 'none', cursor: 'pointer', transition: 'color .25s',
+        color: active ? PUB.fg : PUB.muted,
+        '&:hover': { color: active ? PUB.fg : PUB.fgDim },
+        ...(active && { '&::after': { content: '""', position: 'absolute', bottom: -1, left: '10%', width: '80%', height: 2, bgcolor: PUB.cyan, borderRadius: 1 } }),
+        ...sx,
+      }}
+    >
+      {children}
+    </Box>
+  )
+}
+
+function PendingOrBar() {
+  return <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress size={26} sx={{ color: PUB.cyan }} /></Box>
+}
+
+function Empty({ text }) {
+  return (
+    <Box className="pl-fade-up" sx={{ py: 8, textAlign: 'center' }}>
+      <EmojiEventsIcon sx={{ fontSize: 40, color: PUB.muted }} />
+      <Typography sx={{ mt: 1.5, color: PUB.fgDim, fontSize: 14 }}>{text}</Typography>
+    </Box>
+  )
+}
+
+function ScoreBox({ children, sx }) {
+  return (
+    <Box sx={{
+      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 2,
+      border: `1px solid ${PUB.lineStrong}`, borderRadius: 1.5, px: 3, py: 1,
+      bgcolor: 'rgba(0,0,0,.35)', minWidth: 96, ...sx,
+    }}>
+      {children}
+    </Box>
+  )
+}
+
+/* ============================================================
+ * PARTIDO DESTACADO (scoreboard estilo TV)
+ * ============================================================ */
+function FeaturedMatch({ torneo, jornadas }) {
+  const flat = useMemo(() => (jornadas || []).flatMap((j) => j.partidos || []), [jornadas])
+
+  const featured = useMemo(() => {
+    if (!flat.length) return null
+    const pend = flat.find((p) => NO_RESULTADO.includes(p.resultado))
+    if (pend) return { p: pend, kind: 'next' }
+    const last = [...flat].sort((a, b) => (a.jornada || 0) - (b.jornada || 0)).pop()
+    return { p: last, kind: 'last' }
+  }, [flat])
+
+  const eventosQ = useQuery({
+    queryKey: ['pl-eventos', featured?.p.id],
+    queryFn: () => apiGet(`/landing/partido/${featured.p.id}/eventos`),
+    enabled: !!featured && featured.kind === 'last',
+  })
+
+  if (!featured) return null
+  const { p, kind } = featured
+  const jugado = kind === 'last'
+  const localName = p.equipo_local
+  const visitName = p.equipo_visitante
+  const horas = FORMAT_FECHA(p.fecha_programada, true)
+  const goles = (eventosQ.data?.eventos || []).filter((e) => e.tipo === 'GOL')
+  const golesLocal = goles.filter((e) => e.equipo === localName)
+  const golesVisit = goles.filter((e) => e.equipo === visitName)
+  const isLive = torneo?.estado === 'EN_JUEGO'
+
+  return (
+    <Box className="pl-fade-up" sx={{
+      position: 'relative', borderRadius: 2, overflow: 'hidden',
+      background: PUB.panel,
+      border: `1px solid ${PUB.line}`,
+      boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+      '&::before': {
+        content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: 1,
+        background: 'linear-gradient(90deg, transparent, rgba(0,240,255,.6), transparent)',
+      },
+      mb: 5,
+    }}>
+      <Box sx={{ p: { xs: 4, sm: 6 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'space-between', flexWrap: 'wrap', mb: 4 }}>
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
+            <Box component="span" className={isLive ? 'pl-blink' : ''} sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: isLive ? PUB.live : PUB.cyan }} />
+            <Typography className={isLive ? 'pl-blink' : ''} sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '.2em', color: isLive ? PUB.live : PUB.cyan, textTransform: 'uppercase' }}>
+              {isLive ? 'En vivo' : jugado ? 'Último resultado' : 'Próximo partido'}
+            </Typography>
+          </Box>
+          <Typography sx={{ color: PUB.muted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontVariantNumeric: 'tabular-nums' }}>
+            Jornada {p.jornada} — {torneo.nombre}
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+            <TeamBadge name={localName} size={{ xs: 56, sm: 76 }} />
+            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 16, sm: 22 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1 }}>
+              {localName}
+            </Typography>
+          </Box>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2 }}>
+            {jugado ? (
+              <ScoreBox sx={{ flexDirection: 'column', gap: 0.5, borderColor: PUB.lineStrong }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 40, sm: 52 }, lineHeight: 1, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>
+                    {p.goles_local}
+                  </Typography>
+                  <Typography sx={{ color: PUB.fgDim, fontSize: { xs: 24, sm: 30 }, fontWeight: 400 }}>-</Typography>
+                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 40, sm: 52 }, lineHeight: 1, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>
+                    {p.goles_visitante}
+                  </Typography>
+                </Box>
+                {isLive && <Typography className="pl-blink" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '.18em', color: PUB.live }}>● EN VIVO</Typography>}
+              </ScoreBox>
+            ) : (
+              <ScoreBox sx={{ flexDirection: 'column', gap: 0.8, borderColor: PUB.lineStrong }}>
+                <Typography className="pl-shimmer" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 34, sm: 44 }, lineHeight: 1 }}>
+                  VS
+                </Typography>
+                {horas && <Typography sx={{ fontSize: 13, fontWeight: 600, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{horas}</Typography>}
+              </ScoreBox>
+            )}
+          </Box>
+
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
+            <TeamBadge name={visitName} size={{ xs: 56, sm: 76 }} />
+            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 16, sm: 22 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1 }}>
+              {visitName}
+            </Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ mt: 5, pt: 3, borderTop: `1px solid ${PUB.line}`, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 8 }, fontSize: 12, color: PUB.fgDim }}>
+          <Box sx={{ flex: 1 }}>
+            {golesLocal.map((g, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                <SportsSoccerIcon sx={{ fontSize: 10, color: PUB.cyan }} />
+                <Typography sx={{ fontSize: 12, color: PUB.fgDim }}>{g.jugador} {g.minuto}'</Typography>
+              </Box>
+            ))}
+            {golesLocal.length === 0 && <Typography sx={{ fontSize: 12, color: PUB.muted }}>{jugado ? 'Sin goles' : ''}</Typography>}
+          </Box>
+          <Box sx={{ flex: 1, textAlign: 'right' }}>
+            {golesVisit.map((g, i) => (
+              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, justifyContent: 'flex-end' }}>
+                <Typography sx={{ fontSize: 12, color: PUB.fgDim }}>{g.minuto}' {g.jugador}</Typography>
+                <SportsSoccerIcon sx={{ fontSize: 10, color: PUB.cyan }} />
+              </Box>
+            ))}
+            {golesVisit.length === 0 && <Typography sx={{ fontSize: 12, color: PUB.muted }}>{jugado ? 'Sin goles' : ''}</Typography>}
+          </Box>
+        </Box>
+      </Box>
+    </Box>
+  )
+}
+
+/* ============================================================
+ * TARJETA DE PARTIDO (scoreline)
+ * ============================================================ */
+function MatchRow({ p, delay, onOpen }) {
+  const jugado = !NO_RESULTADO.includes(p.resultado)
+  const postergado = p.resultado === 'POSTERGADO'
+  const fecha = FORMAT_FECHA(p.fecha_programada, true)
+
+  return (
+    <Box
+      className="pl-slide-in"
+      onClick={() => onOpen(p)}
+      sx={{
+        animationDelay: `${0.15 + delay * 0.05}s`,
+        background: 'rgba(0,0,0,.25)',
+        border: `1px solid ${PUB.line}`,
+        borderRadius: 1.5,
+        px: { xs: 2.5, sm: 4 }, py: 2.5,
+        mb: 2,
+        transition: 'all .25s ease',
+        cursor: 'pointer',
+        '&:hover': { background: 'rgba(0,0,0,.35)', borderColor: PUB.lineStrong },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', gap: 1, flexWrap: 'wrap', mb: 2, fontSize: 11, color: PUB.muted, textTransform: 'uppercase' }}>
+        <Typography sx={{ fontSize: 11, color: PUB.muted, letterSpacing: '.08em', fontVariantNumeric: 'tabular-nums' }}>
+          Jornada {p.jornada} · {fecha || 'Horario a confirmar'}
+        </Typography>
+        <Typography sx={{ fontSize: 11, fontWeight: 700, color: jugado ? PUB.fgDim : (postergado ? PUB.yellow : PUB.cyan), letterSpacing: '.12em' }}>
+          {jugado ? 'FT' : postergado ? 'Postergado' : 'Próximo'}
+        </Typography>
+      </Box>
+
+      {[
+        [p.equipo_local, p.goles_local],
+        [p.equipo_visitante, p.goles_visitante],
+      ].map(([nombre, goles]) => (
+        <Box key={nombre} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, my: 1 }}>
+          <TeamBadge name={nombre} size={28} />
+          <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: { xs: 14, sm: 16 }, textTransform: 'uppercase', color: PUB.fg, flex: 1 }}>
+            {nombre}
+          </Typography>
+          <Typography sx={{
+            fontSize: 18, fontWeight: 800, minWidth: 34, textAlign: 'right', fontVariantNumeric: 'tabular-nums',
+            color: jugado ? PUB.fg : PUB.cyan,
+          }}>
+            {jugado ? goles : '–'}
+          </Typography>
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+/* ============================================================
+ * PANEL: RESULTADOS
+ * ============================================================ */
+function ResultadosPanel({ jornadas, loading, onOpenPartido }) {
+  const [idx, setIdx] = useState(0)
+  const sorted = useMemo(() => [...(jornadas || [])].sort((a, b) => (a.jornada || 0) - (b.jornada || 0)), [jornadas])
+
+  if (loading) return <PendingOrBar />
+  if (!sorted.length) return <Empty text="No hay partidos cargados todavía." />
+
+  const safeIdx = Math.min(idx, Math.max(0, sorted.length - 1))
+  const j = sorted[safeIdx]
+  const fecha = j.partidos.map((p) => p.fecha_programada).find(Boolean)
+
+  return (
+    <Box>
+      <Box className="pl-fade-up" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1.5, mb: 2.5 }}>
+        <SectionTitle>Jornada {j.jornada}</SectionTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Box component="button" onClick={() => setIdx((i) => Math.max(0, i - 1))} sx={{ ...navBtn, color: safeIdx === 0 ? PUB.muted : PUB.fgDim, cursor: safeIdx > 0 ? 'pointer' : 'not-allowed' }}>
+            <ChevronLeftIcon fontSize="small" />
+          </Box>
+          {fecha && <Typography sx={{ fontSize: 12, color: PUB.fgDim, fontWeight: 500, px: 1, fontVariantNumeric: 'tabular-nums' }}>{FORMAT_FECHA(fecha)}</Typography>}
+          <Box component="button" onClick={() => setIdx((i) => Math.min(sorted.length - 1, i + 1))} sx={{ ...navBtn, color: safeIdx === sorted.length - 1 ? PUB.muted : PUB.fgDim, cursor: safeIdx < sorted.length - 1 ? 'pointer' : 'not-allowed' }}>
+            <ChevronRightIcon fontSize="small" />
+          </Box>
+        </Box>
+      </Box>
+      {j.partidos.map((p, i) => <MatchRow key={p.id} p={p} delay={i} onOpen={onOpenPartido} />)}
+    </Box>
+  )
+}
+
+const navBtn = {
+  width: 32, height: 32, bgcolor: 'rgba(255,255,255,.04)', borderRadius: 1.5,
+  border: `1px solid ${PUB.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  transition: 'color .2s',
+}
+
+/* ============================================================
+ * PANEL: POSICIONES (tabla estilo TV)
+ * ============================================================ */
+function PosicionesPanel({ posiciones, loading }) {
+  if (loading) return <PendingOrBar />
+  if (!posiciones || !posiciones.length) return <Empty text="Aún no hay posiciones." />
+
+  const template = { xs: '2.2rem 1fr 3rem 3rem 3rem 3rem 3.4rem', md: '2.4rem 1fr 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 4.2rem' }
+  const zones = zonesFor(posiciones)
+  const present = [...new Set(zones)].map((z) => ZONES[z])
+
+  return (
+    <Box>
+      <SectionTitle className="pl-fade-up">Clasificación</SectionTitle>
+      <ZoneLegend labels={present} />
+      <Box className="pl-fade-up" sx={{
+        background: PUB.panel,
+        border: `1px solid ${PUB.line}`,
+        borderRadius: 2,
+        overflow: 'hidden',
+        boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+      }}>
+        <Box component="span" sx={{
+          display: 'grid', gridTemplateColumns: template, gap: 0, px: { xs: 2, sm: 3.5 }, py: 2,
+          textTransform: 'uppercase', letterSpacing: '1px', fontSize: 11, color: PUB.muted, fontWeight: 700,
+          bgcolor: 'rgba(0,0,0,.4)', borderBottom: '1px solid rgba(255,255,255,.02)', fontFamily: FONT_BODY, alignItems: 'center',
+        }}>
+          <Typography sx={{ fontSize: 10, color: PUB.muted, fontWeight: 700 }}>Pos</Typography>
+          <Typography sx={{ fontSize: 10, color: PUB.muted, fontWeight: 700 }}>Club</Typography>
+          <Typography sx={{ ...hCell }}>PJ</Typography>
+          <Typography sx={{ ...hCell }}>G</Typography>
+          <Typography sx={{ ...hCell }}>E</Typography>
+          <Typography sx={{ ...hCell }}>P</Typography>
+          <Typography sx={{ ...hCell, display: { xs: 'none', md: 'block' } }}>GF</Typography>
+          <Typography sx={{ ...hCell, display: { xs: 'none', md: 'block' } }}>GC</Typography>
+          <Typography sx={{ ...hCell, display: { xs: 'none', md: 'block' } }}>DG</Typography>
+          <Typography sx={{ ...hCell }}>Pts</Typography>
+        </Box>
+        {posiciones.map((r, i) => {
+          const col = ZONES[zones[i]].color
+          return (
+            <Box key={r.equipo_id} sx={{
+              display: 'grid', gridTemplateColumns: template, gap: 0, px: { xs: 2, sm: 3.5 }, py: 2.2, alignItems: 'center',
+              borderBottom: '1px solid rgba(255,255,255,.02)',
+              borderLeft: `4px solid ${col}`,
+              bgcolor: i % 2 ? 'rgba(255,255,255,.01)' : 'transparent',
+              fontSize: 13,
+              transition: 'background .2s',
+              '&:last-child': { borderBottom: 0 },
+              '&:hover': { background: 'rgba(255,255,255,.03)' },
+            }}>
+              <Typography sx={{ fontWeight: 700, fontSize: 14, color: col }}>{r.pos}</Typography>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+                <TeamBadge name={r.equipo} size={24} />
+                <Typography noWrap sx={{ fontSize: { xs: 13.5, sm: 15 }, fontWeight: 600, textTransform: 'uppercase', color: PUB.fg }}>{r.equipo}</Typography>
+              </Box>
+              <Typography sx={centerNum(null)}>{r.PJ}</Typography>
+              <Typography sx={centerNum(null)}>{r.PG}</Typography>
+              <Typography sx={centerNum(null)}>{r.PE}</Typography>
+              <Typography sx={centerNum(null)}>{r.PP}</Typography>
+              <Typography sx={{ ...centerNum(null), display: { xs: 'none', md: 'block' } }}>{r.GF}</Typography>
+              <Typography sx={{ ...centerNum(null), display: { xs: 'none', md: 'block' } }}>{r.GC}</Typography>
+              <Typography sx={{ ...centerNum(null), display: { xs: 'none', md: 'block' } }}>{r.DF > 0 ? `+${r.DF}` : r.DF}</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: 15, textAlign: 'center', color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{r.PTS}</Typography>
+            </Box>
+          )
+        })}
+      </Box>
+    </Box>
+  )
+}
+
+function centerNum(color) {
+  return {
+    textAlign: 'center', fontSize: { xs: 13, sm: 14 }, fontVariantNumeric: 'tabular-nums',
+    color: color || PUB.fgDim, fontWeight: 500,
+  }
+}
+
+const hCell = { textAlign: 'center', fontSize: 10, color: PUB.muted, fontWeight: 700 }
+
+/* ============================================================
+ * PANEL: ESTADÍSTICAS
+ * ============================================================ */
+function EstadisticasPanel({ resumen, goleadores, sanciones, loading }) {
+  const [sub, setSub] = useState('goleadores')
+
+  if (loading) return <PendingOrBar />
+
+  const max = (goleadores && goleadores[0]?.goles) || 1
+
+  return (
+    <Box>
+      <Box className="pl-fade-up" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 2, mb: 5 }}>
+        {[
+          ['Goles totales', resumen?.goles_totales ?? 0],
+          ['Goles por partido', resumen?.goles_partido ?? 0],
+          ['Tarjetas rojas', resumen?.rojas ?? 0],
+          ['Tarjetas amarillas', resumen?.amarillas ?? 0],
+        ].map(([label, value]) => (
+          <Box key={label} className="pl-fade-up" sx={{ background: PUB.panel, border: `1px solid ${PUB.line}`, borderRadius: 2, p: 3, textAlign: 'center' }}>
+            <Typography className="pl-big-stat">{value}</Typography>
+            <Typography sx={{ mt: 1, fontSize: 10, color: PUB.fgDim, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.12em' }}>{label}</Typography>
+          </Box>
+        ))}
+      </Box>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: `1px solid ${PUB.line}`, mb: 4 }}>
+        <TabBtn active={sub === 'goleadores'} onClick={() => setSub('goleadores')} sx={{ fontSize: 18 }}>Goleadores</TabBtn>
+        <TabBtn active={sub === 'sanciones'} onClick={() => setSub('sanciones')} sx={{ fontSize: 18 }}>Sanciones</TabBtn>
+      </Box>
+
+      {sub === 'goleadores' ? (
+        !goleadores || !goleadores.length ? <Empty text="No hay goles registrados todavía." /> : (
+          <Box>
+            {goleadores.map((g, i) => (
+              <Box className="pl-slide-in" key={g.jugador_id} sx={{
+                animationDelay: `${0.15 + i * 0.05}s`,
+                display: 'flex', alignItems: 'center', gap: 2,
+                background: 'rgba(0,0,0,.25)', border: `1px solid ${PUB.line}`, borderRadius: 1.5, p: 2, mb: 1.5,
+              }}>
+                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, width: 24, textAlign: 'center', color: i < 3 ? PUB.gold : PUB.muted }}>{g.pos}</Typography>
+                <TeamBadge name={g.equipo} size={34} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: { xs: 14, sm: 16 }, textTransform: 'uppercase', color: PUB.fg }}>{g.jugador}</Typography>
+                  <Typography sx={{ fontSize: 11, color: PUB.fgDim }}>{g.equipo}</Typography>
+                </Box>
+                <Box className="pl-stat-bar" sx={{ width: { xs: 56, sm: 128 }, display: { xs: 'none', sm: 'block' } }}>
+                  <Box className="pl-stat-bar-fill" sx={{ width: `${Math.round((g.goles / max) * 100)}%` }} />
+                </Box>
+                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 18, color: PUB.fg, width: 32, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{g.goles}</Typography>
+              </Box>
+            ))}
+          </Box>
+        )
+      ) : (
+        !sanciones || !sanciones.length ? <Empty text="No hay sanciones registradas." /> : (
+          <Box>
+            {sanciones.map((s, i) => (
+              <Box className="pl-slide-in" key={s.jugador_id} sx={{
+                animationDelay: `${0.15 + i * 0.05}s`,
+                display: 'flex', alignItems: 'center', gap: 2,
+                background: 'rgba(0,0,0,.25)', border: `1px solid ${PUB.line}`, borderRadius: 1.5, p: 2, mb: 1.5,
+              }}>
+                <TeamBadge name={s.equipo} size={34} />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
+                  <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: { xs: 14, sm: 16 }, textTransform: 'uppercase', color: PUB.fg }}>{s.jugador}</Typography>
+                  <Typography sx={{ fontSize: 11, color: PUB.fgDim }}>{s.equipo}</Typography>
+                </Box>
+                <Typography sx={{ color: PUB.muted, fontSize: 11 }}>
+                  <Box component="span" sx={{ display: 'inline-flex', width: 10, height: 10, borderRadius: 3, bgcolor: PUB.yellow, mr: 0.5, verticalAlign: 'middle' }} />
+                  <Box component="span" sx={{ color: PUB.fg, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{s.amarillas}</Box>
+                </Typography>
+                <Typography sx={{ color: PUB.muted, fontSize: 11 }}>
+                  <Box component="span" sx={{ display: 'inline-flex', width: 10, height: 10, borderRadius: 3, bgcolor: PUB.red, mr: 0.5, verticalAlign: 'middle' }} />
+                  <Box component="span" sx={{ color: PUB.fg, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{s.rojas}</Box>
+                </Typography>
+                {s.suspendido
+                  ? <Typography sx={{ fontSize: 9.5, fontWeight: 800, color: PUB.live, bgcolor: PUB.liveSoft, border: `1px solid ${PUB.live}`, px: 1.4, py: 0.5, borderRadius: 100, letterSpacing: '.06em' }}>Suspendido</Typography>
+                  : <Typography sx={{ fontSize: 9.5, fontWeight: 800, color: PUB.green, bgcolor: 'rgba(74,222,128,.1)', border: '1px solid rgba(74,222,128,.4)', px: 1.4, py: 0.5, borderRadius: 100, letterSpacing: '.06em' }}>Disponible</Typography>}
+              </Box>
+            ))}
+          </Box>
+        )
+      )}
+    </Box>
+  )
+}
+
+/* ============================================================
+ * PANEL: CALENDARIO
+ * ============================================================ */
+function CalendarioPanel({ partidos, loading, onOpenPartido }) {
+  const pendientes = useMemo(() => (partidos || []).filter((p) => NO_RESULTADO.includes(p.resultado)), [partidos])
+
+  if (loading) return <PendingOrBar />
+
+  const groups = {}
+  ;[...pendientes].sort((a, b) => (a.jornada || 0) - (b.jornada || 0)).forEach((p) => {
+    const fecha = p.fecha_programada ? FORMAT_FECHA(p.fecha_programada) : 'Por definir'
+    ;(groups[fecha] = groups[fecha] || []).push(p)
+  })
+
+  if (!Object.keys(groups).length) return <Empty text="No quedan partidos por disputar." />
+
+  return (
+    <Box>
+      {Object.entries(groups).map(([fecha, list], gi) => (
+        <Box key={fecha} sx={{ mt: gi === 0 ? 0 : 4 }}>
+          <Box className="pl-fade-up" sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
+            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 18, textTransform: 'uppercase', letterSpacing: '.06em', color: PUB.cyan }}>{fecha}</Typography>
+            <Box sx={{ flex: 1, height: 1, bgcolor: PUB.line }} />
+          </Box>
+          {list.map((p, i) => (
+            <MatchRow key={p.id} p={p} delay={i % 4} onOpen={onOpenPartido} />
+          ))}
+        </Box>
+      ))}
+    </Box>
+  )
+}
+
+/* ============================================================
+ * MODAL DE PARTIDO
+ * ============================================================ */
+function MatchModal({ partido, onClose }) {
+  const { data } = useQuery({
+    queryKey: ['pl-eventos', partido.id],
+    queryFn: () => apiGet(`/landing/partido/${partido.id}/eventos`),
+  })
+  const eventos = data?.eventos || []
+  const jugado = !NO_RESULTADO.includes(partido.resultado)
+  const horas = FORMAT_FECHA(partido.fecha_programada, true)
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    const onKey = (e) => e.key === 'Escape' && onClose()
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.body.style.overflow = ''
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [onClose])
+
+  const goles = eventos.filter((e) => e.tipo === 'GOL').length
+  const amarillas = eventos.filter((e) => e.tipo === 'TARJETA_AMARILLA').length
+  const rojas = eventos.filter((e) => e.tipo === 'TARJETA_ROJA').length
+
+  return (
+    <Box sx={{ position: 'fixed', inset: 0, zIndex: 200 }}>
+      <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(3,8,18,.8)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
+      <Box sx={{
+        position: 'absolute',
+        bottom: 0, left: 0, right: 0,
+        '@media (min-width:900px)': {
+          bottom: 'auto', top: '50%', left: '50%', right: 'auto', transform: 'translate(-50%,-50%)',
+          maxWidth: 520, width: '100%',
+        },
+        bgcolor: '#020621', color: PUB.fg,
+        border: `1px solid ${PUB.lineStrong}`,
+        borderTopLeftRadius: { xs: 24, md: 18 },
+        borderTopRightRadius: { xs: 24, md: 18 },
+        borderBottomLeftRadius: { xs: 0, md: 18 },
+        borderBottomRightRadius: { xs: 0, md: 18 },
+        maxHeight: '85vh', overflowY: 'auto', p: 3,
+      }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Box sx={{ width: 3, height: 16, borderRadius: 2, bgcolor: PUB.cyan }} />
+            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 20, textTransform: 'uppercase', color: PUB.fg, letterSpacing: '.04em' }}>Detalle del partido</Typography>
+          </Box>
+          <Box component="button" onClick={onClose} sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PUB.muted, cursor: 'pointer', border: 'none', '&:hover': { color: PUB.fg } }}>
+            <CloseIcon fontSize="small" />
+          </Box>
+        </Box>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+            <TeamBadge name={partido.equipo_local} size={52} />
+            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg }}>{partido.equipo_local}</Typography>
+          </Box>
+          {jugado ? (
+            <ScoreBox>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{partido.goles_local}</Typography>
+              <Typography sx={{ color: PUB.fgDim, fontSize: 18 }}>-</Typography>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{partido.goles_visitante}</Typography>
+            </ScoreBox>
+          ) : (
+            <ScoreBox sx={{ flexDirection: 'column', gap: 0.4 }}>
+              <Typography className="pl-shimmer" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 26 }}>VS</Typography>
+              {horas && <Typography sx={{ fontSize: 12, fontWeight: 600, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{horas}</Typography>}
+            </ScoreBox>
+          )}
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
+            <TeamBadge name={partido.equipo_visitante} size={52} />
+            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg }}>{partido.equipo_visitante}</Typography>
+          </Box>
+        </Box>
+
+        <Box sx={{ bgcolor: 'rgba(7,16,34,.6)', borderRadius: 2, border: `1px solid ${PUB.line}`, p: 3, mb: 3 }}>
+          <Typography sx={{ mb: 3, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.14em', color: PUB.muted, fontWeight: 700 }}>
+            Eventos del partido
+          </Typography>
+          {eventos.length === 0 ? (
+            <Typography sx={{ fontSize: 13, color: PUB.muted }}>{jugado ? 'Sin eventos registrados.' : 'Partido aún no disputado.'}</Typography>
+          ) : (
+            <Box sx={{ display: 'grid', gap: 2 }}>
+              {eventos.map((e) => {
+                const esLocal = e.equipo === partido.equipo_local
+                const typo = {
+                  GOL: { icon: <SportsSoccerIcon sx={{ fontSize: 11, color: PUB.cyan }} /> },
+                  TARJETA_AMARILLA: { block: true, color: PUB.yellow },
+                  TARJETA_ROJA: { block: true, color: PUB.red },
+                  AUTOGOL: { icon: <SportsSoccerIcon sx={{ fontSize: 11, color: PUB.cyan }} /> },
+                }[e.tipo] || { icon: <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: PUB.muted }} /> }
+                const Icon = typo.block
+                  ? <Box component="span" sx={{ width: 10, height: 10, borderRadius: 3, bgcolor: typo.color, flexShrink: 0 }} />
+                  : <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>{typo.icon}</Box>
+                return (
+                  <Box key={e.id || `${e.tipo}-${e.minuto}-${e.jugador}`} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: esLocal ? 'flex-start' : 'flex-end' }}>
+                    <Typography sx={{ fontSize: 12, color: PUB.muted, textAlign: 'right' }}>{e.minuto}'</Typography>
+                    {Icon}
+                    <Typography sx={{ color: PUB.fg, fontSize: 13 }}>{e.jugador}</Typography>
+                    {e.descripcion && <Typography sx={{ fontSize: 10, color: PUB.muted, bgcolor: 'rgba(255,255,255,.05)', px: 1.2, py: 0.5, borderRadius: 1 }}>{e.descripcion}</Typography>}
+                  </Box>
+                )
+              })}
+            </Box>
+          )}
+        </Box>
+
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+          {[
+            ['Goles', goles, PUB.fg],
+            ['Amarillas', amarillas, PUB.yellow],
+            ['Rojas', rojas, PUB.red],
+          ].map(([label, value, color]) => (
+            <Box key={label} sx={{ bgcolor: 'rgba(7,16,34,.6)', borderRadius: 2, border: `1px solid ${PUB.line}`, p: 2.5, textAlign: 'center' }}>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, color, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+              <Typography sx={{ fontSize: 10, color: PUB.muted, mt: 0.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>{label}</Typography>
+            </Box>
+          ))}
+        </Box>
+      </Box>
+    </Box>
+  )
+}
+
+/* ============================================================
+ * PÁGINA PRINCIPAL
+ * ============================================================ */
+export default function PublicLanding() {
+  const { slug } = useParams()
+  const navigate = useNavigate()
+  const today = useToday()
+  const [selectedId, setSelectedId] = useState(null)
+  const [tab, setTab] = useState('resultados')
+  const [modal, setModal] = useState(null)
+
+  const landingQ = useQuery({
+    queryKey: ['public-landing', slug],
+    queryFn: () => apiGet(`/landing/${slug}`),
+    enabled: !!slug,
+  })
+
+  const org = landingQ.data?.organizador
+  const torneos = landingQ.data?.torneos || []
+
+  const selId = torneos.some((t) => t.id === selectedId) ? selectedId : torneos[0]?.id
+  const selTorneo = torneos.find((t) => t.id === selId)
+
+  const selQueries = {
+    resumen: useQuery({ queryKey: ['pl-resumen', selId], queryFn: () => apiGet(`/landing/torneo/${selId}/resumen`), enabled: !!selId }),
+    partidos: useQuery({ queryKey: ['pl-partidos', selId], queryFn: () => apiGet(`/landing/torneo/${selId}/partidos`), enabled: !!selId }),
+    tabla: useQuery({ queryKey: ['pl-tabla', selId], queryFn: () => apiGet(`/landing/torneo/${selId}/tabla`), enabled: !!selId }),
+    goleadores: useQuery({ queryKey: ['pl-goleadores', selId], queryFn: () => apiGet(`/landing/torneo/${selId}/goleadores`), enabled: !!selId }),
+    sanciones: useQuery({ queryKey: ['pl-sanciones', selId], queryFn: () => apiGet(`/landing/torneo/${selId}/sanciones`), enabled: !!selId }),
+  }
+
+  const jornadas = selQueries.partidos.data?.jornadas || []
+  const tabLoading = selQueries[tab]?.isLoading
+
+  const isLiveNow = selTorneo?.estado === 'EN_JUEGO'
+
+  const iconFor = (i) => TOURNEY_ICONS[i % TOURNEY_ICONS.length]
+
+  const words = (org?.nombre || '...').trim().split(/\s+/)
+  const logoBase = words.length > 1 ? words.slice(0, -1).join(' ') : ''
+  const logoAccent = words[words.length - 1] || ''
+
+  return (
+    <Box sx={{
+      minHeight: '100vh',
+      bgcolor: '#020621',
+      background: 'radial-gradient(circle at 50% 10%, #071749 0%, #020621 60%)',
+      color: PUB.fg, fontFamily: FONT_BODY, pb: { xs: 16, md: 8 },
+    }}>
+      {/* Header */}
+      <Box sx={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(16px)', bgcolor: 'rgba(2,6,33,.85)', borderBottom: '2px solid rgba(0,240,255,.1)' }}>
+        <Box sx={{ maxWidth: 1152, mx: 'auto', px: { xs: 2, sm: 4 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            {org?.logo_url ? (
+              <Box component="img" src={org.logo_url} alt={org.nombre} sx={{ width: 34, height: 34, borderRadius: '8px', objectFit: 'cover', bgcolor: PUB.panelDeep }} />
+            ) : (
+              <Box sx={{ width: 34, height: 34, borderRadius: '8px', background: 'linear-gradient(135deg, #0b2a6b, #061138)', border: `1px solid ${PUB.lineStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <EmojiEventsIcon sx={{ color: PUB.cyan, fontSize: 17 }} />
+              </Box>
+            )}
+            <Box sx={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
+              {logoBase && <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, letterSpacing: '2px', textTransform: 'uppercase', color: PUB.fg }}>{logoBase}&nbsp;</Typography>}
+              <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, letterSpacing: '2px', textTransform: 'uppercase', color: PUB.cyan, textShadow: '0 0 10px rgba(0,240,255,.5)' }}>
+                {logoAccent}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 0.5 }}>
+            {TABS.map((t) => (
+              <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>
+            ))}
+          </Box>
+
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: 11, color: PUB.fgDim, textTransform: 'uppercase', letterSpacing: '.1em', fontVariantNumeric: 'tabular-nums' }}>
+              {today}
+            </Typography>
+            {isLiveNow && (
+              <Box component="span" className="pl-blink" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: PUB.live, bgcolor: PUB.liveSoft, border: `1px solid ${PUB.live}`, px: 1.4, py: 0.5, borderRadius: 100 }}>
+                <Box component="span" className="pl-blink" sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: PUB.live }} />
+                En vivo
+              </Box>
+            )}
+            <Box component="button" aria-label="Buscar" sx={iconBtn}>
+              <SearchIcon sx={{ fontSize: 15 }} />
+            </Box>
+            <Box component="button" aria-label="Notificaciones" sx={iconBtn}>
+              <NotificationsNoneIcon sx={{ fontSize: 15 }} />
+            </Box>
+            <Box component="button" onClick={() => navigate('/login')} sx={{ ml: 0.5, fontSize: 12, fontWeight: 700, color: PUB.fg, border: `1px solid ${PUB.lineStrong}`, bgcolor: 'rgba(255,255,255,.04)', px: 2, py: 1, borderRadius: '8px', cursor: 'pointer', transition: 'all .2s', '&:hover': { borderColor: PUB.cyan, color: PUB.cyan } }}>
+              Ingresar
+            </Box>
+          </Box>
+        </Box>
+      </Box>
+
+      {/* Main */}
+      <Box component="main" sx={{ position: 'relative', zIndex: 1, maxWidth: 1152, mx: 'auto', px: { xs: 2, sm: 4 }, mt: 4 }}>
+        {landingQ.isLoading ? (
+          <PendingOrBar />
+        ) : !torneos.length ? (
+          <Empty text={`Todavía no hay competiciones de ${org?.nombre || 'esta organización'}.`} />
+        ) : (
+          <>
+            {/* Selector de torneo */}
+            <Box className="pl-fade-up" sx={{ display: 'flex', alignItems: 'center', gap: 1.5, overflowX: 'auto', pb: 2, mb: 4, scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+              {torneos.map((t, i) => {
+                const Icon = iconFor(i)
+                const active = t.id === selId
+                return (
+                  <Box
+                    component="button"
+                    key={t.id}
+                    onClick={() => setSelectedId(t.id)}
+                    sx={{
+                      display: 'inline-flex', alignItems: 'center', gap: 1.2, px: 2.4, py: 1.2, borderRadius: 100,
+                      fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: FONT_BODY,
+                      transition: 'all .25s',
+                      ...(active
+                        ? { bgcolor: 'rgba(0,240,255,.12)', border: `1px solid ${PUB.cyan}`, color: '#eaf6ff' }
+                        : { bgcolor: 'rgba(255,255,255,.03)', border: `1px solid ${PUB.line}`, color: PUB.muted, '&:hover': { borderColor: PUB.cyan, color: PUB.fgDim } }),
+                    }}
+                  >
+                    <Icon fontSize="inherit" sx={{ fontSize: 11 }} />
+                    {t.nombre}
+                  </Box>
+                )
+              })}
+            </Box>
+
+            {selTorneo && <FeaturedMatch torneo={selTorneo} jornadas={jornadas} />}
+
+            {/* Tabs content */}
+            <Box sx={{ display: { xs: 'none', md: 'flex' }, alignItems: 'center', borderBottom: `1px solid ${PUB.line}`, mb: 4 }}>
+              {TABS.map((t) => <TabBtn key={t.key} active={tab === t.key} onClick={() => setTab(t.key)}>{t.label}</TabBtn>)}
+            </Box>
+
+            {tab === 'resultados' && <ResultadosPanel key={`r${selId}`} jornadas={jornadas} loading={tabLoading} onOpenPartido={setModal} />}
+            {tab === 'posiciones' && <PosicionesPanel posiciones={selQueries.tabla.data?.posiciones} loading={tabLoading} />}
+            {tab === 'estadisticas' && <EstadisticasPanel key={`e${selId}`} resumen={selQueries.resumen.data} goleadores={selQueries.goleadores.data?.goleadores} sanciones={selQueries.sanciones.data?.sanciones} loading={tabLoading} />}
+            {tab === 'calendario' && partidosDe(selQueries.partidos.data) ? <CalendarioPanel partidos={partidosDe(selQueries.partidos.data)} loading={tabLoading} onOpenPartido={setModal} /> : null}
+          </>
+        )}
+      </Box>
+
+      {/* Footer */}
+      <Box component="footer" sx={{ position: 'relative', zIndex: 1, mt: 8, borderTop: `1px solid ${PUB.line}` }}>
+        <Box sx={{ maxWidth: 1152, mx: 'auto', px: { xs: 2, sm: 4 }, py: 3, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+          <Typography sx={{ fontSize: 12, color: PUB.muted }}>© {new Date().getFullYear()} {org?.nombre || 'Organización'}</Typography>
+          <Typography sx={{ fontSize: 12, color: PUB.muted }}>
+            Plataforma deportiva <Box component="span" sx={{ color: PUB.cyan, fontWeight: 600 }}>Osdosoft</Box>
+          </Typography>
+        </Box>
+      </Box>
+
+      {/* Bottom nav móvil */}
+      <Box sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, bgcolor: 'rgba(7,13,28,.95)', backdropFilter: 'blur(16px)', borderTop: `1px solid ${PUB.line}`, display: { xs: 'block', md: 'none' } }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', height: 60 }}>
+          {TABS.map((t) => {
+            const Icon = { resultados: SportsSoccerIcon, posiciones: FormatListNumberedIcon, estadisticas: BarChartIcon, calendario: CalendarMonthIcon }[t.key]
+            const active = tab === t.key
+            return (
+              <Box component="button" key={t.key} onClick={() => setTab(t.key)} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.4, bgcolor: 'transparent', border: 'none', cursor: 'pointer', color: active ? PUB.cyan : PUB.muted }}>
+                <Icon fontSize="small" />
+                <Typography sx={{ fontSize: 9.5, fontWeight: 700 }}>{t.label}</Typography>
+              </Box>
+            )
+          })}
+        </Box>
+      </Box>
+
+      {modal && <MatchModal partido={modal} onClose={() => setModal(null)} />}
+    </Box>
+  )
+}
+
+const iconBtn = {
+  width: 36, height: 36, borderRadius: '8px', bgcolor: 'rgba(255,255,255,.04)',
+  border: `1px solid ${PUB.line}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  color: PUB.muted, cursor: 'pointer', transition: 'all .2s', '&:hover': { color: PUB.fg, borderColor: PUB.cyan },
+}
+
+function partidosDe(data) {
+  return (data?.jornadas || []).flatMap((j) => j.partidos || [])
+}

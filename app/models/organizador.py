@@ -12,6 +12,12 @@ class Organizador(db.Model):
     whatsapp = db.Column(db.String(20), nullable=True)
     address = db.Column(db.Text, nullable=True)
 
+    # Identidad / branding (usado por la landing page pública)
+    description = db.Column(db.Text, nullable=True)
+    logo_url = db.Column(db.Text, nullable=True)
+    primary_color = db.Column(db.String(7), nullable=False, default='#6366f1')
+    welcome_message = db.Column(db.String(200), nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
