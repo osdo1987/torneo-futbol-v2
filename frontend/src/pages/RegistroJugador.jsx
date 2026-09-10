@@ -35,10 +35,12 @@ const PIERNAS = [
   { value: 'IZQUIERDA', label: 'Izquierda' },
   { value: 'AMBIDESTRO', label: 'Ambidestro' },
 ]
+const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 
 const empty = {
   nombre: '', numero_camiseta: '', documento_identidad: '',
   posicion: '', fecha_nacimiento: '', telefono: '', pierna_habil: '', altura_cm: '', foto_url: '',
+  tipo_sangre: '', eps: '', contacto_emergencia: '', alergias: '',
 }
 
 const campo = {
@@ -118,6 +120,10 @@ export default function RegistroJugador() {
       body.fecha_nacimiento = body.fecha_nacimiento || null
       body.telefono = body.telefono || null
       body.documento_identidad = body.documento_identidad || null
+      body.tipo_sangre = body.tipo_sangre || null
+      body.eps = body.eps || null
+      body.contacto_emergencia = body.contacto_emergencia || null
+      body.alergias = body.alergias || null
       body.foto_url = body.foto_url || null
       const res = await apiPost(`/inscripcion/${slug}`, body)
       setExito(res)
@@ -236,6 +242,20 @@ export default function RegistroJugador() {
               <Box component="input" type="date" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} sx={{ ...campo, colorScheme: 'dark' }} />
               <Box component="input" placeholder="Documento de identidad" value={form.documento_identidad} onChange={set('documento_identidad')} sx={campo} />
               <Box component="input" placeholder="Teléfono" value={form.telefono} onChange={set('telefono')} sx={campo} />
+
+              <Typography sx={{ mt: 2, mb: 1.5, fontSize: 10, letterSpacing: '.14em', color: PUB.muted, fontWeight: 700, textTransform: 'uppercase' }}>
+                Datos médicos (opcional)
+              </Typography>
+
+              <FormControl fullWidth sx={{ mb: 1.5 }}>
+                <InputLabel id="r-sangre-label" sx={{ color: PUB.muted }}>Tipo de sangre</InputLabel>
+                <Select labelId="r-sangre-label" label="Tipo de sangre" value={form.tipo_sangre} onChange={set('tipo_sangre')} sx={selectSx}>
+                  {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <Box component="input" placeholder="EPS / Entidad de salud" value={form.eps} onChange={set('eps')} sx={campo} />
+              <Box component="input" placeholder="Contacto de emergencia (nombre y teléfono)" value={form.contacto_emergencia} onChange={set('contacto_emergencia')} sx={campo} />
+              <Box component="input" placeholder="Alergias o condiciones médicas" value={form.alergias} onChange={set('alergias')} sx={campo} />
 
               <FormControl fullWidth sx={{ mb: 1.5 }}>
                 <InputLabel id="r-pierna-label" sx={{ color: PUB.muted }}>Pierna hábil</InputLabel>

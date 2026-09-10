@@ -27,6 +27,13 @@ class JugadorSchema(ma.SQLAlchemyAutoSchema):
     pierna_habil = fields.String(allow_none=True, validate=validate.OneOf(PIERNAS))
     altura_cm = fields.Int(allow_none=True, validate=validate.Range(min=100, max=250))
 
+    # Datos médicos
+    TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+    tipo_sangre = fields.String(allow_none=True, validate=validate.OneOf(TIPOS_SANGRE))
+    eps = fields.String(allow_none=True, validate=validate.Length(max=120))
+    contacto_emergencia = fields.String(allow_none=True, validate=validate.Length(max=200))
+    alergias = fields.String(allow_none=True, validate=validate.Length(max=255))
+
     atributos = fields.Raw(allow_none=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)

@@ -28,6 +28,18 @@ const COLS = {
   altura_cm: {
     headers: ['altura', 'altura cm', 'altura (cm)', 'talla'],
   },
+  tipo_sangre: {
+    headers: ['tipo sangre', 'tipo de sangre', 'grupo sanguineo', 'grupo sanguíneo', 'sangre', 'factor'],
+  },
+  eps: {
+    headers: ['eps', 'entidad de salud', 'entidad prestadora', 'aseguradora', 'salud'],
+  },
+  contacto_emergencia: {
+    headers: ['contacto emergencia', 'contacto de emergencia', 'emergencia', 'acudiente', 'familiar'],
+  },
+  alergias: {
+    headers: ['alergias', 'alergia', 'condiciones medicas', 'condiciones médicas', 'observaciones'],
+  },
 }
 
 function norm(s) {
@@ -97,6 +109,17 @@ function mapPierna(v) {
   if (['izquierda', 'i'].includes(n)) return 'IZQUIERDA'
   if (['ambidestro', 'ambidestra', 'ambidiestro', 'ambos', 'b', 'bd', 'amb'].includes(n)) return 'AMBIDESTRO'
   return v.toUpperCase().trim()
+}
+
+const SANGRE_VALIDOS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'A POSITIVO', 'A NEGATIVO', 'B POSITIVO', 'B NEGATIVO', 'AB POSITIVO', 'AB NEGATIVO', 'O POSITIVO', 'O NEGATIVO']
+
+function mapTipoSangre(v) {
+  const n = norm(v).replace(/\s+/g, ' ')
+  if (!n) return ''
+  if (SANGRE_VALIDOS.includes(n.toUpperCase())) return n.toUpperCase().replace(/ POSITIVO/, '+').replace(/ NEGATIVO/, '-')
+  const t = n.replace(/\s+/g, '').toUpperCase()
+  if (['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].includes(t)) return t
+  return ''
 }
 
 function numeroEntero(v) {
@@ -211,6 +234,10 @@ function construyePlantilla(rows) {
       telefono: colMap.telefono !== undefined ? valorCelda(fila[colMap.telefono]) : '',
       pierna_habil: colMap.pierna_habil !== undefined ? mapPierna(fila[colMap.pierna_habil]) : '',
       altura_cm: colMap.altura_cm !== undefined ? alturaEntero(fila[colMap.altura_cm]) : '',
+      tipo_sangre: colMap.tipo_sangre !== undefined ? mapTipoSangre(fila[colMap.tipo_sangre]) : '',
+      eps: colMap.eps !== undefined ? valorCelda(fila[colMap.eps]) : '',
+      contacto_emergencia: colMap.contacto_emergencia !== undefined ? valorCelda(fila[colMap.contacto_emergencia]) : '',
+      alergias: colMap.alergias !== undefined ? valorCelda(fila[colMap.alergias]) : '',
     }
     jugadores.push(j)
   }
@@ -250,8 +277,8 @@ export function descargarPlantilla(equipoNombre) {
   const rows = [
     ['EQUIPO', equipoNombre || ''],
     [],
-    ['NOMBRE', 'N° CAMISETA', 'DOCUMENTO', 'POSICION', 'FECHA NACIMIENTO', 'TELEFONO', 'PIERNA HABIL', 'ALTURA CM'],
-    ['Jugador Ejemplo', 10, '12345678', 'DELANTERO', '01/01/2000', '3515555555', 'DERECHA', 175],
+    ['NOMBRE', 'N° CAMISETA', 'DOCUMENTO', 'POSICION', 'FECHA NACIMIENTO', 'TELEFONO', 'PIERNA HABIL', 'ALTURA CM', 'TIPO SANGRE', 'EPS', 'CONTACTO EMERGENCIA', 'ALERGIAS'],
+    ['Jugador Ejemplo', 10, '12345678', 'DELANTERO', '01/01/2000', '3515555555', 'DERECHA', 175, 'O+', 'Sura', 'Carlos Pérez - 3512223333', 'Ninguna'],
   ]
   const csv = rows
     .map((r) =>

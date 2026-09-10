@@ -58,10 +58,12 @@ const POSICION_LABEL = {
   DELANTERO: 'Delantero',
 }
 const PIERNAS = ['DERECHA', 'IZQUIERDA', 'AMBIDESTRO']
+const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
 const emptyEquipo = { nombre: '', delegado_email: '', delegado_documento: '' }
 const emptyJugador = {
   nombre: '', numero_camiseta: 10, documento_identidad: '',
   posicion: '', fecha_nacimiento: '', telefono: '', pierna_habil: '', altura_cm: '', foto_url: '',
+  tipo_sangre: '', eps: '', contacto_emergencia: '', alergias: '',
 }
 
 function calcEdad(fecha) {
@@ -152,6 +154,10 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '' }) {
       telefono: form.telefono || null,
       fecha_nacimiento: form.fecha_nacimiento || null,
       altura_cm: form.altura_cm ? Number(form.altura_cm) : null,
+      tipo_sangre: form.tipo_sangre || null,
+      eps: form.eps || null,
+      contacto_emergencia: form.contacto_emergencia || null,
+      alergias: form.alergias || null,
       foto_url: form.foto_url || null,
     })
   }
@@ -315,6 +321,19 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '' }) {
             </FormControl>
             <TextField label="Altura (cm)" type="number" fullWidth margin="normal"
               value={form.altura_cm} onChange={(e) => setForm({ ...form, altura_cm: e.target.value })} />
+            <FormControl fullWidth margin="normal">
+              <InputLabel id="jug-sangre-label">Tipo de sangre</InputLabel>
+              <Select labelId="jug-sangre-label" label="Tipo de sangre" value={form.tipo_sangre}
+                onChange={(e) => setForm({ ...form, tipo_sangre: e.target.value })}>
+                {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="EPS / Entidad de salud" fullWidth margin="normal"
+              value={form.eps} onChange={(e) => setForm({ ...form, eps: e.target.value })} />
+            <TextField label="Contacto de emergencia (nombre y teléfono)" fullWidth margin="normal"
+              value={form.contacto_emergencia} onChange={(e) => setForm({ ...form, contacto_emergencia: e.target.value })} />
+            <TextField label="Alergias o condiciones médicas" fullWidth margin="normal"
+              value={form.alergias} onChange={(e) => setForm({ ...form, alergias: e.target.value })} />
             <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
               <input id="jug-foto-input" ref={setFotoRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
                 onChange={(e) => pickFoto(e.target.files?.[0])} />

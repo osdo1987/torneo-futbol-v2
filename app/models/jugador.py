@@ -20,6 +20,12 @@ class Jugador(db.Model):
     pierna_habil = db.Column(db.String(15), nullable=True)      # DERECHA/IZQUIERDA/AMBIDESTRO
     altura_cm = db.Column(db.Integer, nullable=True)
 
+    # Datos médicos / contacto de emergencia
+    tipo_sangre = db.Column(db.String(5), nullable=True)        # A+/A-/B+/B-/AB+/AB-/O+/O-
+    eps = db.Column(db.String(120), nullable=True)
+    contacto_emergencia = db.Column(db.String(200), nullable=True)
+    alergias = db.Column(db.String(255), nullable=True)
+
     # Atributos adicionales en JSON (extensión libre)
     atributos = db.Column(db.JSON, nullable=True)
 
