@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useSearchParams, Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
@@ -677,9 +677,9 @@ function MatchModal({ partido, onClose }) {
  * ============================================================ */
 export default function PublicLanding() {
   const { slug } = useParams()
-  const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const today = useToday()
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState(() => Number(searchParams.get('torneo')) || null)
   const [tab, setTab] = useState('resultados')
   const [modal, setModal] = useState(null)
 
@@ -762,7 +762,7 @@ export default function PublicLanding() {
             <Box component="button" aria-label="Notificaciones" sx={iconBtn}>
               <NotificationsNoneIcon sx={{ fontSize: 15 }} />
             </Box>
-            <Box component="button" onClick={() => navigate('/login')} sx={{ ml: 0.5, fontSize: 12, fontWeight: 700, color: PUB.fg, border: `1px solid ${PUB.lineStrong}`, bgcolor: 'rgba(255,255,255,.04)', px: 2, py: 1, borderRadius: '8px', cursor: 'pointer', transition: 'all .2s', '&:hover': { borderColor: PUB.cyan, color: PUB.cyan } }}>
+            <Box component={Link} to="/login" sx={{ ml: 0.5, fontSize: 12, fontWeight: 700, color: PUB.fg, textDecoration: 'none', border: `1px solid ${PUB.lineStrong}`, bgcolor: 'rgba(255,255,255,.04)', px: 2, py: 1, borderRadius: '8px', cursor: 'pointer', transition: 'all .2s', '&:hover': { borderColor: PUB.cyan, color: PUB.cyan } }}>
               Ingresar
             </Box>
           </Box>
@@ -786,7 +786,7 @@ export default function PublicLanding() {
                   <Box
                     component="button"
                     key={t.id}
-                    onClick={() => setSelectedId(t.id)}
+                    onClick={() => { setSelectedId(t.id); setSearchParams({ torneo: String(t.id) }, { replace: true }) }}
                     sx={{
                       display: 'inline-flex', alignItems: 'center', gap: 1.2, px: 2.4, py: 1.2, borderRadius: 100,
                       fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', cursor: 'pointer', fontFamily: FONT_BODY,
