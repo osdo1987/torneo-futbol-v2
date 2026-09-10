@@ -36,11 +36,14 @@ const ESTADO_META = {
 }
 
 const TRANSICIONES = {
-  CREADO: { to: 'INSCRIPCIONES_ABIERTAS', label: 'Abrir inscripciones' },
-  INSCRIPCIONES_ABIERTAS: { to: 'INSCRIPCIONES_CERRADAS', label: 'Cerrar inscripciones' },
-  INSCRIPCIONES_CERRADAS: { to: 'SORTEADO', label: 'Realizar sorteo' },
-  SORTEADO: { to: 'EN_JUEGO', label: 'Iniciar torneo' },
-  EN_JUEGO: { to: 'FINALIZADO', label: 'Finalizar torneo' },
+  CREADO: [{ to: 'INSCRIPCIONES_ABIERTAS', label: 'Abrir inscripciones' }],
+  INSCRIPCIONES_ABIERTAS: [{ to: 'INSCRIPCIONES_CERRADAS', label: 'Cerrar inscripciones' }],
+  INSCRIPCIONES_CERRADAS: [
+    { to: 'SORTEADO', label: 'Realizar sorteo' },
+    { to: 'INSCRIPCIONES_ABIERTAS', label: 'Reabrir inscripciones', color: 'warning' },
+  ],
+  SORTEADO: [{ to: 'EN_JUEGO', label: 'Iniciar torneo' }],
+  EN_JUEGO: [{ to: 'FINALIZADO', label: 'Finalizar torneo' }],
 }
 
 const emptyForm = { nombre: '', max_jugadores_por_equipo: 18, puntos_victoria: 3, puntos_empate: 1, puntos_derrota: 0 }
@@ -303,15 +306,16 @@ export default function Torneos({ user, selectedTorneoId, onSelectTorneo }) {
                   </Typography>
                 </CardContent>
                 <CardActions sx={{ px: 2, pb: 2, flexWrap: 'wrap', gap: 0.5 }}>
-                  {trans && (
+                  {(trans || []).map((tr) => (
                     <Button
-                      size="small" variant="outlined"
+                      key={tr.to}
+                      size="small" variant="outlined" color={tr.color || 'primary'}
                       disabled={estadoMut.isPending}
-                      onClick={(e) => { e.stopPropagation(); estadoMut.mutate({ id: t.id, estado: trans.to }) }}
+                      onClick={(e) => { e.stopPropagation(); estadoMut.mutate({ id: t.id, estado: tr.to }) }}
                     >
-                      {trans.label}
+                      {tr.label}
                     </Button>
-                  )}
+                  ))}
                   <Button
                     size="small" variant="outlined" startIcon={<TuneIcon fontSize="small" />}
                     onClick={(e) => { e.stopPropagation(); setReglasTorneo(t) }}

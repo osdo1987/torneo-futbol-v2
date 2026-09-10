@@ -22,6 +22,8 @@ import {
   Settings as SettingsIcon,
   Storefront as StorefrontIcon,
   Public as PublicIcon,
+  Gavel as GavelIcon,
+  EditNote as EditNoteIcon,
 } from '@mui/icons-material'
 import { useTheme } from '@mui/material/styles'
 import useMediaQuery from '@mui/material/useMediaQuery'
@@ -53,6 +55,8 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       { path: '/torneos', label: 'Torneos', icon: <EmojiEventsIcon /> },
       { path: '/equipos', label: 'Equipos', icon: <GroupIcon /> },
       { path: '/partidos', label: 'Partidos', icon: <SportsSoccerIcon /> },
+      { path: '/sanciones', label: 'Sanciones', icon: <GavelIcon /> },
+      { path: '/planilla', label: 'Planilla', icon: <EditNoteIcon /> },
       { path: '/tabla', label: 'Posiciones', icon: <TableChartIcon /> },
       { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
       { path: '/landing', label: 'Landing', icon: <PublicIcon /> },

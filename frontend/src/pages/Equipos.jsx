@@ -41,6 +41,12 @@ import { useToast } from '../components/Toast'
 import { parseExcel, aPayload, descargarPlantilla } from '../lib/plantilla'
 
 const POSICIONES = ['ARQUERO', 'DEFENSOR', 'MEDIOCAMPISTA', 'DELANTERO']
+const POSICION_LABEL = {
+  ARQUERO: 'Arquero',
+  DEFENSOR: 'Defensor',
+  MEDIOCAMPISTA: 'Centrocampista',
+  DELANTERO: 'Delantero',
+}
 const PIERNAS = ['DERECHA', 'IZQUIERDA', 'AMBIDESTRO']
 const emptyEquipo = { nombre: '', delegado_email: '', delegado_documento: '' }
 const emptyJugador = {
@@ -196,7 +202,7 @@ function JugadoresPanel({ equipo }) {
               <ListItemText
                 primary={`#${j.numero_camiseta} ${j.nombre}`}
                 secondary={[
-                  j.posicion,
+                  j.posicion ? (POSICION_LABEL[j.posicion] || j.posicion) : null,
                   j.documento_identidad,
                   calcEdad(j.fecha_nacimiento) != null ? `${calcEdad(j.fecha_nacimiento)} años` : null,
                   j.altura_cm ? `${j.altura_cm} cm` : null,
@@ -221,7 +227,7 @@ function JugadoresPanel({ equipo }) {
               <InputLabel id="jug-pos-label">Posición</InputLabel>
               <Select labelId="jug-pos-label" label="Posición" value={form.posicion}
                 onChange={(e) => setForm({ ...form, posicion: e.target.value })}>
-                {POSICIONES.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+                {POSICIONES.map((p) => <MenuItem key={p} value={p}>{POSICION_LABEL[p]}</MenuItem>)}
               </Select>
             </FormControl>
             <TextField label="Fecha de nacimiento" type="date" fullWidth margin="normal"

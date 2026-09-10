@@ -10,6 +10,8 @@ import Dashboard from './pages/Dashboard'
 import Torneos from './pages/Torneos'
 import Equipos from './pages/Equipos'
 import Partidos from './pages/Partidos'
+import Sanciones from './pages/Sanciones'
+import Planilla from './pages/Planilla'
 import Tabla from './pages/Tabla'
 import Estadisticas from './pages/Estadisticas'
 import SuperAdmin from './pages/SuperAdmin'
@@ -109,6 +111,8 @@ export default function App({ setDarkMode }) {
       <Route path="/torneos" element={layoutPages(<Torneos user={user} selectedTorneoId={activeTorneoId} onSelectTorneo={onSelectTorneo} />)} />
       <Route path="/equipos" element={layoutPages(<Equipos user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/partidos" element={layoutPages(<Partidos user={user} selectedTorneoId={activeTorneoId} />)} />
+      <Route path="/sanciones" element={layoutPages(<Sanciones user={user} selectedTorneoId={activeTorneoId} />)} />
+      <Route path="/planilla" element={layoutPages(<Planilla user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/tabla" element={layoutPages(<Tabla user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/estadisticas" element={layoutPages(<Estadisticas user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/config" element={layoutPages(<Config user={user} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />

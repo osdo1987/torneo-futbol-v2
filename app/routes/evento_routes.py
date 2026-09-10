@@ -49,6 +49,21 @@ def create_evento():
         if jugador:
             data['equipo_id'] = jugador.equipo_id
 
+    if data.get('tipo') == 'CAMBIO':
+        if not data.get('jugador_id') or not data.get('jugador_sale_id'):
+            return jsonify({'error': 'Un cambio requiere jugador_id (entra) y jugador_sale_id (sale)'}), 400
+        entra = Jugador.query.get(data['jugador_id'])
+        sale = Jugador.query.get(data['jugador_sale_id'])
+        if not entra or not sale:
+            return jsonify({'error': 'Jugador no encontrado'}), 400
+        if entra.equipo_id != sale.equipo_id:
+            return jsonify({'error': 'El jugador que sale y el que entra deben pertenecer al mismo equipo'}), 400
+        if entra.id == sale.id:
+            return jsonify({'error': 'El jugador que sale y el que entra deben ser distintos'}), 400
+        data['equipo_id'] = entra.equipo_id
+    elif data.get('jugador_sale_id'):
+        return jsonify({'error': 'jugador_sale_id solo aplica a cambios'}), 400
+
     try:
         evento = evento_schema.load(data)
         db.session.add(evento)
