@@ -8,7 +8,7 @@ from app.models.evento_partido import EventoPartido
 from app.models.jugador import Jugador
 from app.models.partido import Partido
 from app.services.estadistica_service import RESULTADOS_JUGADOS
-from app.services.reglas import edad_desde, reglas_normalizadas
+from app.services.reglas import reglas_normalizadas
 
 jugador_bp = Blueprint('jugadores', __name__)
 jugador_schema = JugadorSchema()
@@ -57,39 +57,10 @@ def create_jugador():
         return jsonify({'error': 'Equipo no encontrado'}), 404
     if not ensure_torneo_organizador(user, equipo.torneo):
         return jsonify({'error': 'No autorizado'}), 403
-    # Validar cupo máx. jugadores por equipo (si inscripciones abiertas).
-    torneo = equipo.torneo
-    if not torneo.inscripciones_jugadores_abiertas and torneo.estado not in ('CREADO', 'INSCRIPCIONES_ABIERTAS'):
-        return jsonify({'error': 'Inscripciones de jugadores cerradas'}), 400
 
-    # ---- Reglas configurables: cupo, edad de categoría y comodines ----
-    reglas = reglas_normalizadas(torneo)
-    maxj = reglas.get('max_jugadores') or torneo.max_jugadores_por_equipo
-    if Jugador.query.filter_by(equipo_id=equipo.id, activo=True).count() >= maxj:
-        return jsonify({'error': f'Cupo de jugadores alcanzado (máximo {maxj})'}), 400
-
-    emin, emax = reglas.get('edad_min'), reglas.get('edad_max')
-    if emin is not None or emax is not None:
-        edad = edad_desde(data.get('fecha_nacimiento'))
-        if edad is None:
-            return jsonify({'error': 'Se requiere fecha de nacimiento (categoría con límite de edad)'}), 400
-
-        def cumple_cat(e):
-            return (emin is None or e >= emin) and (emax is None or e <= emax)
-
-        if not cumple_cat(edad):
-            comp = reglas.get('comodines_cantidad') or 0
-            cmin = reglas.get('comodines_edad_min')
-            # Comodín: no cumple la categoría pero supera la edad mínima de comodín
-            if not (comp > 0 and cmin is not None and edad > cmin):
-                return jsonify({'error': f'Edad no permitida en esta categoría ({edad} años)'}), 400
-            usados = 0
-            for j in Jugador.query.filter_by(equipo_id=equipo.id, activo=True).all():
-                ej = edad_desde(j.fecha_nacimiento)
-                if ej is not None and not cumple_cat(ej):
-                    usados += 1
-            if usados >= comp:
-                return jsonify({'error': f'Cupo de comodines agotado (máximo {comp})'}), 400
+    error = JugadorService.validar_inscripcion_jugador(equipo, data)
+    if error:
+        return jsonify({'error': error}), 400
 
     jugador, error = JugadorService.create(data)
     if error:
@@ -110,6 +81,32 @@ def update_jugador(jugador_id):
     jugador, error = JugadorService.update(jugador, data)
     if error:
         return jsonify({'error': error}), 400
+    return jsonify(jugador_schema.dump(jugador)), 200
+
+
+@jugador_bp.route('/<int:jugador_id>/foto', methods=['POST'])
+@jwt_required()
+def set_jugador_foto(jugador_id):
+    user = get_current_user()
+    jugador = JugadorService.get_by_id(jugador_id)
+    if not jugador:
+        return jsonify({'error': 'Jugador no encontrado'}), 404
+    if not ensure_torneo_organizador(user, jugador.equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    foto = data.get('foto_url')
+    if foto:
+        import re
+        m = re.match(r'^data:image/(png|jpeg|webp|jpg);base64,', foto or '')
+        if not m:
+            return jsonify({'error': 'Formato de imagen no válido (se admite PNG, JPEG o WebP)'}), 400
+        if len(foto) > 1_000_000:
+            return jsonify({'error': 'La imagen supera el tamaño máximo (1 MB)'}), 400
+        jugador.foto_url = foto
+    else:
+        jugador.foto_url = None
+    from app.extensions import db
+    db.session.commit()
     return jsonify(jugador_schema.dump(jugador)), 200
 
 

@@ -1,0 +1,250 @@
+/* Carnet de jugador - diseño tipo "carnet.html" (tarjeta blanca, ondas corporativas azules) */
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Montserrat:wght@300;400;500;600&display=swap');
+
+.carnet-card {
+  position: relative;
+  width: 420px;
+  height: 240px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.carnet-wave {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+.carnet-wave-svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Foto circular del jugador superpuesta sobre la onda */
+.carnet-photo {
+  position: absolute;
+  top: 50%;
+  left: 63px;
+  transform: translate(-50%, -50%);
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #ffffff;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  z-index: 3;
+}
+.carnet-photo-initials {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #1E3A8A, #0A192F);
+  color: #ffffff;
+  font-family: 'Cinzel', serif;
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: 2px;
+  border: 2px solid #ffffff;
+}
+
+/* Número de camiseta como marca de agua */
+.carnet-number {
+  position: absolute;
+  top: 21px;
+  right: 27px;
+  z-index: 3;
+  font-family: 'Cinzel', serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #1E3A8A;
+  opacity: 0.1;
+  line-height: 1;
+}
+
+/* Contenido del texto */
+.carnet-content {
+  position: relative;
+  z-index: 2;
+  margin-left: 126px;
+  padding-right: 24px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-sizing: border-box;
+}
+
+/* Encabezado */
+.carnet-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #1E3A8A;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  margin-bottom: 9px;
+  border-bottom: 1px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+.carnet-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+.carnet-badge svg {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.carnet-torneo {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Nombre principal */
+.carnet-name {
+  font-family: 'Cinzel', serif;
+  font-size: 19px;
+  font-weight: 400;
+  color: #111827;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  line-height: 1.2;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Posición */
+.carnet-position {
+  font-family: 'Montserrat', sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: #4B5563;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin: 7px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Detalles del jugador */
+.carnet-details {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 11px;
+  color: #4B5563;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.carnet-details span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.carnet-details svg {
+  color: #3B82F6;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+/* Pie de página */
+.carnet-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 9px;
+  font-weight: 600;
+  color: #9CA3AF;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 7px;
+}
+.carnet-team {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.carnet-tag {
+  color: #1E3A8A;
+  white-space: nowrap;
+}
+
+/* Hoja de impresión (portal) */
+.carnet-print-sheet {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: visible;
+  z-index: -10;
+}
+
+/* IMPRESIÓN: tamaño exacto CR80 (85.6 × 53.98 mm) */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .carnet-print-sheet {
+    position: static;
+    width: auto;
+    height: auto;
+    z-index: 9999;
+    overflow: visible;
+  }
+  .carnet-print-sheet,
+  .carnet-print-sheet * {
+    visibility: visible;
+  }
+  .carnet-card {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 85.6mm;
+    min-width: 85.6mm;
+    height: 53.98mm;
+    min-height: 53.98mm;
+    border-radius: 4px;
+    box-shadow: none;
+    border: none;
+  }
+  .carnet-photo {
+    left: 12.8mm;
+    width: 14.6mm;
+    height: 14.6mm;
+    border-width: 0.5mm;
+    box-shadow: none;
+  }
+  .carnet-photo-initials { font-size: 4.6mm; letter-spacing: 0.35mm; }
+  .carnet-number { top: 2.6mm; right: 3.3mm; font-size: 3mm; }
+  .carnet-content { margin-left: 25.7mm; padding-right: 5mm; }
+  .carnet-header { font-size: 1.1mm; letter-spacing: 0.15mm; margin-bottom: 1.2mm; padding-bottom: 0.8mm; }
+  .carnet-badge svg { font-size: 1.4mm; }
+  .carnet-name { font-size: 2.6mm; letter-spacing: 0.25mm; }
+  .carnet-position { font-size: 1.5mm; letter-spacing: 0.25mm; margin-top: 0.8mm; }
+  .carnet-details { font-size: 1.4mm; gap: 1.6mm; margin-top: 1.5mm; }
+  .carnet-details svg { font-size: 1.6mm; }
+  .carnet-footer { font-size: 1.15mm; letter-spacing: 0.15mm; margin-top: 1.8mm; padding-top: 0.9mm; }
+}

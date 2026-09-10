@@ -107,6 +107,35 @@ def get_equipo_jugadores(equipo_id):
     return jsonify(jugador_schema.dump(jugadores, many=True)), 200
 
 
+@equipo_bp.route('/<int:equipo_id>/link', methods=['POST'])
+@jwt_required()
+def generar_link_inscripcion(equipo_id):
+    """Genera (o devuelve) el link público de inscripción de jugadores del equipo."""
+    from app.extensions import db
+    import secrets
+    user = get_current_user()
+    equipo = EquipoService.get_by_id(equipo_id)
+    if not equipo:
+        return jsonify({'error': 'Equipo no encontrado'}), 404
+    if not ensure_torneo_organizador(user, equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not equipo.inscripcion_slug:
+        from app.models.equipo import Equipo
+        while True:
+            slug = secrets.token_urlsafe(8)[:12]
+            if not Equipo.query.filter_by(inscripcion_slug=slug).first():
+                break
+        equipo.inscripcion_slug = slug
+        db.session.commit()
+    abierta = equipo.torneo.inscripciones_jugadores_abiertas or equipo.torneo.estado in ('CREADO', 'INSCRIPCIONES_ABIERTAS')
+    return jsonify({
+        'slug': equipo.inscripcion_slug,
+        'equipo': equipo.nombre,
+        'torneo': equipo.torneo.nombre,
+        'inscripciones_abiertas': abierta,
+    }), 200
+
+
 @equipo_bp.route('/<int:equipo_id>/jugadores/importar', methods=['POST'])
 @jwt_required()
 def importar_plantilla(equipo_id):

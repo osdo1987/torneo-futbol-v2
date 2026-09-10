@@ -14,6 +14,7 @@ class JugadorSchema(ma.SQLAlchemyAutoSchema):
     nombre = fields.String(required=True, validate=validate.Length(min=1, max=200))
     numero_camiseta = fields.Int(load_default=0)
     documento_identidad = fields.String(allow_none=True, validate=validate.Length(max=50))
+    foto_url = fields.String(allow_none=True)
     activo = fields.Bool(load_default=True)
 
     # Datos deportivos

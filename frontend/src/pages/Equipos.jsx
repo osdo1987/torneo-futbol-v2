@@ -5,6 +5,7 @@ import Grid from '@mui/material/Grid'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import List from '@mui/material/List'
+import ListItem from '@mui/material/ListItem'
 import ListItemButton from '@mui/material/ListItemButton'
 import ListItemText from '@mui/material/ListItemText'
 import Button from '@mui/material/Button'
@@ -16,6 +17,9 @@ import TextField from '@mui/material/TextField'
 import Typography from '@mui/material/Typography'
 import IconButton from '@mui/material/IconButton'
 import Checkbox from '@mui/material/Checkbox'
+import InputAdornment from '@mui/material/InputAdornment'
+import LinkIcon from '@mui/icons-material/Link'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
 import TableCell from '@mui/material/TableCell'
@@ -28,7 +32,11 @@ import {
   PersonAdd as PersonAddIcon,
   UploadFile as UploadFileIcon,
   Download as DownloadIcon,
+  Badge as BadgeIcon,
+  CameraAlt as CameraAltIcon,
 } from '@mui/icons-material'
+import Avatar from '@mui/material/Avatar'
+import ListItemAvatar from '@mui/material/ListItemAvatar'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import Chip from '@mui/material/Chip'
@@ -39,6 +47,8 @@ import MenuItem from '@mui/material/MenuItem'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
 import { parseExcel, aPayload, descargarPlantilla } from '../lib/plantilla'
+import { fileToFotoDataURI } from '../lib/imagen'
+import JugadorCarnet from '../components/JugadorCarnet'
 
 const POSICIONES = ['ARQUERO', 'DEFENSOR', 'MEDIOCAMPISTA', 'DELANTERO']
 const POSICION_LABEL = {
@@ -51,7 +61,7 @@ const PIERNAS = ['DERECHA', 'IZQUIERDA', 'AMBIDESTRO']
 const emptyEquipo = { nombre: '', delegado_email: '', delegado_documento: '' }
 const emptyJugador = {
   nombre: '', numero_camiseta: 10, documento_identidad: '',
-  posicion: '', fecha_nacimiento: '', telefono: '', pierna_habil: '', altura_cm: '',
+  posicion: '', fecha_nacimiento: '', telefono: '', pierna_habil: '', altura_cm: '', foto_url: '',
 }
 
 function calcEdad(fecha) {
@@ -73,17 +83,45 @@ function normName(s) {
     .trim()
 }
 
-function JugadoresPanel({ equipo }) {
+function JugadoresPanel({ equipo, torneoNombre = '', organizador = '' }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyJugador)
+  const [fotoRef, setFotoRef] = useState(null)
+  const [carnet, setCarnet] = useState(null)
   const [impOpen, setImpOpen] = useState(false)
   const [impParseando, setImpParseando] = useState(false)
   const [impParseError, setImpParseError] = useState('')
   const [impParseado, setImpParseado] = useState(null)
   const [impSeleccion, setImpSeleccion] = useState(new Set())
   const [impErrores, setImpErrores] = useState([])
+  const [linkOpen, setLinkOpen] = useState(false)
+  const [linkSlug, setLinkSlug] = useState('')
+  const [linkAbierta, setLinkAbierta] = useState(null)
+  const [copiado, setCopiado] = useState(false)
+
+  const linkMut = useMutation({
+    mutationFn: () => apiPost(`/equipos/${equipo.id}/link`),
+    onSuccess: (res) => {
+      setLinkSlug(res.slug)
+      setLinkAbierta(res.inscripciones_abiertas)
+      setCopiado(false)
+      setLinkOpen(true)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const copiarLink = async () => {
+    try {
+      await navigator.clipboard.writeText(linkUrl())
+      setCopiado(true)
+    } catch {
+      toast.show('No se pudo copiar el enlace', 'error')
+    }
+  }
+
+  const linkUrl = () => `${window.location.origin}/r/${linkSlug}`
 
   const { data: jugadores = [], isLoading, isError, error } = useQuery({
     queryKey: ['jugadores', equipo.id],
@@ -114,7 +152,20 @@ function JugadoresPanel({ equipo }) {
       telefono: form.telefono || null,
       fecha_nacimiento: form.fecha_nacimiento || null,
       altura_cm: form.altura_cm ? Number(form.altura_cm) : null,
+      foto_url: form.foto_url || null,
     })
+  }
+
+  const pickFoto = async (file) => {
+    if (!file) return
+    try {
+      const uri = await fileToFotoDataURI(file)
+      setForm({ ...form, foto_url: uri })
+    } catch (err) {
+      toast.show(err.message, 'error')
+    } finally {
+      if (fotoRef) fotoRef.value = ''
+    }
   }
 
   const impMut = useMutation({
@@ -173,43 +224,61 @@ function JugadoresPanel({ equipo }) {
           <Typography variant="h6" fontWeight={700}>Jugadores de {equipo.nombre}</Typography>
           <Chip label={`${activos} inscritos`} color="primary" />
         </Box>
-        <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+        <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
           <Button variant="contained" startIcon={<PersonAddIcon />} onClick={() => setOpen(true)}>
             Inscribir jugador
           </Button>
           <Button variant="outlined" startIcon={<UploadFileIcon />} onClick={() => setImpOpen(true)}>
             Importar plantilla
           </Button>
+          <Button variant="outlined" color="secondary" startIcon={<LinkIcon />} onClick={() => linkMut.mutate()}>
+            Link de inscripción
+          </Button>
         </Box>
 
         {isLoading && <CircularProgress />}
         {isError && <Alert severity="error">{error.message}</Alert>}
 
-        <List dense>
+        <List dense sx={{ p: 0 }}>
           {jugadores.map((j) => (
-            <ListItemButton
+            <ListItem
               key={j.id}
+              sx={{ p: 0 }}
               secondaryAction={
-                j.activo ? (
-                  <IconButton edge="end" size="small" color="error" title="Liberar jugador"
-                    onClick={() => { if (window.confirm('¿Liberar jugador?')) releaseMut.mutate(j.id) }}>
-                    <DeleteIcon fontSize="small" />
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                  <IconButton edge="end" size="small" color="secondary" title="Carnet"
+                    onClick={() => setCarnet(j)}>
+                    <BadgeIcon fontSize="small" />
                   </IconButton>
-                ) : null
+                  {j.activo ? (
+                    <IconButton edge="end" size="small" color="error" title="Liberar jugador"
+                      onClick={() => { if (window.confirm('¿Liberar jugador?')) releaseMut.mutate(j.id) }}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  ) : null}
+                </Box>
               }
-              sx={{ borderRadius: 2, mb: 0.5 }}
             >
-              <ListItemText
-                primary={`#${j.numero_camiseta} ${j.nombre}`}
-                secondary={[
-                  j.posicion ? (POSICION_LABEL[j.posicion] || j.posicion) : null,
-                  j.documento_identidad,
-                  calcEdad(j.fecha_nacimiento) != null ? `${calcEdad(j.fecha_nacimiento)} años` : null,
-                  j.altura_cm ? `${j.altura_cm} cm` : null,
-                  j.telefono,
-                ].filter(Boolean).join(' · ')}
-              />
-            </ListItemButton>
+              <ListItemButton sx={{ borderRadius: 2 }} onClick={() => setCarnet(j)}>
+                <ListItemAvatar>
+                  <Avatar variant="rounded" src={j.foto_url || undefined}
+                    sx={{ bgcolor: j.foto_url ? 'transparent' : 'primary.main' }}>
+                    {!j.foto_url && String(j.nombre).split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase()}
+                  </Avatar>
+                </ListItemAvatar>
+                <ListItemText
+                  primary={`#${j.numero_camiseta} ${j.nombre}`}
+                  secondary={[
+                    j.posicion ? (POSICION_LABEL[j.posicion] || j.posicion) : null,
+                    j.documento_identidad,
+                    calcEdad(j.fecha_nacimiento) != null ? `${calcEdad(j.fecha_nacimiento)} años` : null,
+                    j.altura_cm ? `${j.altura_cm} cm` : null,
+                    j.telefono,
+                  ].filter(Boolean).join(' · ')}
+                  primaryTypographyProps={{ sx: { fontWeight: 600 } }}
+                />
+              </ListItemButton>
+            </ListItem>
           ))}
           {jugadores.length === 0 && !isLoading && <Typography variant="body2" color="text.secondary">Sin jugadores</Typography>}
         </List>
@@ -246,6 +315,24 @@ function JugadoresPanel({ equipo }) {
             </FormControl>
             <TextField label="Altura (cm)" type="number" fullWidth margin="normal"
               value={form.altura_cm} onChange={(e) => setForm({ ...form, altura_cm: e.target.value })} />
+            <Box sx={{ mt: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+              <input id="jug-foto-input" ref={setFotoRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
+                onChange={(e) => pickFoto(e.target.files?.[0])} />
+              <Avatar variant="rounded" src={form.foto_url || undefined}
+                sx={{ width: 52, height: 52, bgcolor: form.foto_url ? 'transparent' : 'primary.main' }}>
+                {!form.foto_url && <CameraAltIcon fontSize="small" />}
+              </Avatar>
+              <Box>
+                <Button size="small" component="label" htmlFor="jug-foto-input" startIcon={<CameraAltIcon />}>
+                  {form.foto_url ? 'Cambiar foto' : 'Subir foto'}
+                </Button>
+                {form.foto_url && (
+                  <Button size="small" color="error" onClick={() => setForm({ ...form, foto_url: '' })}>
+                    Quitar
+                  </Button>
+                )}
+              </Box>
+            </Box>
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOpen(false)}>Cancelar</Button>
@@ -254,6 +341,42 @@ function JugadoresPanel({ equipo }) {
             </Button>
           </DialogActions>
         </form>
+      </Dialog>
+
+      <Dialog open={linkOpen} onClose={() => setLinkOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Link de inscripción de {equipo.nombre}</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Compartí este enlace: cada jugador podrá inscribirse a {equipo.nombre} completando sus datos.
+          </Typography>
+          {linkAbierta === false && (
+            <Alert severity="warning" sx={{ mt: 1, mb: 1 }}>
+              Las inscripciones de jugadores están cerradas para este torneo. El link seguirá activo cuando se habilité la inscripción.
+            </Alert>
+          )}
+          <TextField
+            fullWidth
+            margin="normal"
+            value={linkUrl()}
+            InputProps={{
+              readOnly: true,
+              endAdornment: (
+                <InputAdornment position="end">
+                  <IconButton onClick={copiarLink} color={copiado ? 'success' : 'default'} title="Copiar enlace">
+                    <ContentCopyIcon fontSize="small" />
+                  </IconButton>
+                </InputAdornment>
+              ),
+            }}
+            helperText={copiado ? '¡Enlace copiado!' : 'Abrí el enlace en una ventana anónima para probarlo.'}
+          />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setLinkOpen(false)}>Cerrar</Button>
+          <Button variant="contained" onClick={copiarLink} disabled={copiado}>
+            Copiar enlace
+          </Button>
+        </DialogActions>
       </Dialog>
 
       <Dialog open={impOpen} onClose={() => setImpOpen(false)} fullWidth maxWidth="md">
@@ -352,11 +475,21 @@ function JugadoresPanel({ equipo }) {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <JugadorCarnet
+        open={!!carnet}
+        onClose={() => setCarnet(null)}
+        jugador={carnet}
+        equipo={equipo?.nombre}
+        torneo={torneoNombre}
+        organizador={organizador}
+        editableFoto
+      />
     </Card>
   )
 }
 
-export default function Equipos({ selectedTorneoId }) {
+export default function Equipos({ user, selectedTorneoId }) {
   const qc = useQueryClient()
   const toast = useToast()
   const [selected, setSelected] = useState(null)
@@ -368,6 +501,14 @@ export default function Equipos({ selectedTorneoId }) {
     queryFn: () => apiGet(`/equipos?torneo_id=${selectedTorneoId}`),
     enabled: !!selectedTorneoId,
   })
+
+  // Reusa la caché de torneos cargada en App para mostrar el nombre en el carnet.
+  const { data: torneosCache = [] } = useQuery({
+    queryKey: ['torneos'],
+    queryFn: () => apiGet('/torneos'),
+    enabled: false,
+  })
+  const torneoNombre = torneosCache.find((t) => String(t.id) === String(selectedTorneoId))?.nombre || ''
 
   const addMut = useMutation({
     mutationFn: (body) => apiPost('/equipos', body),
@@ -405,26 +546,26 @@ export default function Equipos({ selectedTorneoId }) {
           <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)' }}>
             <List sx={{ p: 1 }}>
               {equipos.map((eq) => (
-                <ListItemButton
-                  key={eq.id}
-                  selected={selected?.id === eq.id}
-                  onClick={() => setSelected(eq)}
-                  secondaryAction={
-                    <IconButton edge="end" size="small" color="error" onClick={(e) => { e.stopPropagation(); if (window.confirm('¿Eliminar equipo?')) delMut.mutate(eq.id) }}>
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  }
-                  sx={{ borderRadius: 2, mb: 0.5 }}
-                >
-                  <ListItemText primary={eq.nombre} secondary={eq.delegado_email || 'Sin delegado'} />
-                </ListItemButton>
+                <ListItem key={eq.id} sx={{ p: 0 }} secondaryAction={
+                  <IconButton edge="end" size="small" color="error" onClick={(e) => { e.stopPropagation(); if (window.confirm('¿Eliminar equipo?')) delMut.mutate(eq.id) }}>
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                }>
+                  <ListItemButton
+                    selected={selected?.id === eq.id}
+                    onClick={() => setSelected(eq)}
+                    sx={{ borderRadius: 2 }}
+                  >
+                    <ListItemText primary={eq.nombre} secondary={eq.delegado_email || 'Sin delegado'} />
+                  </ListItemButton>
+                </ListItem>
               ))}
               {equipos.length === 0 && <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>Sin equipos. Inscribe el primero.</Typography>}
             </List>
           </Card>
         </Grid>
         <Grid item xs={12} md={8}>
-          {selected ? <JugadoresPanel equipo={selected} /> : (
+          {selected ? <JugadoresPanel equipo={selected} torneoNombre={torneoNombre} organizador={user?.organizadorName || ''} /> : (
             <Card elevation={0} sx={{ border: '1px dashed rgba(0,0,0,0.2)', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 6 }}>
               <Typography variant="body1" color="text.secondary">Selecciona un equipo para gestionar sus jugadores.</Typography>
             </Card>

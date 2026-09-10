@@ -11,6 +11,7 @@ class Jugador(db.Model):
     numero_camiseta = db.Column(db.Integer, nullable=False, default=0)
     documento_identidad = db.Column(db.String(50), nullable=True)
     activo = db.Column(db.Boolean, nullable=False, default=True)
+    foto_url = db.Column(db.Text, nullable=True)
 
     # Datos deportivos
     posicion = db.Column(db.String(20), nullable=True)          # ARQUERO/DEFENSOR/MEDIOCAMPISTA/DELANTERO

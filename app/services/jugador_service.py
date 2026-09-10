@@ -17,6 +17,47 @@ class JugadorService:
         return Jugador.query.get(jugador_id)
 
     @staticmethod
+    def validar_inscripcion_jugador(equipo, data):
+        """Valida cupo, duplicado por documento y reglas de categoría (edad/comodines)
+        para inscribir a un jugador en un equipo. Devuelve un mensaje de error o None."""
+        from app.services.reglas import edad_desde, reglas_normalizadas
+        torneo = equipo.torneo
+        if not torneo.inscripciones_jugadores_abiertas and torneo.estado not in ('CREADO', 'INSCRIPCIONES_ABIERTAS'):
+            return 'Inscripciones de jugadores cerradas'
+        reglas = reglas_normalizadas(torneo)
+        maxj = reglas.get('max_jugadores') or torneo.max_jugadores_por_equipo
+        if Jugador.query.filter_by(equipo_id=equipo.id, activo=True).count() >= maxj:
+            return f'Cupo de jugadores alcanzado (máximo {maxj})'
+        doc = (data.get('documento_identidad') or '').strip()
+        if doc:
+            existente = Jugador.query.filter_by(
+                equipo_id=equipo.id, documento_identidad=doc, activo=True).first()
+            if existente:
+                return f'Ya existe un jugador registrado con el documento {doc} en este equipo'
+        emin, emax = reglas.get('edad_min'), reglas.get('edad_max')
+        if emin is not None or emax is not None:
+            edad = edad_desde(data.get('fecha_nacimiento'))
+            if edad is None:
+                return 'Se requiere fecha de nacimiento (categoría con límite de edad)'
+
+            def cumple_cat(e):
+                return (emin is None or e >= emin) and (emax is None or e <= emax)
+
+            if not cumple_cat(edad):
+                comp = reglas.get('comodines_cantidad') or 0
+                cmin = reglas.get('comodines_edad_min')
+                if not (comp > 0 and cmin is not None and edad > cmin):
+                    return f'Edad no permitida en esta categoría ({edad} años)'
+                usados = 0
+                for j in Jugador.query.filter_by(equipo_id=equipo.id, activo=True).all():
+                    ej = edad_desde(j.fecha_nacimiento)
+                    if ej is not None and not cumple_cat(ej):
+                        usados += 1
+                if usados >= comp:
+                    return f'Cupo de comodines agotado (máximo {comp})'
+        return None
+
+    @staticmethod
     def create(data):
         try:
             jugador = JugadorSchema().load(data)

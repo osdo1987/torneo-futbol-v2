@@ -5,6 +5,7 @@ import { setAuthErrorCallback, apiGet } from './api'
 import AdminLayout from './components/AdminLayout'
 import Login from './pages/Login'
 import PublicLanding from './pages/PublicLanding'
+import RegistroJugador from './pages/RegistroJugador'
 import LandingConfig from './pages/LandingConfig'
 import Dashboard from './pages/Dashboard'
 import Torneos from './pages/Torneos'
@@ -62,11 +63,12 @@ export default function App({ setDarkMode }) {
   }
 
   if (!user) {
-    // La landing pública debe verse sin sesión; el resto pide login
-    if (location.pathname.startsWith('/l/')) {
+    // La landing pública y la inscripción de jugadores se ven sin sesión; el resto pide login
+    if (location.pathname.startsWith('/l/') || location.pathname.startsWith('/r/')) {
       return (
         <Routes>
-          <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
+<Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
+      <Route path="/r/:slug" element={<RegistroJugador />} />
         </Routes>
       )
     }
@@ -118,6 +120,7 @@ export default function App({ setDarkMode }) {
       <Route path="/config" element={layoutPages(<Config user={user} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />
       <Route path="/landing" element={layoutPages(<LandingConfig user={user} />)} />
       <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
+      <Route path="/r/:slug" element={<RegistroJugador />} />
       <Route path="/" element={layoutPages(<Dashboard user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

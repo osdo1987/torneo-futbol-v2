@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carnet de Jugador con Foto de Referencia</title>
+
+    <!-- Importación de fuentes tipográficas -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Montserrat:wght@300;400;500;600&display=swap"
+        rel="stylesheet">
+
+    <!-- Iconos FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: #f4f6f9;
+            /* Fondo gris claro corporativo */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Montserrat', sans-serif;
+        }
+
+        /* Contenedor principal */
+        .card {
+            position: relative;
+            width: 700px;
+            height: 400px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+        }
+
+        /* Fondo SVG con las ondas curvas (Colores Corporativos) */
+        .card-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        /* FOTO DEL JUGADOR (Nuevo estilo) */
+        .player-photo {
+            position: absolute;
+            top: 50%;
+            left: 105px;
+            /* Centrado sobre la curva oscura */
+            transform: translate(-50%, -50%);
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            /* Foto circular */
+            object-fit: cover;
+            /* Ajusta la imagen sin deformarla */
+            border: 4px solid #ffffff;
+            /* Borde blanco para resaltar sobre el fondo oscuro */
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            z-index: 3;
+        }
+
+        /* Número de camiseta (Marca de agua) */
+        .number-badge {
+            position: absolute;
+            top: 35px;
+            right: 45px;
+            z-index: 3;
+            font-family: 'Cinzel', serif;
+            font-size: 2.5rem;
+            font-weight: 600;
+            color: #1E3A8A;
+            /* Azul Marino */
+            opacity: 0.1;
+        }
+
+        /* Contenido del texto */
+        .card-content {
+            position: relative;
+            z-index: 2;
+            margin-left: 210px;
+            padding-right: 40px;
+            width: 100%;
+        }
+
+        /* Encabezado */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #1E3A8A;
+            /* Azul Marino */
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        /* Nombre Principal */
+        .name {
+            font-family: 'Cinzel', serif;
+            font-size: 1.9rem;
+            font-weight: 400;
+            color: #111827;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            line-height: 1.2;
+        }
+
+        /* Posición */
+        .title {
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #4B5563;
+            letter-spacing: 3.5px;
+            text-transform: uppercase;
+            margin-top: 12px;
+        }
+
+        /* Detalles del jugador */
+        .details {
+            display: flex;
+            gap: 20px;
+            margin-top: 25px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.75rem;
+            color: #4B5563;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+        }
+
+        .details span {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .details i {
+            color: #3B82F6;
+            /* Azul Brillante */
+            font-size: 0.7rem;
+        }
+
+        /* Pie de página */
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 0.6rem;
+            font-weight: 600;
+            color: #9CA3AF;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+
+        .footer span:last-child {
+            color: #1E3A8A;
+        }
+
+        /* Diseño responsivo */
+        @media (max-width: 720px) {
+            .card {
+                width: 90%;
+                height: auto;
+                min-height: 320px;
+            }
+
+            .card-content {
+                margin-left: 140px;
+                padding-right: 20px;
+            }
+
+            .name {
+                font-size: 1.4rem;
+                letter-spacing: 2px;
+            }
+
+            .title {
+                font-size: 0.7rem;
+                letter-spacing: 2px;
+            }
+
+            .details {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            .player-photo {
+                left: 70px;
+                width: 80px;
+                height: 80px;
+            }
+
+            .number-badge {
+                top: 20px;
+                right: 20px;
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="card">
+        <!-- SVG con las curvas corporativas -->
+        <svg class="card-bg" viewBox="0 0 700 400" preserveAspectRatio="none">
+            <path fill="#0A192F" d="M 0,0 L 190,0 C 120,130 90,260 140,400 L 0,400 Z" />
+            <path fill="#1E3A8A" d="M 0,0 L 145,0 C 75,130 65,270 305,400 L 0,400 Z" />
+            <path fill="#3B82F6" d="M 115,0 C 100,80 105,150 130,220 C 115,150 115,80 142,0 Z" />
+        </svg>
+
+        <!-- FOTO DE REFERENCIA (Reemplaza al div de iniciales) -->
+        <!-- Puedes cambiar esta URL por la foto real del jugador -->
+        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?ixlib=rb-4.0.3&auto=format&fit=crop&w=200&q=80"
+            alt="Foto del Jugador" class="player-photo">
+
+        <!-- Número de Camiseta -->
+        <div class="number-badge">67</div>
+
+        <!-- Información de texto -->
+        <div class="card-content">
+
+            <div class="header">
+                <span><i class="fa-solid fa-shield-halved"></i> LIGA DE PRUEBAS</span>
+                <span>Copa Planilla</span>
+            </div>
+
+            <h1 class="name">Alejandro Mendoza</h1>
+            <p class="title">Defensor - Izquierda</p>
+
+            <div class="details">
+                <span><i class="fa-solid fa-id-card"></i> DNI 1113099855</span>
+                <span><i class="fa-solid fa-cake-candles"></i> 40 años</span>
+                <span><i class="fa-solid fa-ruler-vertical"></i> 171 cm</span>
+            </div>
+
+            <div class="footer">
+                <span>Atlético Norte</span>
+                <span>CARNET DE JUGADOR</span>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+
+</html>
