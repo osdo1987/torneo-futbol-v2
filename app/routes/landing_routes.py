@@ -152,10 +152,32 @@ def public_eventos(partido_id):
             'tipo': ev.tipo,
             'minuto': ev.minuto,
             'jugador': jugador.nombre if jugador else None,
+            'jugador_sale': (Jugador.query.get(ev.jugador_sale_id).nombre
+                             if ev.jugador_sale_id and Jugador.query.get(ev.jugador_sale_id) else None),
             'equipo': equipo.nombre if equipo else None,
             'descripcion': ev.descripcion,
         })
     return jsonify({'partido_id': partido_id, 'eventos': data}), 200
+
+
+@landing_bp.route('/partido/<int:partido_id>/alineaciones', methods=['GET'])
+def public_alineaciones(partido_id):
+    """Alineaciones (formación + suplentes) y cambios de un partido (público)."""
+    result = LandingService.alineaciones_partido(partido_id)
+    if not result:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    return jsonify(result), 200
+
+
+@landing_bp.route('/partido/<int:partido_id>/vivo', methods=['GET'])
+def public_en_vivo(partido_id):
+    """Estado en vivo (cronómetro) de un partido (público)."""
+    from app.models.partido import Partido
+
+    partido = Partido.query.get(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    return jsonify(LandingService.en_vivo_partido(partido_id)), 200
 
 
 @landing_bp.route('/manage', methods=['GET'])

@@ -1,9 +1,9 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
-import CardActions from '@mui/material/CardActions'
 import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import Button from '@mui/material/Button'
@@ -30,11 +30,11 @@ import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
 import {
-  Add as AddIcon, Remove as RemoveIcon, Check as CheckIcon,
+  Check as CheckIcon, AccessTime as AccessTimeIcon,
   SportsSoccer as GolIcon, Square as YellowCardIcon,
   Block as RedCardIcon, Flag as AutogolIcon, Delete as DeleteIcon,
   SwapHoriz as SwapIcon, PlayArrow as PlayIcon, Pause as PauseIcon,
-  Replay as ReplayIcon,
+  Replay as ReplayIcon, ArrowDownward as ArrowDownwardIcon, ArrowUpward as ArrowUpwardIcon,
 } from '@mui/icons-material'
 
 const RESULTADOS = {
@@ -55,18 +55,64 @@ const TIPO_ACCION = {
   CAMBIO: { label: 'Cambio', icon: <SwapIcon />, color: 'info' },
 }
 
-const TIPO_EVENTO_META = {
-  GOL: { color: 'primary', icon: <GolIcon /> },
-  AUTOGOL: { color: 'secondary', icon: <AutogolIcon /> },
-  TARJETA_AMARILLA: { color: 'warning', icon: <YellowCardIcon /> },
-  TARJETA_ROJA: { color: 'error', icon: <RedCardIcon /> },
-  CAMBIO: { color: 'info', icon: <SwapIcon /> },
-}
-
 const TIPO_LABEL = {
   GOL: 'Gol', AUTOGOL: 'Autogol',
   TARJETA_AMARILLA: 'Tarjeta amarilla', TARJETA_ROJA: 'Tarjeta roja',
   CAMBIO: 'Cambio',
+}
+
+const COLORES_ACCION = {
+  GOL: { base: { bg: '#dcfce7', color: '#166534', border: '#4ade80' }, sel: { bg: '#22c55e', color: '#ffffff', border: '#15803d' } },
+  AUTOGOL: { base: { bg: '#ede9fe', color: '#5b21b6', border: '#a78bfa' }, sel: { bg: '#8b5cf6', color: '#ffffff', border: '#6d28d9' } },
+  TARJETA_AMARILLA: { base: { bg: '#fef9c3', color: '#854d0e', border: '#facc15' }, sel: { bg: '#eab308', color: '#ffffff', border: '#a16207' } },
+  TARJETA_ROJA: { base: { bg: '#fee2e2', color: '#991b1b', border: '#f87171' }, sel: { bg: '#ef4444', color: '#ffffff', border: '#b91c1c' } },
+}
+
+const PALETA_CAMBIO = {
+  sale: { base: { bg: '#fee2e2', color: '#b91c1c', border: '#fca5a5' }, sel: { bg: '#ef4444', color: '#ffffff', border: '#b91c1c' } },
+  entra: { base: { bg: '#dcfce7', color: '#15803d', border: '#86efac' }, sel: { bg: '#22c55e', color: '#ffffff', border: '#15803d' } },
+}
+
+const ESTILO_EVENTO = {
+  GOL: { bg: '#f0fdf4', border: '#bbf7d0', color: '#16a34a', icon: <GolIcon sx={{ fontSize: 16 }} /> },
+  AUTOGOL: { bg: '#f5f3ff', border: '#ddd6fe', color: '#7c3aed', icon: <AutogolIcon sx={{ fontSize: 16 }} /> },
+  TARJETA_AMARILLA: { bg: '#fefce8', border: '#fef08a', color: '#ca8a04', icon: <YellowCardIcon sx={{ fontSize: 16 }} /> },
+  TARJETA_ROJA: { bg: '#fef2f2', border: '#fecaca', color: '#dc2626', icon: <RedCardIcon sx={{ fontSize: 16 }} /> },
+  CAMBIO: { bg: '#eff6ff', border: '#bfdbfe', color: '#2563eb', icon: <SwapIcon sx={{ fontSize: 16 }} /> },
+}
+
+const MAX_TITULARES = 11
+
+const accIconBtnSx = {
+  width: 38, height: 38,
+  border: '1px solid rgba(255,255,255,0.15)',
+  bgcolor: 'rgba(255,255,255,0.06)',
+  '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
+}
+
+const JugadorBtn = ({ num, nombre, base, sel, seleccionado = false, onClick }) => {
+  const colores = seleccionado ? sel : base
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      title={`${num} · ${nombre}`}
+      sx={{
+        width: 60, height: 60, borderRadius: '50%', mx: 'auto', padding: '4px',
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        fontWeight: 800, fontSize: 16, cursor: 'pointer',
+        border: `2px solid ${colores.border}`, bgcolor: colores.bg, color: colores.color,
+        transition: 'all .15s',
+        '&:hover': { transform: 'scale(1.08)', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' },
+      }}
+    >
+      <span style={{ lineHeight: 1 }}>{num}</span>
+      <span style={{ fontSize: 8, fontWeight: 700, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.85 }}>
+        {nombre}
+      </span>
+    </Box>
+  )
 }
 
 const POSICION_LABEL = {
@@ -82,16 +128,20 @@ const fmtTiempo = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${Strin
 export default function Planilla({ selectedTorneoId }) {
   const qc = useQueryClient()
   const toast = useToast()
+  const [searchParams] = useSearchParams()
   const [selId, setSelId] = useState('')
   const [marcador, setMarcador] = useState({ local: 0, visitante: 0 })
   const [accion, setAccion] = useState(null)
   const [accForm, setAccForm] = useState({ equipo_id: '', jugador_id: '', jugador_sale_id: '', minuto: 45 })
   const [crono, setCrono] = useState({ seg: 0, running: false })
+  const [iniciado, setIniciado] = useState(false)
   const [formEquipo, setFormEquipo] = useState({})
   const [vistaEquipo, setVistaEquipo] = useState({})
   const [ordenLocal, setOrdenLocal] = useState({})
   const [hoverKey, setHoverKey] = useState('')
   const dragJugador = useRef({ eqId: null, jugadorId: null, rol: '' })
+  const lastLiveRef = useRef(null)
+  const liveReadyRef = useRef(false)
 
   const { data: partidos = [], isLoading: loadingPartidos } = useQuery({
     queryKey: ['partidos', selectedTorneoId],
@@ -136,10 +186,24 @@ export default function Planilla({ selectedTorneoId }) {
 
   useEffect(() => {
     if (!selId && partidos.length) {
-      const pendiente = partidos.find((p) => p.resultado === 'PENDIENTE')
-      setSelId(String((pendiente || partidos[0]).id))
+      const param = searchParams.get('partido')
+      const destino = param
+        ? partidos.find((p) => String(p.id) === param)
+        : partidos.find((p) => p.resultado === 'PENDIENTE')
+      setSelId(String((destino || partidos[0]).id))
     }
-  }, [partidos, selId])
+  }, [partidos, selId, searchParams])
+
+  const marcadorMut = useMutation({
+    mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/marcador`, body),
+    onSuccess: (data) => { setMarcador({ local: data.goles_local, visitante: data.goles_visitante }) },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const liveMut = useMutation({
+    mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/en_vivo`, body),
+    onError: () => {},
+  })
 
   useEffect(() => {
     if (partido) setMarcador({ local: partido.goles_local, visitante: partido.goles_visitante })
@@ -169,11 +233,38 @@ export default function Planilla({ selectedTorneoId }) {
     return () => clearInterval(id)
   }, [crono.running])
 
-  const marcadorMut = useMutation({
-    mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/marcador`, body),
-    onSuccess: (data) => { setMarcador({ local: data.goles_local, visitante: data.goles_visitante }) },
-    onError: (e) => toast.show(e.message, 'error'),
-  })
+  useEffect(() => {
+    if (!selId) return
+    let active = true
+    liveReadyRef.current = false
+    apiGet(`/partidos/${selId}/en_vivo`)
+      .then((d) => {
+        if (!active) return
+        lastLiveRef.current = { seg: d.seg || 0, running: !!d.running, iniciado: !!d.iniciado }
+        setCrono((c) => ({ ...c, seg: d.seg || 0, running: !!d.running }))
+        setIniciado(!!d.iniciado)
+        liveReadyRef.current = true
+      })
+      .catch(() => {
+        if (active) {
+          lastLiveRef.current = { seg: 0, running: false, iniciado: false }
+          liveReadyRef.current = true
+        }
+      })
+    return () => { active = false }
+  }, [selId])
+
+  useEffect(() => {
+    if (!liveReadyRef.current) return
+    if (!selId || !partido || partido.resultado !== 'PENDIENTE') return
+    const cur = { seg: crono.seg, running: crono.running, iniciado }
+    const prev = lastLiveRef.current
+    const onlySeg = prev && prev.seg !== cur.seg && prev.running === cur.running && prev.iniciado === cur.iniciado
+    if (onlySeg && cur.seg % 10 !== 0) return
+    if (prev && prev.seg === cur.seg && prev.running === cur.running && prev.iniciado === cur.iniciado) return
+    lastLiveRef.current = cur
+    liveMut.mutate({ id: Number(selId), body: cur })
+  }, [crono.seg, crono.running, iniciado, selId, partido?.resultado, liveMut, partido])
 
   const eventoMut = useMutation({
     mutationFn: (body) => apiPost('/eventos', body),
@@ -191,6 +282,10 @@ export default function Planilla({ selectedTorneoId }) {
     mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/resultado`, body),
     onSuccess: () => {
       qc.invalidateQueries(['partidos', selectedTorneoId]); qc.invalidateQueries(['tabla', selectedTorneoId]); qc.invalidateQueries(['resumen']); qc.invalidateQueries(['eventos', selId])
+      setCrono({ seg: 0, running: false })
+      setIniciado(false)
+      lastLiveRef.current = { seg: 0, running: false, iniciado: false }
+      liveMut.mutate({ id: Number(selId), body: { seg: 0, running: false, iniciado: false } })
       toast.show('Resultado guardado', 'success')
     },
     onError: (e) => toast.show(e.message, 'error'),
@@ -241,41 +336,110 @@ export default function Planilla({ selectedTorneoId }) {
       return a.nombre.localeCompare(b.nombre)
     })
 
+  const expulsados = useMemo(() => {
+    const contAmarillas = {}
+    const set = new Set()
+    ;(eventos || []).forEach((e) => {
+      if (!e.jugador_id) return
+      if (e.tipo === 'TARJETA_ROJA') set.add(e.jugador_id)
+      if (e.tipo === 'TARJETA_AMARILLA') contAmarillas[e.jugador_id] = (contAmarillas[e.jugador_id] || 0) + 1
+    })
+    Object.entries(contAmarillas).forEach(([id, n]) => { if (n >= 2) set.add(Number(id)) })
+    return set
+  }, [eventos])
+
+  const enCanchaDe = (equipoId) => convocadosDe(equipoId)
+    .filter((j) => alineacionMap[j.id].titular && !expulsados.has(j.id))
+  const alBancoDe = (equipoId) => {
+    const plantel = plantelDe(equipoId)
+    const numerosTitulares = new Set(
+      plantel.filter((j) => alineacionMap[j.id]?.titular).map((j) => numCamiseta(j, alineacionMap[j.id]))
+    )
+    return plantel
+      .filter((j) => j.activo && !alineacionMap[j.id]?.titular && !expulsados.has(j.id))
+      .filter((j) => (numCamiseta(j, alineacionMap[j.id]) == null || !numerosTitulares.has(numCamiseta(j, alineacionMap[j.id]))))
+  }
+
   const half = crono.seg <= 2700 ? 1 : 2
   const minutoCrono = () => (half === 1
     ? Math.max(1, Math.ceil(crono.seg / 60))
     : 45 + Math.max(1, Math.ceil((crono.seg - 2700) / 60)))
 
   const abrirAccion = (tipo, equipoId) => {
+    if (!iniciado) {
+      toast.show('El partido aún no ha iniciado. Pulsa Iniciar para registrar acciones.', 'info')
+      return
+    }
     setAccForm({ equipo_id: String(equipoId), jugador_id: '', jugador_sale_id: '', minuto: minutoCrono() })
     setAccion(tipo)
   }
 
-  const registrarAccion = (e) => {
-    e.preventDefault()
-    const tipo = accion
-    const body = {
+  const toggleCrono = () => {
+    if (!crono.running) setIniciado(true)
+    setCrono((c) => ({ ...c, running: !c.running }))
+  }
+
+  const resetCrono = () => {
+    setIniciado(false)
+    setCrono({ seg: 0, running: false })
+  }
+
+  const registrarRapido = (jugadorId) => {
+    if (!accion || accion === 'CAMBIO') return
+    eventoMut.mutate({
       partido_id: Number(selId),
-      tipo,
+      tipo: accion,
       equipo_id: Number(accForm.equipo_id),
       minuto: Number(accForm.minuto) || 0,
+      jugador_id: jugadorId ? Number(jugadorId) : null,
+    })
+  }
+
+  const confirmarCambio = () => {
+    const sale = Number(accForm.jugador_sale_id)
+    const entra = Number(accForm.jugador_id)
+    if (!sale || !entra) {
+      toast.show('Selecciona el jugador que sale y el que entra', 'error')
+      return
     }
-    if (tipo === 'CAMBIO') {
-      if (!accForm.jugador_id || !accForm.jugador_sale_id) {
-        toast.show('Selecciona el jugador que sale y el que entra', 'error')
-        return
-      }
-      if (accForm.jugador_id === accForm.jugador_sale_id) {
-        toast.show('El jugador que sale y el que entra deben ser distintos', 'error')
-        return
-      }
-      body.jugador_id = Number(accForm.jugador_id)
-      body.jugador_sale_id = Number(accForm.jugador_sale_id)
-    } else {
-      if (tipo !== 'GOL' && tipo !== 'TARJETA_AMARILLA' && tipo !== 'TARJETA_ROJA' && tipo !== 'AUTOGOL') return
-      body.jugador_id = accForm.jugador_id ? Number(accForm.jugador_id) : null
+    if (sale === entra) {
+      toast.show('El jugador que sale y el que entra deben ser distintos', 'error')
+      return
     }
-    eventoMut.mutate(body)
+    eventoMut.mutate({
+      partido_id: Number(selId),
+      tipo: 'CAMBIO',
+      equipo_id: Number(accForm.equipo_id),
+      minuto: Number(accForm.minuto) || 0,
+      jugador_id: entra,
+      jugador_sale_id: sale,
+    })
+  }
+
+  const anularGol = (equipoId) => {
+    const goles = (eventos || [])
+      .filter((e) => {
+        if (e.tipo === 'GOL') return e.equipo_id === equipoId
+        if (e.tipo === 'AUTOGOL') return e.equipo_id !== equipoId
+        return false
+      })
+      .sort((a, b) => (b.minuto - a.minuto) || ((b.id || 0) - (a.id || 0)))
+    const ultimo = goles[0]
+    if (!ultimo) {
+      toast.show('No hay goles registrados para este equipo', 'info')
+      return
+    }
+    const jugador = ultimo.jugador_id ? nombreDe(ultimo.jugador_id, ultimo.equipo_id) : 'sin jugador'
+    const esGol = ultimo.tipo === 'GOL'
+    if (window.confirm(`¿Anular el ${esGol ? 'gol' : 'autogol'} de ${jugador} al minuto ${ultimo.minuto}'?`)) {
+      borrarEventoMut.mutate(ultimo.id)
+    }
+  }
+
+  const anularGolModal = () => {
+    const equipoId = Number(accForm.equipo_id) || partido?.equipo_local_id
+    setAccion(null)
+    anularGol(equipoId)
   }
 
   if (!selectedTorneoId) return <Alert severity="info">Selecciona un torneo para planillar partidos.</Alert>
@@ -305,106 +469,132 @@ export default function Planilla({ selectedTorneoId }) {
         <Alert severity="info">No hay partidos en este torneo.</Alert>
       ) : (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Chip label={`Jornada ${partido.jornada}`} size="small" />
+          <Card elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 16px 40px rgba(15,23,42,0.25)' }}>
+            <Box bgcolor="#111827" color="#fff">
+              <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: '#1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <Chip size="small" label={`Jornada ${partido.jornada}`} sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
                   {partido.fecha_programada && (
-                    <Chip label={new Date(partido.fecha_programada).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} size="small" variant="outlined" />
+                    <Chip size="small"
+                      label={new Date(partido.fecha_programada).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
                   )}
                 </Box>
-                <Chip label={label} color={color} size="small" />
+                <Chip size="small" label={editable ? 'En curso' : label} color={editable ? 'success' : color} />
               </Box>
 
-              <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                <Box sx={{ flex: 1, textAlign: 'center' }}>
-                  <Typography variant="h6" fontWeight={700}>{eqName(partido.equipo_local_id)}</Typography>
+              <Box sx={{ px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 4 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
+                <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'left' } }}>
+                  <Typography variant="h6" fontWeight={800} color="#fff">{eqName(partido.equipo_local_id)}</Typography>
                   {editable && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 1 }}>
-                      <IconButton size="small" onClick={() => marcadorMut.mutate({ id: partido.id, body: { goles_local: Math.max(0, marcador.local - 1), goles_visitante: marcador.visitante } })}><RemoveIcon /></IconButton>
-                      <IconButton size="small" onClick={() => marcadorMut.mutate({ id: partido.id, body: { goles_local: marcador.local + 1, goles_visitante: marcador.visitante } })}><AddIcon /></IconButton>
+                    <Box sx={{ display: 'flex', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
+                      <Tooltip title={iniciado ? 'Registrar gol' : 'Inicia el partido para registrar acciones'}>
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('GOL', partido.equipo_local_id)}>
+                            <GolIcon sx={{ color: '#4ade80', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title={iniciado ? 'Registrar tarjeta' : 'Inicia el partido para registrar acciones'}>
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('TARJETA_AMARILLA', partido.equipo_local_id)}>
+                            <YellowCardIcon sx={{ color: '#facc15', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title={iniciado ? 'Registrar cambio' : 'Inicia el partido para registrar acciones'}>
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_local_id)}>
+                            <SwapIcon sx={{ color: '#60a5fa', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Box>
                   )}
                 </Box>
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
-                  <Box sx={{ px: 4, py: 1, borderRadius: 2, bgcolor: 'grey.100', border: '1px solid rgba(0,0,0,0.08)' }}>
-                    <Typography variant="h4" fontWeight={800}>
-                      {marcador.local} <Typography component="span" color="text.secondary" fontWeight={400}>–</Typography> {marcador.visitante}
-                    </Typography>
+
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', px: { xs: 2, sm: 4 }, py: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, sm: 3 } }}>
+                    <Typography variant="h2" fontWeight={900} color="#fff">{marcador.local}</Typography>
+                    <Typography variant="h3" fontWeight={300} color="#4b5563">–</Typography>
+                    <Typography variant="h2" fontWeight={900} color="#fff">{marcador.visitante}</Typography>
                   </Box>
-                  {editable && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <Chip size="small" color={half === 1 ? 'primary' : 'info'}
-                        label={`Tiempo: ${fmtTiempo(crono.seg)} · ${half === 1 ? '1T' : '2T'}`} />
-                      <Tooltip title={crono.running ? 'Pausar' : 'Iniciar'}>
-                        <IconButton size="small" onClick={() => setCrono((c) => ({ ...c, running: !c.running }))}>
-                          {crono.running ? <PauseIcon fontSize="small" /> : <PlayIcon fontSize="small" />}
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Reiniciar cronómetro">
-                        <IconButton size="small" color="error" onClick={() => setCrono({ seg: 0, running: false })}>
-                          <ReplayIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Box>
-                  )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
+                    <Chip size="small" icon={<AccessTimeIcon sx={{ fontSize: '0.9rem !important' }} />}
+                      label={iniciado
+                        ? `${fmtTiempo(crono.seg)} · ${half === 1 ? 'Primer tiempo' : 'Segundo tiempo'}`
+                        : 'Sin iniciar'}
+                      sx={{
+                        bgcolor: iniciado ? '#1e3a8a' : '#1f2937',
+                        color: iniciado ? '#93c5fd' : '#6b7280',
+                        fontFamily: 'monospace', fontWeight: 700,
+                      }} />
+                    {editable && (
+                      <>
+                        <Tooltip title={crono.running ? 'Pausar' : (iniciado ? 'Reanudar' : 'Iniciar partido')}>
+                          <IconButton size="small" sx={{ color: '#fff', '&:hover': { bgcolor: '#374151' } }}
+                            onClick={toggleCrono}>
+                            {crono.running ? <PauseIcon fontSize="small" /> : <PlayIcon fontSize="small" />}
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Reiniciar cronómetro">
+                          <IconButton size="small" color="error" onClick={resetCrono}>
+                            <ReplayIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
+                  </Box>
                 </Box>
-                <Box sx={{ flex: 1, textAlign: 'center' }}>
-                  <Typography variant="h6" fontWeight={700}>{eqName(partido.equipo_visitante_id)}</Typography>
+
+                <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'right' } }}>
+                  <Typography variant="h6" fontWeight={800} color="#fff">{eqName(partido.equipo_visitante_id)}</Typography>
                   {editable && (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5, mt: 1 }}>
-                      <IconButton size="small" onClick={() => marcadorMut.mutate({ id: partido.id, body: { goles_local: marcador.local, goles_visitante: Math.max(0, marcador.visitante - 1) } })}><RemoveIcon /></IconButton>
-                      <IconButton size="small" onClick={() => marcadorMut.mutate({ id: partido.id, body: { goles_local: marcador.local, goles_visitante: marcador.visitante + 1 } })}><AddIcon /></IconButton>
+                    <Box sx={{ display: 'flex', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
+                      <Tooltip title={iniciado ? 'Registrar gol' : 'Inicia el partido para registrar acciones'}>
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('GOL', partido.equipo_visitante_id)}>
+                            <GolIcon sx={{ color: '#4ade80', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title={iniciado ? 'Registrar tarjeta' : 'Inicia el partido para registrar acciones'}>
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('TARJETA_AMARILLA', partido.equipo_visitante_id)}>
+                            <YellowCardIcon sx={{ color: '#facc15', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title={iniciado ? 'Registrar cambio' : 'Inicia el partido para registrar acciones'}>
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_visitante_id)}>
+                            <SwapIcon sx={{ color: '#60a5fa', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Box>
                   )}
                 </Box>
               </Box>
-            </CardContent>
-            {editable && (
-              <>
-                <Divider />
-                <CardActions sx={{ px: 2, py: 1.5, flexWrap: 'wrap', gap: 1 }}>
-                  {[
-                    { tipo: 'GOL', id: partido.equipo_local_id, label: 'Gol local', color: 'success' },
-                    { tipo: 'GOL', id: partido.equipo_visitante_id, label: 'Gol visitante', color: 'success' },
-                    { tipo: 'AUTOGOL', id: partido.equipo_local_id, label: 'Autogol local', color: 'secondary' },
-                    { tipo: 'AUTOGOL', id: partido.equipo_visitante_id, label: 'Autogol visitante', color: 'secondary' },
-                    { tipo: 'TARJETA_AMARILLA', id: partido.equipo_local_id, label: 'Amarilla local', color: 'warning' },
-                    { tipo: 'TARJETA_AMARILLA', id: partido.equipo_visitante_id, label: 'Amarilla visitante', color: 'warning' },
-                    { tipo: 'TARJETA_ROJA', id: partido.equipo_local_id, label: 'Roja local', color: 'error' },
-                    { tipo: 'TARJETA_ROJA', id: partido.equipo_visitante_id, label: 'Roja visitante', color: 'error' },
-                    { tipo: 'CAMBIO', id: partido.equipo_local_id, label: 'Cambio local', color: 'info' },
-                    { tipo: 'CAMBIO', id: partido.equipo_visitante_id, label: 'Cambio visitante', color: 'info' },
-                  ].map((b) => (
-                    <Tooltip key={`${b.tipo}-${b.id}`} title={b.label}>
-                      <Button size="small" variant="outlined" color={b.color}
-                        startIcon={TIPO_ACCION[b.tipo].icon}
-                        onClick={() => abrirAccion(b.tipo, b.id)}>
-                        {b.label}
-                      </Button>
-                    </Tooltip>
-                  ))}
-                </CardActions>
-                <Divider />
-                <CardActions sx={{ px: 2, py: 1.5, justifyContent: 'flex-end' }}>
-                  <Button variant="contained" color="success" startIcon={<CheckIcon />}
+
+              {editable ? (
+                <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end' }}>
+                  <Button variant="contained" color="error" startIcon={<CheckIcon />}
                     disabled={finalizarMut.isPending}
                     onClick={() => {
                       if (window.confirm('¿Finalizar el partido y guardar el resultado?')) {
                         finalizarMut.mutate({ id: partido.id, body: { goles_local: marcador.local, goles_visitante: marcador.visitante } })
                       }
                     }}>
-                    Finalizar partido
+                    {finalizarMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Finalizar partido'}
                   </Button>
-                </CardActions>
-              </>
-            )}
-            {!editable && (
-              <CardActions sx={{ px: 2, py: 1.5 }}>
-                <Alert severity="info" sx={{ width: '100%' }}>Este partido ya fue jugado. Solo lectura.</Alert>
-              </CardActions>
-            )}
+                </Box>
+              ) : (
+                <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                  <Typography variant="body2" color="#9ca3af">Este partido ya fue jugado. Solo lectura.</Typography>
+                </Box>
+              )}
+            </Box>
           </Card>
 
           <Box>
@@ -537,7 +727,7 @@ export default function Planilla({ selectedTorneoId }) {
                                       return
                                     }
                                     const n = form.numero === '' ? null : Number(form.numero)
-                                    const body = { jugadorId: jugador.id, titular: true }
+                                    const body = { jugadorId: jugador.id, titular: titulares < MAX_TITULARES }
                                     if (n !== null) body.numeroCamiseta = n
                                     alinearMut.mutate(body, {
                                       onSuccess: () => {
@@ -678,6 +868,10 @@ export default function Planilla({ selectedTorneoId }) {
                                                   value={al.titular ? 'T' : 'S'}
                                                   onChange={(_, v) => {
                                                     if (v === null) return
+                                                    if (v === 'T' && !al.titular && titulares >= MAX_TITULARES) {
+                                                      toast.show(`No pueden haber más de ${MAX_TITULARES} titulares`, 'error')
+                                                      return
+                                                    }
                                                     alinearMut.mutate({ jugadorId: j.id, titular: v === 'T' })
                                                   }}>
                                                   <ToggleButton value="T" sx={{ px: 1.2, py: 0 }}>
@@ -722,121 +916,217 @@ export default function Planilla({ selectedTorneoId }) {
             </Grid>
           </Box>
 
-          <Box>
-            <Typography variant="h6" fontWeight={700} mb={1}>Acciones registradas</Typography>
-            {loadingEventos ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', p: 5 }}><CircularProgress /></Box>
-            ) : !eventos || eventos.length === 0 ? (
-              <Alert severity="info">No hay acciones registradas en este partido.</Alert>
-            ) : (
-              <Card elevation={0} variant="outlined">
-                <List dense>
-                  {[...eventos]
-                    .sort((a, b) => a.minuto - b.minuto)
-                    .map((ev, i) => {
-                      const meta = TIPO_EVENTO_META[ev.tipo] || TIPO_EVENTO_META.GOL
-                      const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : null
-                      const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : null
-                      const primary = ev.tipo === 'CAMBIO'
-                        ? `${sala || '?'} ↔ ${entra || '?'}`
-                        : (ev.jugador_id ? entra : 'Sin jugador asociado')
-                      return (
-                        <Box key={ev.id}>
-                          {i > 0 && <Divider component="li" />}
-                          <ListItem
-                            secondaryAction={editable && (
-                              <IconButton edge="end" size="small" color="error" onClick={() => { if (window.confirm('¿Eliminar esta acción?')) borrarEventoMut.mutate(ev.id) }}>
-                                <DeleteIcon fontSize="small" />
-                              </IconButton>
-                            )}
-                          >
-                            <Box sx={{ color: `${meta.color}.main`, display: 'flex', mr: 1.5 }}>{meta.icon}</Box>
-                            <Chip label={`${ev.minuto}'`} size="small" variant="outlined" sx={{ mr: 1.5 }} />
-                            <ListItemText
-                              primary={primary}
-                              secondary={`${TIPO_LABEL[ev.tipo] || ev.tipo}${ev.tipo === 'CAMBIO' ? ' (sale ↔ entra)' : ''} · ${eqName(ev.equipo_id)}`}
-                              primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                              secondaryTypographyProps={{ variant: 'caption' }}
-                            />
-                          </ListItem>
-                        </Box>
-                      )
-                    })}
-                </List>
+          <Grid container spacing={3}>
+            <Grid item xs={12} lg={7}>
+              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={700} mb={2}>Resumen del partido</Typography>
+                  {loadingEventos ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+                  ) : !eventos || eventos.length === 0 ? (
+                    <Alert severity="info">No hay acciones registradas en este partido.</Alert>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      {[...eventos]
+                        .sort((a, b) => a.minuto - b.minuto)
+                        .map((ev) => {
+                          const estilo = ESTILO_EVENTO[ev.tipo] || ESTILO_EVENTO.GOL
+                          const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : null
+                          const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : null
+                          const primary = ev.tipo === 'CAMBIO'
+                            ? `${sala || '?'} ↔ ${entra || '?'}`
+                            : (ev.jugador_id ? entra : 'Sin jugador asociado')
+                          return (
+                            <Box key={ev.id} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', mb: 1.5 }}>
+                              <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: estilo.bg, border: `2px solid ${estilo.border}`, color: estilo.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                {estilo.icon}
+                              </Box>
+                              <Box sx={{ flex: 1, bgcolor: estilo.bg, border: `1px solid ${estilo.border}`, borderRadius: 2, p: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                                <Box sx={{ minWidth: 0 }}>
+                                  <Typography variant="body2" fontWeight={700}>{primary}</Typography>
+                                  <Typography variant="caption" color="text.secondary">{TIPO_LABEL[ev.tipo] || ev.tipo} · {eqName(ev.equipo_id)}</Typography>
+                                </Box>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+                                  <Chip label={`${ev.minuto}'`} size="small" variant="outlined"
+                                    sx={{ borderColor: estilo.border, bgcolor: '#fff', color: estilo.color, fontWeight: 700 }} />
+                                  {editable && (
+                                    <IconButton edge="end" size="small" color="error" onClick={() => { if (window.confirm('¿Eliminar esta acción?')) borrarEventoMut.mutate(ev.id) }}>
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
+                                </Box>
+                              </Box>
+                            </Box>
+                          )
+                        })}
+                    </Box>
+                  )}
+                </CardContent>
               </Card>
-            )}
-          </Box>
+            </Grid>
+
+            <Grid item xs={12} lg={5}>
+              <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', height: '100%' }}>
+                <CardContent>
+                  <Typography variant="h6" fontWeight={700} mb={2}>Cambios realizados</Typography>
+                  {loadingEventos ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
+                  ) : !eventos || eventos.filter((e) => e.tipo === 'CAMBIO').length === 0 ? (
+                    <Alert severity="info">No hay cambios registrados aún.</Alert>
+                  ) : (
+                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                      {eventos
+                        .filter((e) => e.tipo === 'CAMBIO')
+                        .sort((a, b) => a.minuto - b.minuto)
+                        .map((ev) => {
+                          const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : '?'
+                          const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : '?'
+                          return (
+                            <Box key={ev.id} sx={{ bgcolor: '#f8fafc', borderRadius: 2, border: '1px solid rgba(0,0,0,0.08)', p: 1.25 }}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+                                <Typography variant="caption" fontWeight={700} color="text.secondary">{eqName(ev.equipo_id)}</Typography>
+                                <Chip label={`Min ${ev.minuto}'`} size="small" variant="outlined" />
+                              </Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: '#fff', borderRadius: 1, border: '1px solid #fee2e2', color: '#b91c1c', px: 1, py: 0.75, minWidth: 0 }}>
+                                  <ArrowDownwardIcon fontSize="small" />
+                                  <Typography variant="body2" fontWeight={600} noWrap>Sale: {sala}</Typography>
+                                </Box>
+                                <Typography color="text.secondary" sx={{ fontSize: 14, flexShrink: 0 }}>→</Typography>
+                                <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: '#fff', borderRadius: 1, border: '1px solid #bbf7d0', color: '#15803d', px: 1, py: 0.75, minWidth: 0 }}>
+                                  <ArrowUpwardIcon fontSize="small" />
+                                  <Typography variant="body2" fontWeight={600} noWrap>Entra: {entra}</Typography>
+                                </Box>
+                              </Box>
+                            </Box>
+                          )
+                        })}
+                    </Box>
+                  )}
+                </CardContent>
+              </Card>
+            </Grid>
+          </Grid>
         </Box>
       )}
 
-      <Dialog open={!!accion} onClose={() => setAccion(null)} fullWidth maxWidth="xs">
-        <form onSubmit={registrarAccion}>
-          <DialogTitle>
-            Registrar {accion ? TIPO_ACCION[accion]?.label : ''}
-          </DialogTitle>
-          <DialogContent>
-            <FormControl fullWidth margin="normal" size="small">
-              <InputLabel>Equipo</InputLabel>
-              <Select label="Equipo" value={accForm.equipo_id}
-                onChange={(e) => setAccForm({ ...accForm, equipo_id: e.target.value, jugador_id: '', jugador_sale_id: '' })}>
-                <MenuItem value={String(partido?.equipo_local_id)}>{partido ? eqName(partido.equipo_local_id) : ''}</MenuItem>
-                <MenuItem value={String(partido?.equipo_visitante_id)}>{partido ? eqName(partido.equipo_visitante_id) : ''}</MenuItem>
-              </Select>
-            </FormControl>
-            {accion === 'CAMBIO' ? (
-              <>
-                <FormControl fullWidth margin="normal" size="small">
-                  <InputLabel>Jugador que sale</InputLabel>
-                  <Select label="Jugador que sale" value={accForm.jugador_sale_id} required
-                    onChange={(e) => setAccForm({ ...accForm, jugador_sale_id: e.target.value })}>
-                    {convocadosDe(accForm.equipo_id).map((j) => (
-                      <MenuItem key={j.id} value={String(j.id)}>
-                        #{numCamiseta(j, alineacionMap[j.id])} {j.nombre} {alineacionMap[j.id].titular ? '(T)' : '(S)'}
-                      </MenuItem>
+      <Dialog open={!!accion} onClose={() => setAccion(null)} fullWidth maxWidth="sm">
+        <DialogTitle>
+          Registrar {accion ? TIPO_ACCION[accion]?.label : ''}
+        </DialogTitle>
+        <DialogContent>
+          {accion === 'CAMBIO' ? (
+            <>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', fontWeight: 700, color: 'error.main', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
+                    Sale
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: 320, overflowY: 'auto', p: 0.5 }}>
+                    {enCanchaDe(accForm.equipo_id).map((j) => (
+                      <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
+                        base={PALETA_CAMBIO.sale.base} sel={PALETA_CAMBIO.sale.sel}
+                        seleccionado={String(accForm.jugador_sale_id) === String(j.id)}
+                        onClick={() => setAccForm((f) => {
+                          if (String(f.jugador_sale_id) === String(j.id)) return { ...f, jugador_sale_id: '' }
+                          if (String(f.jugador_id) === String(j.id)) return f
+                          return { ...f, jugador_sale_id: String(j.id) }
+                        })} />
                     ))}
-                  </Select>
-                </FormControl>
-                <FormControl fullWidth margin="normal" size="small">
-                  <InputLabel>Jugador que entra</InputLabel>
-                  <Select label="Jugador que entra" value={accForm.jugador_id} required
-                    onChange={(e) => setAccForm({ ...accForm, jugador_id: e.target.value })}>
-                    {convocadosDe(accForm.equipo_id).map((j) => (
-                      <MenuItem key={j.id} value={String(j.id)}>
-                        #{numCamiseta(j, alineacionMap[j.id])} {j.nombre} {alineacionMap[j.id].titular ? '(T)' : '(S)'}
-                      </MenuItem>
+                  </Box>
+                  {enCanchaDe(accForm.equipo_id).length === 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
+                      No hay titulares disponibles para sacar.
+                    </Typography>
+                  )}
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', fontWeight: 700, color: 'success.main', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
+                    Entra
+                  </Typography>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: 320, overflowY: 'auto', p: 0.5 }}>
+                    {alBancoDe(accForm.equipo_id).map((j) => (
+                      <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
+                        base={PALETA_CAMBIO.entra.base} sel={PALETA_CAMBIO.entra.sel}
+                        seleccionado={String(accForm.jugador_id) === String(j.id)}
+                        onClick={() => setAccForm((f) => {
+                          if (String(f.jugador_id) === String(j.id)) return { ...f, jugador_id: '' }
+                          if (String(f.jugador_sale_id) === String(j.id)) return f
+                          return { ...f, jugador_id: String(j.id) }
+                        })} />
                     ))}
-                  </Select>
-                </FormControl>
-              </>
-            ) : (
-              <FormControl fullWidth margin="normal" size="small">
-                <InputLabel>Jugador (solo convocados)</InputLabel>
-                <Select label="Jugador (solo convocados)" value={accForm.jugador_id}
-                  onChange={(e) => setAccForm({ ...accForm, jugador_id: e.target.value })}>
-                  <MenuItem value=""><em>Sin jugador</em></MenuItem>
-                  {convocadosDe(accForm.equipo_id).map((j) => (
-                    <MenuItem key={j.id} value={String(j.id)}>
-                      #{numCamiseta(j, alineacionMap[j.id])} {j.nombre} {alineacionMap[j.id].titular ? '(T)' : '(S)'}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            )}
-            {convocadosDe(accForm.equipo_id).length === 0 && (
-              <Alert severity="warning" sx={{ mt: 1 }}>Este equipo no tiene jugadores convocados en la alineación.</Alert>
-            )}
-            <TextField label="Minuto" type="number" fullWidth margin="normal" size="small"
-              inputProps={{ min: 0, max: 120 }} required
-              value={accForm.minuto}
-              onChange={(e) => setAccForm({ ...accForm, minuto: e.target.value })} />
-          </DialogContent>
-          <DialogActions sx={{ px: 3, pb: 2 }}>
-            <Button onClick={() => setAccion(null)}>Cancelar</Button>
-            <Button type="submit" variant="contained" color={accion ? TIPO_ACCION[accion]?.color : 'primary'} disabled={eventoMut.isPending}>
-              {eventoMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Registrar'}
-            </Button>
-          </DialogActions>
-        </form>
+                  </Box>
+                  {alBancoDe(accForm.equipo_id).length === 0 && (
+                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
+                      No hay suplentes disponibles para entrar.
+                    </Typography>
+                  )}
+                </Grid>
+              </Grid>
+              {convocadosDe(accForm.equipo_id).length === 0 && (
+                <Alert severity="warning" sx={{ mt: 2 }}>Este equipo no tiene jugadores convocados en la alineación.</Alert>
+              )}
+              {convocadosDe(accForm.equipo_id).some((j) => expulsados.has(j.id)) && (
+                <Alert severity="error" sx={{ mt: 2 }}>
+                  Expulsados: {convocadosDe(accForm.equipo_id).filter((j) => expulsados.has(j.id)).map((j) => j.nombre).join(', ')} — no pueden participar en cambios.
+                </Alert>
+              )}
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
+                <Button variant="contained" startIcon={<CheckIcon />}
+                  disabled={!accForm.jugador_id || !accForm.jugador_sale_id || eventoMut.isPending}
+                  onClick={confirmarCambio}>
+                  {eventoMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Confirmar cambio'}
+                </Button>
+              </Box>
+            </>
+          ) : (
+            <>
+              {(accion === 'GOL' || accion === 'AUTOGOL') && (
+                <ToggleButtonGroup size="small" exclusive sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}
+                  value={accion}
+                  onChange={(e, val) => val && setAccion(val)}>
+                  <ToggleButton value="GOL">Gol</ToggleButton>
+                  <ToggleButton value="AUTOGOL">Autogol</ToggleButton>
+                </ToggleButtonGroup>
+              )}
+              {(accion === 'TARJETA_AMARILLA' || accion === 'TARJETA_ROJA') && (
+                <ToggleButtonGroup size="small" exclusive sx={{ display: 'flex', justifyContent: 'center', mb: 2 }}
+                  value={accion}
+                  onChange={(e, val) => val && setAccion(val)}>
+                  <ToggleButton value="TARJETA_AMARILLA"><YellowCardIcon sx={{ fontSize: 16, mr: 0.5 }} />Amarilla</ToggleButton>
+                  <ToggleButton value="TARJETA_ROJA"><RedCardIcon sx={{ fontSize: 16, mr: 0.5 }} />Roja</ToggleButton>
+                </ToggleButtonGroup>
+              )}
+              <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1.5 }}>
+                Haz clic en el número del jugador para registrar la acción inmediatamente.
+              </Typography>
+              {convocadosDe(accForm.equipo_id).length === 0 ? (
+                <Alert severity="warning">Este equipo no tiene jugadores convocados en la alineación.</Alert>
+              ) : (
+                <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 1, justifyContent: 'center' }}>
+                  {convocadosDe(accForm.equipo_id).map((j) => {
+                    const pal = COLORES_ACCION[accion] || COLORES_ACCION.GOL
+                    return (
+                      <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
+                        base={pal.base} sel={pal.sel} seleccionado={false}
+                        onClick={() => registrarRapido(j.id)} />
+                    )
+                  })}
+                </Box>
+              )}
+              {(accion === 'GOL' || accion === 'AUTOGOL') && (
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
+                  <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={anularGolModal}>
+                    Anular último gol
+                  </Button>
+                </Box>
+              )}
+            </>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setAccion(null)}>Cancelar</Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )

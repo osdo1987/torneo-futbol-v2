@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Copa Planilla - Gestión Rápida</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+
+        dialog::backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(3px);
+        }
+
+        /* Timeline styles */
+        .timeline-item {
+            position: relative;
+            padding-left: 2rem;
+            padding-bottom: 1.5rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: 0.75rem;
+            top: 0.25rem;
+            bottom: -0.5rem;
+            width: 2px;
+            background-color: #e5e7eb;
+        }
+
+        .timeline-item:last-child::before {
+            display: none;
+        }
+
+        .timeline-icon {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            z-index: 10;
+        }
+
+        /* Botones circulares de jugadores */
+        .btn-jugador {
+            width: 3.5rem;
+            height: 3.5rem;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.125rem;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+            cursor: pointer;
+        }
+
+        .btn-jugador:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Estados de selección para Cambios */
+        .btn-sale.selected {
+            background-color: #ef4444 !important;
+            color: white !important;
+            border-color: #b91c1c !important;
+            transform: scale(1.1);
+        }
+
+        .btn-entra.selected {
+            background-color: #22c55e !important;
+            color: white !important;
+            border-color: #15803d !important;
+            transform: scale(1.1);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-gray-800 min-h-screen p-4 md:p-8">
+
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="flex justify-between items-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <i data-lucide="trophy" class="text-blue-600"></i> Copa Planilla
+            </h1>
+            <button class="text-gray-500 hover:text-red-600 transition-colors"><i data-lucide="log-out"
+                    class="w-6 h-6"></i></button>
+        </header>
+
+        <!-- SECCIÓN 1: SELECTOR DE JORNADAS -->
+        <div id="seccion-jornadas" class="mb-6">
+            <h2 class="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <i data-lucide="calendar-days" class="text-blue-500"></i> Selecciona una Jornada
+            </h2>
+            <div class="flex space-x-2 overflow-x-auto pb-2 scrollbar-hide" id="jornadas-container">
+                <button
+                    class="jornada-btn active whitespace-nowrap px-6 py-2.5 rounded-full font-medium transition-all duration-200 border border-blue-600 bg-blue-600 text-white"
+                    data-jornada="1">Jornada 1</button>
+                <button
+                    class="jornada-btn whitespace-nowrap px-6 py-2.5 rounded-full font-medium transition-all duration-200 border border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                    data-jornada="2">Jornada 2</button>
+                <button
+                    class="jornada-btn whitespace-nowrap px-6 py-2.5 rounded-full font-medium transition-all duration-200 border border-gray-200 bg-white text-gray-600 hover:bg-gray-100"
+                    data-jornada="3">Jornada 3</button>
+            </div>
+        </div>
+
+        <!-- SECCIÓN 2: TARJETAS DE PARTIDOS -->
+        <div id="seccion-partidos" class="mb-10">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                <i data-lucide="layout-grid" class="text-blue-500"></i> Partidos de la Jornada <span id="titulo-jornada"
+                    class="text-blue-600">1</span>
+            </h2>
+            <div id="matches-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5"></div>
+        </div>
+
+        <!-- SECCIÓN 3: PLANILLA DEL PARTIDO -->
+        <div id="panel-planilla" class="hidden opacity-0 transition-opacity duration-500">
+            <div class="flex items-center justify-between mb-4">
+                <h2 class="text-xl font-bold text-gray-900">Planilla en Vivo</h2>
+                <button onclick="cerrarPlanilla()"
+                    class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center gap-1 bg-blue-50 px-3 py-1.5 rounded-lg">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Volver a los partidos
+                </button>
+            </div>
+
+            <!-- Scoreboard Principal -->
+            <div class="bg-gray-900 rounded-2xl shadow-xl overflow-hidden mb-6 relative">
+                <div
+                    class="flex justify-between items-center px-6 py-3 bg-gray-800 border-b border-gray-700 text-sm text-gray-400">
+                    <span class="flex items-center gap-1"><i data-lucide="calendar" class="w-4 h-4"></i> <span
+                            id="scoreboard-fecha">Cargando...</span></span>
+                    <span
+                        class="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-semibold uppercase tracking-wider">En
+                        Curso</span>
+                </div>
+                <div class="flex flex-col md:flex-row justify-between items-center p-8 gap-8">
+                    <div class="flex-1 text-center md:text-right">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2" id="scoreboard-local">Local</h2>
+                        <div class="flex justify-center md:justify-end gap-2">
+                            <button onclick="ajustarMarcador('local', -1)"
+                                class="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors border border-gray-700"><i
+                                    data-lucide="minus" class="w-5 h-5"></i></button>
+                            <button onclick="ajustarMarcador('local', 1)"
+                                class="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors border border-gray-700"><i
+                                    data-lucide="plus" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                    <div
+                        class="flex flex-col items-center bg-gray-800 px-8 py-4 rounded-2xl border border-gray-700 shadow-inner">
+                        <div class="text-6xl font-extrabold text-white tracking-tighter mb-2 flex gap-4">
+                            <span id="marcador-local">0</span>
+                            <span class="text-gray-600">-</span>
+                            <span id="marcador-visitante">0</span>
+                        </div>
+                        <div
+                            class="flex items-center gap-3 text-blue-400 font-mono text-lg font-semibold bg-blue-900/30 px-4 py-1 rounded-full border border-blue-800/50 mt-2">
+                            <i data-lucide="clock" class="w-4 h-4"></i> 00:00 · 1T
+                        </div>
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <h2 class="text-2xl md:text-3xl font-bold text-white mb-2" id="scoreboard-visitante">Visitante
+                        </h2>
+                        <div class="flex justify-center md:justify-start gap-2">
+                            <button onclick="ajustarMarcador('visitante', -1)"
+                                class="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors border border-gray-700"><i
+                                    data-lucide="minus" class="w-5 h-5"></i></button>
+                            <button onclick="ajustarMarcador('visitante', 1)"
+                                class="bg-gray-800 hover:bg-gray-700 text-white p-2 rounded-lg transition-colors border border-gray-700"><i
+                                    data-lucide="plus" class="w-5 h-5"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Panel de Acciones Rápidas -->
+            <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
+                <h3 class="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <i data-lucide="zap" class="text-yellow-500"></i> Registrar Acción
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <!-- Goles -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 text-center">Goles</h4>
+                        <div class="space-y-3">
+                            <button onclick="abrirModal('gol', 'local')"
+                                class="w-full flex items-center justify-between bg-white hover:bg-green-50 border border-gray-200 hover:border-green-300 text-gray-700 hover:text-green-700 px-4 py-3 rounded-lg transition-all shadow-sm group">
+                                <span class="font-medium flex items-center gap-2"><i data-lucide="goal"
+                                        class="w-5 h-5 text-gray-400 group-hover:text-green-500"></i> Gol Local</span>
+                            </button>
+                            <button onclick="abrirModal('gol', 'visitante')"
+                                class="w-full flex items-center justify-between bg-white hover:bg-green-50 border border-gray-200 hover:border-green-300 text-gray-700 hover:text-green-700 px-4 py-3 rounded-lg transition-all shadow-sm group">
+                                <span class="font-medium flex items-center gap-2"><i data-lucide="goal"
+                                        class="w-5 h-5 text-gray-400 group-hover:text-green-500"></i> Gol
+                                    Visitante</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Tarjetas -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 text-center">Tarjetas
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button onclick="abrirModal('tarjeta', 'local', 'Amarilla')"
+                                class="flex flex-col items-center justify-center gap-1 bg-white hover:bg-yellow-50 border border-gray-200 hover:border-yellow-300 text-gray-700 px-2 py-3 rounded-lg transition-all shadow-sm">
+                                <div class="w-3 h-5 bg-yellow-400 rounded-sm shadow-sm mb-1"></div>
+                                <span class="text-xs font-medium">Amarilla L</span>
+                            </button>
+                            <button onclick="abrirModal('tarjeta', 'visitante', 'Amarilla')"
+                                class="flex flex-col items-center justify-center gap-1 bg-white hover:bg-yellow-50 border border-gray-200 hover:border-yellow-300 text-gray-700 px-2 py-3 rounded-lg transition-all shadow-sm">
+                                <div class="w-3 h-5 bg-yellow-400 rounded-sm shadow-sm mb-1"></div>
+                                <span class="text-xs font-medium">Amarilla V</span>
+                            </button>
+                            <button onclick="abrirModal('tarjeta', 'local', 'Roja')"
+                                class="flex flex-col items-center justify-center gap-1 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-700 px-2 py-3 rounded-lg transition-all shadow-sm">
+                                <div class="w-3 h-5 bg-red-500 rounded-sm shadow-sm mb-1"></div>
+                                <span class="text-xs font-medium">Roja L</span>
+                            </button>
+                            <button onclick="abrirModal('tarjeta', 'visitante', 'Roja')"
+                                class="flex flex-col items-center justify-center gap-1 bg-white hover:bg-red-50 border border-gray-200 hover:border-red-300 text-gray-700 px-2 py-3 rounded-lg transition-all shadow-sm">
+                                <div class="w-3 h-5 bg-red-500 rounded-sm shadow-sm mb-1"></div>
+                                <span class="text-xs font-medium">Roja V</span>
+                            </button>
+                        </div>
+                    </div>
+                    <!-- Cambios -->
+                    <div class="bg-gray-50 rounded-xl p-4 border border-gray-100 flex flex-col">
+                        <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 text-center">
+                            Sustituciones</h4>
+                        <div class="space-y-3 flex-1 flex flex-col justify-center">
+                            <button onclick="abrirModal('cambio', 'local')"
+                                class="w-full flex items-center justify-between bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-gray-700 hover:text-blue-700 px-4 py-3 rounded-lg transition-all shadow-sm group">
+                                <span class="font-medium flex items-center gap-2"><i data-lucide="arrow-right-left"
+                                        class="w-5 h-5 text-gray-400 group-hover:text-blue-500"></i> Cambio Local</span>
+                            </button>
+                            <button onclick="abrirModal('cambio', 'visitante')"
+                                class="w-full flex items-center justify-between bg-white hover:bg-blue-50 border border-gray-200 hover:border-blue-300 text-gray-700 hover:text-blue-700 px-4 py-3 rounded-lg transition-all shadow-sm group">
+                                <span class="font-medium flex items-center gap-2"><i data-lucide="arrow-right-left"
+                                        class="w-5 h-5 text-gray-400 group-hover:text-blue-500"></i> Cambio
+                                    Visitante</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN 4: REGISTRO DE EVENTOS -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3
+                        class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-3">
+                        <i data-lucide="list" class="text-blue-500"></i> Resumen del Partido
+                    </h3>
+                    <div id="event-timeline" class="space-y-2">
+                        <p class="text-sm text-gray-400 text-center py-4">No hay eventos registrados aún.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                    <h3
+                        class="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2 border-b border-gray-100 pb-3">
+                        <i data-lucide="repeat" class="text-purple-500"></i> Cambios Realizados
+                    </h3>
+                    <div id="substitution-log" class="space-y-3">
+                        <p class="text-sm text-gray-400 text-center py-4">No hay cambios registrados aún.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end mt-6">
+                <button
+                    class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-xl font-semibold shadow-md shadow-red-200 transition-colors flex items-center gap-2">
+                    <i data-lucide="check-circle" class="w-5 h-5"></i> Finalizar Partido
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL UNIVERSAL (Gol, Tarjeta, Cambio) -->
+    <dialog id="modal-accion"
+        class="bg-white rounded-2xl shadow-2xl p-0 w-full max-w-lg backdrop:bg-black/50 overflow-hidden">
+        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+            <h3 class="text-xl font-bold text-gray-900 flex items-center gap-2" id="modal-titulo">
+                <i data-lucide="goal" class="text-green-500"></i> Registrar Acción
+            </h3>
+            <button onclick="cerrarModal()"
+                class="text-gray-400 hover:text-gray-600 bg-white p-1.5 rounded-full shadow-sm">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="p-6">
+            <!-- Minuto (Común para todos) -->
+            <div class="mb-6 bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-center justify-between">
+                <label class="text-sm font-bold text-blue-800 uppercase tracking-wide">Minuto del evento</label>
+                <input type="number" id="modal-minuto" value="1" min="1" max="120"
+                    class="w-24 bg-white border-2 border-blue-200 text-blue-900 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none font-mono text-xl font-bold text-center">
+            </div>
+
+            <!-- Contenedor para GOLES y TARJETAS -->
+            <div id="vista-jugador-simple">
+                <p class="text-sm text-gray-500 mb-4 text-center">Haz clic en el número del jugador para registrar el
+                    evento inmediatamente.</p>
+                <div id="grid-jugadores-simple" class="grid grid-cols-4 sm:grid-cols-5 gap-3 justify-items-center">
+                    <!-- Se llena con JS -->
+                </div>
+            </div>
+
+            <!-- Contenedor para CAMBIOS -->
+            <div id="vista-cambio" class="hidden">
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Zona de Sale -->
+                    <div class="bg-red-50 rounded-xl p-3 border border-red-100">
+                        <h4
+                            class="text-xs font-bold text-red-600 uppercase text-center mb-3 flex items-center justify-center gap-1">
+                            <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> Sale
+                        </h4>
+                        <div id="grid-jugadores-sale"
+                            class="grid grid-cols-3 gap-2 justify-items-center max-h-60 overflow-y-auto p-1">
+                            <!-- Se llena con JS -->
+                        </div>
+                    </div>
+                    <!-- Zona de Entra -->
+                    <div class="bg-green-50 rounded-xl p-3 border border-green-100">
+                        <h4
+                            class="text-xs font-bold text-green-600 uppercase text-center mb-3 flex items-center justify-center gap-1">
+                            <i data-lucide="arrow-up-circle" class="w-4 h-4"></i> Entra
+                        </h4>
+                        <div id="grid-jugadores-entra"
+                            class="grid grid-cols-3 gap-2 justify-items-center max-h-60 overflow-y-auto p-1">
+                            <!-- Se llena con JS -->
+                        </div>
+                    </div>
+                </div>
+                <!-- Botón de confirmación para cambios -->
+                <div class="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+                    <button id="btn-confirmar-cambio" onclick="confirmarCambio()" disabled
+                        class="px-6 py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed transition-colors flex items-center gap-2">
+                        <i data-lucide="check" class="w-5 h-5"></i> Confirmar Cambio
+                    </button>
+                </div>
+            </div>
+        </div>
+    </dialog>
+
+    <script>
+        // --- 1. DATOS SIMULADOS ---
+        const partidosData = {
+            1: [
+                { id: 'J1-1', local: 'Los Diablos Rojos', visitante: 'Unión Litoral', fecha: '13 de sept, 07:00 p.m.' },
+                { id: 'J1-2', local: 'Atlético Norte', visitante: 'Estrella Azul', fecha: '13 de sept, 09:00 p.m.' }
+            ],
+            2: [
+                { id: 'J2-1', local: 'Deportivo Central', visitante: 'Real del Valle', fecha: '20 de sept, 05:00 p.m.' }
+            ],
+            3: [
+                { id: 'J3-1', local: 'Atlético Norte', visitante: 'Unión Litoral', fecha: '27 de sept, 07:00 p.m.' }
+            ]
+        };
+
+        // Plantillas con números y nombres (Simulando 11 titulares y algunos suplentes)
+        const plantillas = {
+            'Los Diablos Rojos': [
+                { num: 1, nombre: 'Portero' }, { num: 2, nombre: 'Defensa' }, { num: 3, nombre: 'Defensa' },
+                { num: 4, nombre: 'Defensa' }, { num: 5, nombre: 'Medio' }, { num: 6, nombre: 'Medio' },
+                { num: 7, nombre: 'Extremo' }, { num: 8, nombre: 'Medio' }, { num: 9, nombre: 'Delantero' },
+                { num: 10, nombre: 'Enganche' }, { num: 11, nombre: 'Extremo' },
+                { num: 12, nombre: 'Suplente 1' }, { num: 13, nombre: 'Suplente 2' }, { num: 14, nombre: 'Suplente 3' }
+            ],
+            'Unión Litoral': [
+                { num: 1, nombre: 'Portero' }, { num: 2, nombre: 'Defensa' }, { num: 3, nombre: 'Defensa' },
+                { num: 4, nombre: 'Defensa' }, { num: 5, nombre: 'Medio' }, { num: 6, nombre: 'Medio' },
+                { num: 7, nombre: 'Extremo' }, { num: 8, nombre: 'Medio' }, { num: 9, nombre: 'Delantero' },
+                { num: 10, nombre: 'Enganche' }, { num: 11, nombre: 'Extremo' },
+                { num: 15, nombre: 'Suplente 1' }, { num: 16, nombre: 'Suplente 2' }, { num: 17, nombre: 'Suplente 3' }
+            ],
+            'Atlético Norte': Array.from({ length: 14 }, (_, i) => ({ num: i + 1, nombre: `Jugador ${i + 1}` })),
+            'Estrella Azul': Array.from({ length: 14 }, (_, i) => ({ num: i + 1, nombre: `Jugador ${i + 1}` })),
+            'Deportivo Central': Array.from({ length: 14 }, (_, i) => ({ num: i + 1, nombre: `Jugador ${i + 1}` })),
+            'Real del Valle': Array.from({ length: 14 }, (_, i) => ({ num: i + 1, nombre: `Jugador ${i + 1}` }))
+        };
+
+        // --- 2. ESTADO DEL PARTIDO ACTUAL ---
+        let partidoActual = { local: { nombre: '', score: 0 }, visitante: { nombre: '', score: 0 }, eventos: [], cambios: [] };
+        let tipoAccionActual = '';
+        let colorTarjetaActual = '';
+        let equipoAccionActual = '';
+        let seleccionCambio = { sale: null, entra: null };
+
+        // --- 3. LÓGICA DE NAVEGACIÓN ---
+        const jornadaBtns = document.querySelectorAll('.jornada-btn');
+        const matchesContainer = document.getElementById('matches-container');
+        const tituloJornada = document.getElementById('titulo-jornada');
+        const panelPlanilla = document.getElementById('panel-planilla');
+        const seccionJornadas = document.getElementById('seccion-jornadas');
+        const seccionPartidos = document.getElementById('seccion-partidos');
+
+        function renderizarPartidos(jornadaId) {
+            matchesContainer.innerHTML = '';
+            tituloJornada.textContent = jornadaId;
+            const partidos = partidosData[jornadaId] || [];
+            if (partidos.length === 0) { matchesContainer.innerHTML = `<div class="col-span-full text-center py-10 text-gray-500">No hay partidos programados.</div>`; return; }
+
+            partidos.forEach((partido, index) => {
+                const card = document.createElement('div');
+                card.className = `animate-fade-in bg-white rounded-xl shadow-sm border border-gray-200 p-5 hover:shadow-md hover:border-blue-300 transition-all cursor-pointer group`;
+                card.style.animationDelay = `${index * 50}ms`;
+                card.onclick = () => abrirPlanilla(partido);
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-4 text-xs font-medium">
+                        <span class="text-gray-500 flex items-center gap-1"><i data-lucide="clock" class="w-3 h-3"></i> ${partido.fecha}</span>
+                        <span class="bg-blue-50 text-blue-600 px-2 py-1 rounded-md">Pendiente</span>
+                    </div>
+                    <div class="flex justify-between items-center text-center gap-2">
+                        <div class="flex-1 font-bold text-gray-800 text-sm">${partido.local}</div>
+                        <div class="bg-gray-100 text-gray-400 text-xs font-bold px-2 py-1 rounded-full">VS</div>
+                        <div class="flex-1 font-bold text-gray-800 text-sm">${partido.visitante}</div>
+                    </div>
+                    <div class="mt-5 pt-4 border-t border-gray-100">
+                        <button class="w-full bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white py-2 rounded-lg font-medium text-sm transition-colors flex items-center justify-center gap-2">
+                            <i data-lucide="clipboard-list" class="w-4 h-4"></i> Abrir Planilla
+                        </button>
+                    </div>
+                `;
+                matchesContainer.appendChild(card);
+            });
+            lucide.createIcons();
+        }
+
+        jornadaBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                jornadaBtns.forEach(b => { b.classList.remove('active', 'bg-blue-600', 'text-white', 'border-blue-600'); b.classList.add('bg-white', 'text-gray-600', 'border-gray-200', 'hover:bg-gray-100'); });
+                const target = e.currentTarget;
+                target.classList.remove('bg-white', 'text-gray-600', 'border-gray-200', 'hover:bg-gray-100');
+                target.classList.add('active', 'bg-blue-600', 'text-white', 'border-blue-600');
+                renderizarPartidos(target.getAttribute('data-jornada'));
+                cerrarPlanilla();
+            });
+        });
+
+        function abrirPlanilla(partido) {
+            partidoActual = { local: { nombre: partido.local, score: 0 }, visitante: { nombre: partido.visitante, score: 0 }, eventos: [], cambios: [] };
+            document.getElementById('scoreboard-local').textContent = partido.local;
+            document.getElementById('scoreboard-visitante').textContent = partido.visitante;
+            document.getElementById('scoreboard-fecha').textContent = partido.fecha;
+            document.getElementById('marcador-local').textContent = '0';
+            document.getElementById('marcador-visitante').textContent = '0';
+            document.getElementById('event-timeline').innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No hay eventos registrados aún.</p>';
+            document.getElementById('substitution-log').innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No hay cambios registrados aún.</p>';
+            seccionJornadas.classList.add('hidden'); seccionPartidos.classList.add('hidden');
+            panelPlanilla.classList.remove('hidden');
+            setTimeout(() => { panelPlanilla.classList.remove('opacity-0'); panelPlanilla.classList.add('opacity-100'); }, 50);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cerrarPlanilla() {
+            panelPlanilla.classList.add('opacity-0');
+            setTimeout(() => { panelPlanilla.classList.add('hidden'); seccionJornadas.classList.remove('hidden'); seccionPartidos.classList.remove('hidden'); }, 300);
+        }
+
+        // --- 4. LÓGICA DE MODALES Y GRILLAS DE JUGADORES ---
+        function abrirModal(tipo, equipo, color = '') {
+            tipoAccionActual = tipo; colorTarjetaActual = color; equipoAccionActual = equipo;
+            seleccionCambio = { sale: null, entra: null }; // Resetear selección de cambio
+
+            const modal = document.getElementById('modal-accion');
+            const titulo = document.getElementById('modal-titulo');
+            const vistaSimple = document.getElementById('vista-jugador-simple');
+            const vistaCambio = document.getElementById('vista-cambio');
+            const nombreEquipo = equipo === 'local' ? partidoActual.local.nombre : partidoActual.visitante.nombre;
+            const jugadores = plantillas[nombreEquipo] || [];
+
+            // Configurar título
+            if (tipo === 'gol') {
+                titulo.innerHTML = `<i data-lucide="goal" class="text-green-500"></i> Gol de ${nombreEquipo}`;
+                vistaSimple.classList.remove('hidden'); vistaCambio.classList.add('hidden');
+                renderizarGrillaSimple('grid-jugadores-simple', jugadores, 'gol');
+            } else if (tipo === 'tarjeta') {
+                const colorIcon = color === 'Amarilla' ? 'bg-yellow-400' : 'bg-red-500';
+                titulo.innerHTML = `<div class="w-4 h-6 ${colorIcon} rounded-sm"></div> Tarjeta ${color} - ${nombreEquipo}`;
+                vistaSimple.classList.remove('hidden'); vistaCambio.classList.add('hidden');
+                renderizarGrillaSimple('grid-jugadores-simple', jugadores, 'tarjeta');
+            } else if (tipo === 'cambio') {
+                titulo.innerHTML = `<i data-lucide="arrow-right-left" class="text-blue-500"></i> Cambio en ${nombreEquipo}`;
+                vistaSimple.classList.add('hidden'); vistaCambio.classList.remove('hidden');
+                renderizarGrillaCambios(jugadores);
+            }
+
+            document.getElementById('modal-minuto').value = '1';
+            modal.showModal();
+            lucide.createIcons();
+        }
+
+        function cerrarModal() { document.getElementById('modal-accion').close(); }
+
+        // Renderiza los botones circulares para Goles y Tarjetas
+        function renderizarGrillaSimple(containerId, jugadores, accion) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = jugadores.map(j => {
+                const colorBase = accion === 'gol' ? 'bg-green-100 text-green-700 hover:bg-green-500 hover:text-white' :
+                    (colorTarjetaActual === 'Amarilla' ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-400 hover:text-white' : 'bg-red-100 text-red-700 hover:bg-red-500 hover:text-white');
+                return `
+                    <button type="button" onclick="registrarEventoRapido('${j.num}', '${j.nombre}')" class="btn-jugador ${colorBase}">
+                        ${j.num}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // Renderiza los botones circulares para Cambios (Sale y Entra)
+        function renderizarGrillaCambios(jugadores) {
+            const containerSale = document.getElementById('grid-jugadores-sale');
+            const containerEntra = document.getElementById('grid-jugadores-entra');
+
+            // Para "Sale", mostramos a todos (o podrías filtrar solo titulares)
+            containerSale.innerHTML = jugadores.map(j => `
+                <button type="button" onclick="seleccionarJugadorCambio('sale', ${j.num}, '${j.nombre}')" id="btn-sale-${j.num}" class="btn-jugador btn-sale bg-red-100 text-red-700 hover:bg-red-200">
+                    ${j.num}
+                </button>
+            `).join('');
+
+            // Para "Entra", mostramos a todos (o podrías filtrar solo suplentes)
+            containerEntra.innerHTML = jugadores.map(j => `
+                <button type="button" onclick="seleccionarJugadorCambio('entra', ${j.num}, '${j.nombre}')" id="btn-entra-${j.num}" class="btn-jugador btn-entra bg-green-100 text-green-700 hover:bg-green-200">
+                    ${j.num}
+                </button>
+            `).join('');
+        }
+
+        // --- 5. REGISTRO DE ACCIONES ---
+
+        // Registro rápido al hacer clic en el número (Gol o Tarjeta)
+        function registrarEventoRapido(num, nombre) {
+            const minuto = document.getElementById('modal-minuto').value;
+            const nombreEquipo = equipoAccionActual === 'local' ? partidoActual.local.nombre : partidoActual.visitante.nombre;
+            const tipoEquipo = equipoAccionActual === 'local' ? '(Local)' : '(Visitante)';
+            const jugadorStr = `#${num} ${nombre}`;
+
+            if (tipoAccionActual === 'gol') {
+                if (equipoAccionActual === 'local') partidoActual.local.score++;
+                else partidoActual.visitante.score++;
+                document.getElementById('marcador-local').textContent = partidoActual.local.score;
+                document.getElementById('marcador-visitante').textContent = partidoActual.visitante.score;
+
+                partidoActual.eventos.push({ tipo: 'gol', minuto, jugador: jugadorStr, equipo: nombreEquipo, tipoEquipo });
+            } else if (tipoAccionActual === 'tarjeta') {
+                partidoActual.eventos.push({ tipo: 'tarjeta', color: colorTarjetaActual, minuto, jugador: jugadorStr, equipo: nombreEquipo, tipoEquipo });
+            }
+
+            cerrarModal();
+            renderizarTimeline();
+        }
+
+        // Selección de jugadores para Cambio
+        function seleccionarJugadorCambio(tipo, num, nombre) {
+            const jugadorStr = `#${num} ${nombre}`;
+
+            // Limpiar selección previa en esa columna
+            document.querySelectorAll(`.btn-${tipo}`).forEach(btn => btn.classList.remove('selected'));
+
+            // Marcar el nuevo seleccionado
+            document.getElementById(`btn-${tipo}-${num}`).classList.add('selected');
+
+            if (tipo === 'sale') seleccionCambio.sale = jugadorStr;
+            else seleccionCambio.entra = jugadorStr;
+
+            // Habilitar botón de confirmar si ambos están seleccionados
+            const btnConfirmar = document.getElementById('btn-confirmar-cambio');
+            if (seleccionCambio.sale && seleccionCambio.entra) {
+                btnConfirmar.disabled = false;
+                btnConfirmar.className = 'px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-md transition-colors flex items-center gap-2';
+            } else {
+                btnConfirmar.disabled = true;
+                btnConfirmar.className = 'px-6 py-3 bg-gray-300 text-gray-500 font-bold rounded-xl cursor-not-allowed transition-colors flex items-center gap-2';
+            }
+        }
+
+        // Confirmar el cambio
+        function confirmarCambio() {
+            if (!seleccionCambio.sale || !seleccionCambio.entra) return;
+
+            const minuto = document.getElementById('modal-minuto').value;
+            const nombreEquipo = equipoAccionActual === 'local' ? partidoActual.local.nombre : partidoActual.visitante.nombre;
+            const tipoEquipo = equipoAccionActual === 'local' ? '(Local)' : '(Visitante)';
+
+            partidoActual.cambios.push({
+                minuto,
+                sale: seleccionCambio.sale,
+                entra: seleccionCambio.entra,
+                equipo: nombreEquipo,
+                tipoEquipo
+            });
+
+            cerrarModal();
+            renderizarCambios();
+        }
+
+        // --- 6. RENDERIZADO DE EVENTOS (TIMELINE Y CAMBIOS) ---
+        function renderizarTimeline() {
+            const container = document.getElementById('event-timeline');
+            if (partidoActual.eventos.length === 0) { container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No hay eventos registrados aún.</p>'; return; }
+            partidoActual.eventos.sort((a, b) => a.minuto - b.minuto);
+
+            container.innerHTML = partidoActual.eventos.map(evento => {
+                if (evento.tipo === 'gol') {
+                    return `
+                        <div class="timeline-item animate-fade-in">
+                            <div class="timeline-icon border-2 border-green-500 text-green-500"><i data-lucide="goal" class="w-3 h-3"></i></div>
+                            <div class="bg-green-50 rounded-lg p-3 border border-green-100">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="font-bold text-gray-800 text-sm">⚽ Gol de ${evento.jugador}</p>
+                                        <p class="text-xs text-gray-500 mt-1">${evento.equipo} ${evento.tipoEquipo}</p>
+                                    </div>
+                                    <span class="bg-green-200 text-green-800 text-xs font-bold px-2 py-1 rounded">Min ${evento.minuto}'</span>
+                                </div>
+                            </div>
+                        </div>`;
+                } else if (evento.tipo === 'tarjeta') {
+                    const colorBg = evento.color === 'Amarilla' ? 'bg-yellow-400' : 'bg-red-500';
+                    const borderColor = evento.color === 'Amarilla' ? 'border-yellow-400' : 'border-red-500';
+                    const bgLight = evento.color === 'Amarilla' ? 'bg-yellow-50 border-yellow-100' : 'bg-red-50 border-red-100';
+                    const textColor = evento.color === 'Amarilla' ? 'text-yellow-800' : 'text-red-800';
+                    const badgeBg = evento.color === 'Amarilla' ? 'bg-yellow-200' : 'bg-red-200';
+                    return `
+                        <div class="timeline-item animate-fade-in">
+                            <div class="timeline-icon border-2 ${borderColor}"><div class="w-2 h-3 ${colorBg} rounded-sm"></div></div>
+                            <div class="${bgLight} rounded-lg p-3 border">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <p class="font-bold text-gray-800 text-sm">🟨 Tarjeta ${evento.color} para ${evento.jugador}</p>
+                                        <p class="text-xs text-gray-500 mt-1">${evento.equipo} ${evento.tipoEquipo}</p>
+                                    </div>
+                                    <span class="${badgeBg} ${textColor} text-xs font-bold px-2 py-1 rounded">Min ${evento.minuto}'</span>
+                                </div>
+                            </div>
+                        </div>`;
+                }
+            }).join('');
+            lucide.createIcons();
+        }
+
+        function renderizarCambios() {
+            const container = document.getElementById('substitution-log');
+            if (partidoActual.cambios.length === 0) { container.innerHTML = '<p class="text-sm text-gray-400 text-center py-4">No hay cambios registrados aún.</p>'; return; }
+            partidoActual.cambios.sort((a, b) => a.minuto - b.minuto);
+
+            container.innerHTML = partidoActual.cambios.map(cambio => `
+                <div class="bg-gray-50 rounded-lg p-3 border border-gray-200 animate-fade-in">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-xs font-bold text-gray-500">${cambio.equipo} ${cambio.tipoEquipo}</span>
+                        <span class="bg-gray-200 text-gray-700 text-xs font-bold px-2 py-1 rounded">Min ${cambio.minuto}'</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-sm">
+                        <div class="flex-1 flex items-center gap-2 text-red-600 bg-white p-2 rounded border border-gray-100">
+                            <i data-lucide="arrow-down-circle" class="w-4 h-4"></i> <span class="font-medium">Sale: ${cambio.sale}</span>
+                        </div>
+                        <i data-lucide="arrow-right" class="w-4 h-4 text-gray-400"></i>
+                        <div class="flex-1 flex items-center gap-2 text-green-600 bg-white p-2 rounded border border-gray-100">
+                            <i data-lucide="arrow-up-circle" class="w-4 h-4"></i> <span class="font-medium">Entra: ${cambio.entra}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        function ajustarMarcador(equipo, cantidad) {
+            if (equipo === 'local') { partidoActual.local.score = Math.max(0, partidoActual.local.score + cantidad); document.getElementById('marcador-local').textContent = partidoActual.local.score; }
+            else { partidoActual.visitante.score = Math.max(0, partidoActual.visitante.score + cantidad); document.getElementById('marcador-visitante').textContent = partidoActual.visitante.score; }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => { lucide.createIcons(); jornadaBtns[0].click(); });
+    </script>
+</body>
+
+</html>

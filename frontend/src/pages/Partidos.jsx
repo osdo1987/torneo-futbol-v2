@@ -1,9 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
-import CardActions from '@mui/material/CardActions'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
 import DialogTitle from '@mui/material/DialogTitle'
@@ -18,8 +18,6 @@ import Grid from '@mui/material/Grid'
 import List from '@mui/material/List'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
-import ToggleButton from '@mui/material/ToggleButton'
-import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import InputAdornment from '@mui/material/InputAdornment'
 import CircularProgress from '@mui/material/CircularProgress'
 import { apiGet, apiPost } from '../api'
@@ -27,7 +25,7 @@ import { useToast } from '../components/Toast'
 import {
   Add as AddIcon, Schedule as ScheduleIcon,
   SportsSoccer as GolIcon, Square as YellowCardIcon,
-  Block as RedCardIcon,
+  Block as RedCardIcon, EditNote as EditNoteIcon,
 } from '@mui/icons-material'
 import Alert from '@mui/material/Alert'
 
@@ -60,6 +58,7 @@ function toLocalInput(iso) {
 export default function Partidos({ selectedTorneoId }) {
   const qc = useQueryClient()
   const toast = useToast()
+  const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ equipo_local_id: '', equipo_visitante_id: '', jornada: 1 })
   const [resultOpen, setResultOpen] = useState(null)
@@ -152,75 +151,99 @@ export default function Partidos({ selectedTorneoId }) {
 
   const jugadosCount = partidos.filter((p) => ESTADOS_JUGADOS.includes(p.resultado)).length
 
-  const Marcardor = ({ p }) => {
+  const RowTeam = ({ nombre, lado, gano }) => (
+    <Box sx={{ textAlign: gano ? undefined : undefined, display: 'flex', flexDirection: 'column', alignItems: lado === 'local' ? 'flex-start' : 'flex-end' }}>
+      <Typography
+        variant="body1"
+        fontWeight={gano ? 800 : 700}
+        color={gano ? 'success.main' : 'text.primary'}
+        sx={{ lineHeight: 1.25, textAlign: { xs: 'center', sm: lado === 'local' ? 'left' : 'right' } }}
+      >
+        {nombre}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">{lado === 'local' ? 'Local' : 'Visitante'}</Typography>
+    </Box>
+  )
+
+  const MatchCard = ({ p }) => {
     const [label, color] = RESULTADOS[p.resultado] || [p.resultado, 'default']
     const jugado = ESTADOS_JUGADOS.includes(p.resultado)
     const localGano = jugado && (p.resultado === 'LOCAL_GANO' || p.resultado === 'W_LOCAL')
     const visitanteGano = jugado && (p.resultado === 'VISITANTE_GANO' || p.resultado === 'W_VISITANTE')
     return (
-      <Card elevation={0} sx={{ height: '100%', display: 'flex', flexDirection: 'column', border: '1px solid rgba(0,0,0,0.08)' }}>
-        <CardContent sx={{ py: 2, '&:last-child': { pb: 2 } }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 0.5 }}>
-            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-              <Chip label={`J${p.jornada}`} size="small" />
-              {p.fecha_programada
-                ? <Chip label={new Date(p.fecha_programada).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} size="small" variant="outlined" />
-                : <Chip label="Sin fecha" size="small" variant="outlined" color="warning" />}
+      <Card elevation={0} sx={{
+        height: '100%', display: 'flex', flexDirection: 'column', borderRadius: 3,
+        border: '1px solid rgba(0,0,0,0.08)', transition: 'all .2s',
+        '&:hover': { boxShadow: '0 10px 28px rgba(37,99,235,0.10)', borderColor: 'primary.light' },
+      }}>
+        <CardContent sx={{ py: 2.5, '&:last-child': { pb: 2.5 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexWrap: 'wrap' }}>
+              <Chip label={`J${p.jornada}`} size="small" color="primary" variant="outlined" />
+              {p.fecha_programada ? (
+                <Chip size="small" variant="outlined" icon={<ScheduleIcon />}
+                  label={new Date(p.fecha_programada).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })} />
+              ) : (
+                <Chip size="small" variant="outlined" color="warning" label="Sin fecha" />
+              )}
             </Box>
-            <Chip label={jugado ? label : 'PENDIENTE'} color={jugado ? color : 'default'} size="small" />
+            <Chip label={label} color={jugado ? color : 'default'} size="small" />
           </Box>
-          <Grid container alignItems="center" spacing={0.5} sx={{ mt: 1 }}>
-            <Grid item xs={4} sx={{ textAlign: 'right', pr: 1 }}>
-              <Typography variant="body2" fontWeight={localGano ? 800 : 600} color={localGano ? 'success.main' : 'text.primary'}
-                sx={{ display: 'inline', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
-                {eqName(p.equipo_local_id)}
-              </Typography>
+
+          <Grid container alignItems="center" spacing={1}>
+            <Grid item xs={5} sx={{ pr: 1, display: 'flex', justifyContent: 'flex-start' }}>
+              <RowTeam nombre={eqName(p.equipo_local_id)} lado="local" gano={localGano} />
             </Grid>
-            <Grid item xs={4} sx={{ textAlign: 'center' }}>
-              <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 2, py: 0.5, borderRadius: 1.5, bgcolor: 'grey.50', border: '1px solid rgba(0,0,0,0.08)' }}>
-                {jugado ? (
-                  <Typography variant="subtitle1" fontWeight={800} sx={{ lineHeight: 1 }}>
+            <Grid item xs={2} sx={{ textAlign: 'center' }}>
+              {jugado ? (
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid rgba(0,0,0,0.08)' }}>
+                  <Typography variant="h6" fontWeight={800} sx={{ lineHeight: 1 }}>
                     {p.goles_local} <Typography component="span" color="text.secondary" fontWeight={400}>–</Typography> {p.goles_visitante}
                   </Typography>
-                ) : (
-                  <Typography variant="subtitle1" fontWeight={400} color="text.secondary" sx={{ lineHeight: 1, letterSpacing: 1 }}>VS</Typography>
-                )}
-              </Box>
+                </Box>
+              ) : (
+                <Box sx={{ display: 'inline-flex', alignItems: 'center', px: 2, py: 1, borderRadius: 2, bgcolor: '#eef2fb', border: '1px solid #dbe4f4' }}>
+                  <Typography variant="h6" fontWeight={800} color="primary" sx={{ lineHeight: 1 }}>VS</Typography>
+                </Box>
+              )}
             </Grid>
-            <Grid item xs={4} sx={{ pl: 1 }}>
-              <Typography variant="body2" fontWeight={visitanteGano ? 800 : 600} color={visitanteGano ? 'success.main' : 'text.primary'}
-                sx={{ display: 'inline', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', maxWidth: '100%' }}>
-                {eqName(p.equipo_visitante_id)}
-              </Typography>
+            <Grid item xs={5} sx={{ pl: 1, display: 'flex', justifyContent: 'flex-end' }}>
+              <RowTeam nombre={eqName(p.equipo_visitante_id)} lado="visitante" gano={visitanteGano} />
             </Grid>
           </Grid>
         </CardContent>
         <Box sx={{ flex: 1 }} />
         <Divider />
-        <CardActions sx={{ px: 1.5, py: 1, flexWrap: 'wrap', gap: 0.5 }}>
-          {!jugado && (
-            <>
-              <Button size="small" variant="contained" onClick={() => { setResultOpen(p); setResultForm({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }) }}>
-                Resultado
+        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <Button fullWidth variant="contained" startIcon={<EditNoteIcon />}
+            onClick={() => navigate(`/planilla?partido=${p.id}`)}>
+            Abrir planilla
+          </Button>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {!jugado && (
+              <>
+                <Button size="small" variant="outlined" onClick={() => { setResultOpen(p); setResultForm({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }) }}>
+                  Resultado
+                </Button>
+                <Button size="small" variant="outlined" onClick={() => { setProgOpen(p); setProgForm({ fecha_programada: toLocalInput(p.fecha_programada) }) }}>
+                  Programar
+                </Button>
+                <Button size="small" variant="outlined" color="warning"
+                  onClick={() => { setWOpen(p); setWForm({ bando: 'LOCAL' }) }}>
+                  W
+                </Button>
+                <Button size="small" variant="text" color="error" onClick={() => { if (window.confirm('¿Aplazar partido?')) aplazarMut.mutate(p.id) }}>
+                  Aplazar
+                </Button>
+              </>
+            )}
+            {jugado && (
+              <Button size="small" variant="outlined" color="inherit" onClick={() => setEventosOpen(p)}>
+                Eventos
               </Button>
-              <Button size="small" variant="outlined" onClick={() => { setProgOpen(p); setProgForm({ fecha_programada: toLocalInput(p.fecha_programada) }) }}>
-                Programar
-              </Button>
-              <Button size="small" variant="outlined" color="warning"
-                onClick={() => { setWOpen(p); setWForm({ bando: 'LOCAL' }) }}>
-                W
-              </Button>
-              <Button size="small" variant="text" color="error" onClick={() => { if (window.confirm('¿Aplazar partido?')) aplazarMut.mutate(p.id) }}>
-                Aplazar
-              </Button>
-            </>
-          )}
-          {jugado && (
-            <Button size="small" variant="outlined" color="inherit" onClick={() => setEventosOpen(p)}>
-              Eventos
-            </Button>
-          )}
-        </CardActions>
+            )}
+          </Box>
+        </Box>
       </Card>
     )
   }
@@ -231,7 +254,7 @@ export default function Partidos({ selectedTorneoId }) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <div>
           <Typography variant="h5" fontWeight={700}>Partidos</Typography>
           <Typography variant="body2" color="text.secondary">
@@ -241,17 +264,23 @@ export default function Partidos({ selectedTorneoId }) {
         <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Nuevo partido</Button>
       </Box>
 
-      <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center', mb: 3 }}>
-        <TextField select size="small" label="Jornada" value={jornadaSel} sx={{ minWidth: 160 }}
-          onChange={(e) => setJornadaSel(e.target.value)}>
-          <MenuItem value="">Todas</MenuItem>
-          {jornadas.map((j) => <MenuItem key={j} value={j}>Jornada {j}</MenuItem>)}
-        </TextField>
-        <ToggleButtonGroup size="small" exclusive value={filtro} onChange={(_, v) => setFiltro(v || 'TODOS')}>
-          <ToggleButton value="TODOS">Todos</ToggleButton>
-          <ToggleButton value="PENDIENTES">Por jugar</ToggleButton>
-          <ToggleButton value="JUGADOS">Jugados</ToggleButton>
-        </ToggleButtonGroup>
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="subtitle2" fontWeight={600} mb={1}>Selecciona una jornada</Typography>
+        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+          <Chip label="Todas" clickable color={jornadaSel === '' ? 'primary' : 'default'}
+            onClick={() => setJornadaSel('')} />
+          {jornadas.map((j) => (
+            <Chip key={j} label={`Jornada ${j}`} clickable
+              color={String(jornadaSel) === String(j) ? 'primary' : 'default'}
+              onClick={() => setJornadaSel(String(j))} />
+          ))}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 1.5 }}>
+          <Typography variant="caption" color="text.secondary">Mostrar:</Typography>
+          <Chip label="Todos" size="small" clickable color={filtro === 'TODOS' ? 'primary' : 'default'} onClick={() => setFiltro('TODOS')} />
+          <Chip label="Por jugar" size="small" clickable color={filtro === 'PENDIENTES' ? 'primary' : 'default'} onClick={() => setFiltro('PENDIENTES')} />
+          <Chip label="Jugados" size="small" clickable color={filtro === 'JUGADOS' ? 'primary' : 'default'} onClick={() => setFiltro('JUGADOS')} />
+        </Box>
       </Box>
 
       {partidos.length === 0 && <Alert severity="info">No hay partidos aún.</Alert>}
@@ -259,15 +288,13 @@ export default function Partidos({ selectedTorneoId }) {
         <Alert severity="info">No hay partidos con los filtros seleccionados.</Alert>
       )}
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <Grid container spacing={3}>
-          {partidosVisibles.map((p) => (
-            <Grid item xs={12} sm={6} lg={4} key={p.id}>
-              <Marcardor p={p} />
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
+      <Grid container spacing={3}>
+        {partidosVisibles.map((p) => (
+          <Grid item xs={12} sm={6} lg={4} key={p.id}>
+            <MatchCard p={p} />
+          </Grid>
+        ))}
+      </Grid>
 
       <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="xs">
         <form onSubmit={handleCreate}>

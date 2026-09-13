@@ -3,7 +3,13 @@ from app.models.organizador import Organizador
 from app.models.landing import OrganizadorLanding
 from app.models.torneo import Torneo
 from app.models.partido import Partido
+from app.models.partido_alineacion import PartidoAlineacion
+from app.models.partido_en_vivo import PartidoEnVivo
 from app.models.equipo import Equipo
+from app.models.jugador import Jugador
+
+# Orden de visualización de las líneas en la formación (estilo TV)
+POSICION_ORDEN = {'POR': 0, 'DEF': 1, 'MED': 2, 'DEL': 3, 'OTROS': 4}
 
 # Campos editables de la landing (mapeo directo atributo -> columna)
 LANDING_FIELDS = {
@@ -121,15 +127,20 @@ class LandingService:
 
     @staticmethod
     def public_partidos(torneo_id):
-        """Fixture de un torneo agrupado por jornada, con nombres de equipos."""
+        """Fixture de un torneo agrupado por jornada, con nombres de equipos y estado en vivo."""
         partidos = (Partido.query
                     .filter_by(torneo_id=torneo_id)
                     .order_by(Partido.jornada, Partido.id)
                     .all())
 
+        vivos = {
+            v.partido_id: v
+            for v in PartidoEnVivo.query.filter(PartidoEnVivo.iniciado.is_(True)).all()
+        }
         equipos = {e.id: e.nombre for e in Equipo.query.filter_by(torneo_id=torneo_id).all()}
         por_jornada = {}
         for p in partidos:
+            vivo = vivos.get(p.id)
             por_jornada.setdefault(p.jornada or 0, []).append({
                 'id': p.id,
                 'equipo_local': equipos.get(p.equipo_local_id, 'Equipo local'),
@@ -138,5 +149,94 @@ class LandingService:
                 'goles_visitante': p.goles_visitante,
                 'resultado': p.resultado,
                 'fecha_programada': p.fecha_programada.isoformat() if p.fecha_programada else None,
+                'en_vivo': {
+                    'seg': vivo.seg,
+                    'running': vivo.running,
+                    'iniciado': True,
+                } if vivo else None,
             })
         return [{'jornada': j, 'partidos': por_jornada[j]} for j in sorted(por_jornada)]
+
+    @staticmethod
+    def en_vivo_partido(partido_id):
+        """Estado en vivo público de un partido (default apagado)."""
+        vivo = PartidoEnVivo.query.get(partido_id)
+        if not vivo:
+            return {'partido_id': partido_id, 'seg': 0, 'running': False, 'iniciado': False}
+        return {'partido_id': vivo.partido_id, 'seg': vivo.seg, 'running': vivo.running, 'iniciado': vivo.iniciado}
+
+    @staticmethod
+    def alineaciones_partido(partido_id):
+        """Alineaciones (formación + suplentes) y cambios de un partido, público y legible."""
+        from app.models.evento_partido import EventoPartido
+
+        partido = Partido.query.get(partido_id)
+        if not partido:
+            return None
+
+        items = PartidoAlineacion.query.filter_by(partido_id=partido_id).all()
+        ids = [i.jugador_id for i in items]
+
+        cambio_evs = (EventoPartido.query
+                      .filter_by(partido_id=partido_id, tipo='CAMBIO')
+                      .order_by(EventoPartido.minuto).all())
+        for ev in cambio_evs:
+            if ev.jugador_id:
+                ids.append(ev.jugador_id)
+            if ev.jugador_sale_id:
+                ids.append(ev.jugador_sale_id)
+
+        jugadores = {j.id: j for j in Jugador.query.filter(Jugador.id.in_(ids)).all()}
+        equipos = {
+            e.id: e.nombre for e in Equipo.query.filter(
+                Equipo.id.in_([partido.equipo_local_id, partido.equipo_visitante_id])
+            ).all()
+        }
+
+        filas = {}
+        for i in items:
+            j = jugadores.get(i.jugador_id)
+            if not j:
+                continue
+            filas.setdefault(i.equipo_id, []).append({
+                'jugador_id': i.jugador_id,
+                'nombre': j.nombre,
+                'numero': i.numero_camiseta if i.numero_camiseta is not None else j.numero_camiseta,
+                'titular': bool(i.titular),
+                'posicion': i.posicion_tactica or 'OTROS',
+                'orden': i.posicion_orden or 0,
+            })
+
+        def sort_key(item):
+            return (
+                0 if item['titular'] else 1,
+                POSICION_ORDEN.get(item['posicion'], 4),
+                item['orden'],
+                item['numero'] or 0,
+            )
+
+        equipos_data = []
+        for eid in (partido.equipo_local_id, partido.equipo_visitante_id):
+            lista = sorted(filas.get(eid, []), key=sort_key)
+            equipos_data.append({
+                'equipo_id': eid,
+                'nombre': equipos.get(eid),
+                'jugadores': lista,
+            })
+
+        cambios = []
+        for ev in cambio_evs:
+            entra = jugadores.get(ev.jugador_id)
+            sale = jugadores.get(ev.jugador_sale_id)
+            cambios.append({
+                'minuto': ev.minuto,
+                'equipo': equipos.get(ev.equipo_id),
+                'entra': entra.nombre if entra else None,
+                'sale': sale.nombre if sale else None,
+            })
+
+        return {
+            'partido_id': partido_id,
+            'equipos': equipos_data,
+            'cambios': cambios,
+        }

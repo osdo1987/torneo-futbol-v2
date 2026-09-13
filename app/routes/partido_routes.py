@@ -269,6 +269,40 @@ def guardar_orden_alineacion(partido_id):
     } for i in items]), 200
 
 
+@partido_bp.route('/<int:partido_id>/en_vivo', methods=['GET'])
+@jwt_required()
+def get_en_vivo(partido_id):
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    return jsonify(PartidoService.en_vivo_dict(partido_id)), 200
+
+
+@partido_bp.route('/<int:partido_id>/en_vivo', methods=['POST'])
+@jwt_required()
+def guardar_en_vivo(partido_id):
+    """Persiste el cronómetro del partido en vivo. body: {seg, running, iniciado}."""
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    vivo, error = PartidoService.guardar_en_vivo(
+        partido,
+        seg=data.get('seg', 0),
+        running=data.get('running', False),
+        iniciado=data.get('iniciado', False),
+    )
+    if error:
+        return jsonify({'error': error}), 400
+    return jsonify({'partido_id': vivo.partido_id, 'seg': vivo.seg, 'running': vivo.running, 'iniciado': vivo.iniciado}), 200
+
+
 @partido_bp.route('/<int:partido_id>/w', methods=['POST'])
 @jwt_required()
 def registrar_walkover(partido_id):
