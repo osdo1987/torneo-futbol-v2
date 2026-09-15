@@ -15,6 +15,7 @@ import Button from '@mui/material/Button'
 import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
+import PageHeader from '../components/PageHeader'
 import Grid from '@mui/material/Grid'
 import { ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon } from '@mui/icons-material'
 import { apiGet } from '../api'
@@ -58,17 +59,7 @@ export default function Sanciones({ selectedTorneoId }) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5, flexWrap: 'wrap', gap: 1 }}>
-        <Typography variant="h5" fontWeight={700}>Sanciones</Typography>
-        {equipos.length > 0 && (
-          <Button size="small" startIcon={todosAbiertos ? <ExpandLessIcon /> : <ExpandMoreIcon />} onClick={toggleTodos}>
-            {todosAbiertos ? 'Colapsar todos' : 'Expandir todos'}
-          </Button>
-        )}
-      </Box>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        {data?.torneo} — acumulado por jugador y equipo según el reglamento.
-      </Typography>
+      <PageHeader title="Sanciones" subtitle={`${data?.torneo} — acumulado por jugador y equipo según el reglamento.`} actions={equipos.length > 0 && (<Button size="small" startIcon={todosAbiertos ? <ExpandLessIcon /> : <ExpandMoreIcon />} onClick={toggleTodos}>{todosAbiertos ? 'Colapsar todos' : 'Expandir todos'}</Button>)} />
 
       <Grid container spacing={2} mb={3}>
         {[

@@ -28,6 +28,7 @@ import {
   Public as PublicIcon,
 } from '@mui/icons-material'
 import { apiGet, apiPut, apiUpload } from '../api'
+import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 
 const FEATURE_ICONS = [
@@ -127,18 +128,7 @@ export default function LandingConfig({ user }) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-        <div>
-          <Typography variant="h5" fontWeight={700}>Landing Page</Typography>
-          <Typography variant="body2" color="text.secondary">Personaliza la página pública de tu organizador.</Typography>
-          <Button component="a" href={publicUrl} target="_blank" rel="noopener noreferrer" size="small" startIcon={<PublicIcon fontSize="small" />} sx={{ mt: 1 }}>
-            {publicUrl}
-          </Button>
-        </div>
-        <Button variant="contained" startIcon={<SaveIcon />} disabled={saveMut.isPending} onClick={() => saveMut.mutate()}>
-          {saveMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar cambios'}
-        </Button>
-      </Box>
+      <PageHeader title="Landing Page" subtitle="Personaliza la página pública de tu organizador." actions={<Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}><Button component="a" href={publicUrl} target="_blank" rel="noopener noreferrer" size="small" startIcon={<PublicIcon fontSize="small" />} sx={{ mt: 1 }}>{publicUrl}</Button><Button variant="contained" startIcon={<SaveIcon />} disabled={saveMut.isPending} onClick={() => saveMut.mutate()}>{saveMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar cambios'}</Button></Box>} />
 
       <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)' }}>
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto" sx={{ borderBottom: '1px solid rgba(0,0,0,0.08)' }}>

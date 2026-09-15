@@ -19,7 +19,8 @@ import HowToRegIcon from '@mui/icons-material/HowToReg'
 import CameraAltIcon from '@mui/icons-material/CameraAlt'
 import BadgeIcon from '@mui/icons-material/Badge'
 import { apiGet, apiPost } from '../api'
-import { PUB, FONT_DISPLAY, FONT_BODY } from '../publicTheme'
+import { FONT_DISPLAY, FONT_BODY } from '../publicTheme'
+import { ThemeProvider, createTheme } from '@mui/material/styles'
 import { fileToFotoDataURI } from '../lib/imagen'
 import JugadorCarnet from '../components/JugadorCarnet'
 import '../publicLanding.css'
@@ -43,31 +44,74 @@ const empty = {
   tipo_sangre: '', eps: '', contacto_emergencia: '', alergias: '',
 }
 
-const campo = {
-  display: 'block',
-  width: '100%',
-  bgcolor: 'rgba(255,255,255,.04)',
-  border: `1px solid ${PUB.line}`,
-  borderRadius: '10px',
-  px: 2.5, py: 1.7,
-  mb: 1.5,
-  fontSize: 14.5,
-  color: PUB.fg,
-  outline: 'none',
-  fontFamily: FONT_BODY,
-  transition: 'border-color .2s',
-  '&:focus': { borderColor: PUB.lineStrong, bgcolor: 'rgba(0,240,255,.04)' },
-  '&::placeholder': { color: PUB.muted },
-  '&:disabled': { opacity: .5, cursor: 'not-allowed' },
+// Paleta clara y profesional exclusiva de esta página (no afecta la landing oscura)
+const T = {
+  bg: '#f3f5f9',
+  bgGradient: 'radial-gradient(900px 320px at 50% -80px, #e4ebf7 0%, rgba(228,235,247,0) 70%), linear-gradient(180deg, #f8fafc 0%, #eef1f6 100%)',
+  card: '#ffffff',
+  line: '#e2e8f0',
+  lineStrong: '#cbd5e1',
+  fg: '#0f172a',
+  fgDim: '#334155',
+  muted: '#64748b',
+  primary: '#004ac6',
+  primaryDark: '#003a9e',
+  primarySoft: 'rgba(0,74,198,.08)',
+  green: '#15803d',
+  greenSoft: 'rgba(21,128,61,.1)',
+  yellow: '#b45309',
+  yellowSoft: 'rgba(217,119,6,.07)',
+  red: '#b91c1c',
+  redSoft: 'rgba(185,28,28,.05)',
+  shadow: '0 1px 2px rgba(15,23,42,.04), 0 12px 32px -16px rgba(15,23,42,.14)',
+}
+
+// Tema MUI claro para que Select/Menu/Alert/Dialog se vean claros siempre
+const pubLightTheme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: { main: T.primary, dark: T.primaryDark },
+    background: { default: T.bg, paper: '#ffffff' },
+    text: { primary: T.fg, secondary: T.fgDim },
+  },
+  shape: { borderRadius: 10 },
+  typography: { fontFamily: FONT_BODY, button: { textTransform: 'none', fontWeight: 600 } },
+  components: {
+    MuiInputLabel: { defaultProps: { shrink: true } },
+    MuiMenu: { styleOverrides: { paper: { border: `1px solid ${T.line}`, boxShadow: T.shadow } } },
+    MuiAlert: { styleOverrides: { root: { borderRadius: '12px' } } },
+    MuiDialog: { styleOverrides: { paper: { borderRadius: '14px' } } },
+  },
+})
+
+// Estilo común de los TextField (homogéneo con el resto del formulario)
+const tfSx = {
+  mb: 2,
+  '& .MuiOutlinedInput-root': {
+    bgcolor: '#ffffff',
+    fontSize: 14.5,
+    boxShadow: '0 1px 2px rgba(15,23,42,.04)',
+    '& fieldset': { borderColor: T.lineStrong },
+    '&:hover fieldset': { borderColor: '#94a3b8' },
+    '&.Mui-focused fieldset': { borderColor: T.primary },
+  },
+  '& .MuiInputLabel-root': { fontSize: 14.5, color: T.muted, '&.Mui-focused': { color: T.primary } },
 }
 
 const selectSx = {
-  color: PUB.fg,
+  color: T.fg,
   fontSize: 14.5,
-  bgcolor: 'transparent',
-  '&:before': { borderBottom: `1px solid ${PUB.line}` },
-  '&:after': { borderBottom: `2px solid ${PUB.cyan}` },
-  '& .MuiSvgIcon-root': { color: PUB.muted },
+  bgcolor: '#ffffff',
+  boxShadow: '0 1px 2px rgba(15,23,42,.04)',
+  '& .MuiOutlinedInput-notchedOutline': { borderColor: T.lineStrong },
+  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#94a3b8' },
+  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: T.primary },
+  '& .MuiSvgIcon-root': { color: T.muted },
+}
+
+const labelSx = {
+  color: T.muted, fontSize: 14.5,
+  '&.Mui-focused': { color: T.primary },
 }
 
 export default function RegistroJugador() {
@@ -137,187 +181,217 @@ export default function RegistroJugador() {
   const reiniciar = () => { setForm(empty); setError(''); setExito(null) }
 
   return (
-    <Box sx={{
-      minHeight: '100vh',
-      bgcolor: PUB.bg,
-      background: 'radial-gradient(circle at 50% 10%, #071749 0%, #020621 60%)',
-      color: PUB.fg, fontFamily: FONT_BODY,
-    }}>
-      {/* Header */}
-      <Box sx={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(16px)', bgcolor: 'rgba(2,6,33,.85)', borderBottom: '2px solid rgba(0,240,255,.1)' }}>
-        <Box sx={{ maxWidth: 1152, mx: 'auto', px: { xs: 2, sm: 4 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
-            <Box sx={{ width: 34, height: 34, borderRadius: '8px', background: 'linear-gradient(135deg, #0b2a6b, #061138)', border: `1px solid ${PUB.lineStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <EmojiEventsIcon sx={{ color: PUB.cyan, fontSize: 17 }} />
+    <ThemeProvider theme={pubLightTheme}>
+      <Box sx={{
+        minHeight: '100vh',
+        bgcolor: T.bg,
+        background: T.bgGradient,
+        color: T.fg, fontFamily: FONT_BODY,
+      }}>
+        {/* Header */}
+        <Box sx={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(12px)', bgcolor: 'rgba(255,255,255,.88)', borderBottom: `1px solid ${T.line}` }}>
+          <Box sx={{ maxWidth: 1152, mx: 'auto', px: { xs: 2, sm: 4 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+              <Box sx={{ width: 36, height: 36, borderRadius: '10px', background: `linear-gradient(135deg, ${T.primary}, ${T.primaryDark})`, boxShadow: '0 4px 12px -4px rgba(0,74,198,.5)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <EmojiEventsIcon sx={{ color: '#ffffff', fontSize: 18 }} />
+              </Box>
+              <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 19, letterSpacing: '-.01em', color: T.fg }}>
+                {info?.organizador || 'Torneos'}
+              </Typography>
             </Box>
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 20, letterSpacing: '2px', textTransform: 'uppercase', color: PUB.fg }}>
-              {info?.organizador || 'Torneos'}
-            </Typography>
+            <Button
+              onClick={() => navigate('/login')}
+              sx={{ fontSize: 13, fontWeight: 600, color: T.fgDim, textDecoration: 'none', border: `1px solid ${T.lineStrong}`, bgcolor: '#ffffff', px: 2.5, py: 1, borderRadius: '10px', cursor: 'pointer', transition: 'all .2s', '&:hover': { borderColor: T.primary, color: T.primary, bgcolor: T.primarySoft } }}
+            >
+              Ingresar
+            </Button>
           </Box>
-          <Button
-            onClick={() => navigate('/login')}
-            sx={{ fontSize: 12, fontWeight: 700, color: PUB.fg, textDecoration: 'none', border: `1px solid ${PUB.lineStrong}`, bgcolor: 'rgba(255,255,255,.04)', px: 2, py: 1, borderRadius: '8px', cursor: 'pointer', transition: 'all .2s', '&:hover': { borderColor: PUB.cyan, color: PUB.cyan } }}
-          >
-            Ingresar
-          </Button>
         </Box>
-      </Box>
 
-      <Box component="main" sx={{ position: 'relative', zIndex: 1, maxWidth: 560, mx: 'auto', px: { xs: 2, sm: 4 }, py: 6 }}>
-        {organo ? (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress size={28} sx={{ color: PUB.cyan }} /></Box>
-        ) : noExiste ? (
-          <Alert severity="error" sx={{ bgcolor: PUB.liveSoft, border: `1px solid ${PUB.live}`, color: PUB.fg }}>
-            El link de inscripción no es válido o fue desactivado.
-          </Alert>
-        ) : exito ? (
-          <Box className="pl-fade-up" sx={{ background: PUB.panel, border: `1px solid ${PUB.line}`, borderRadius: 3, p: { xs: 4, sm: 5 }, textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,.5)' }}>
-            <HowToRegIcon sx={{ fontSize: 52, color: PUB.green }} />
-            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 24, sm: 30 }, mt: 2, textTransform: 'uppercase', letterSpacing: '.04em' }}>
-              ¡Inscripción registrada!
-            </Typography>
-            <Typography sx={{ color: PUB.fgDim, mt: 2, fontSize: 15 }}>
-              <strong style={{ color: PUB.fg }}>{exito.jugador?.nombre}</strong> quedó inscripto en{' '}
-              <strong style={{ color: PUB.cyan }}>{info.equipo.nombre}</strong> ({info.torneo.nombre}).
-            </Typography>
-            {exito.jugador?.numero_camiseta != null && (
-              <Typography sx={{ color: PUB.muted, fontSize: 13, mt: 1 }}>
-                Camiseta N° {exito.jugador.numero_camiseta}
-              </Typography>
-            )}
-            <Box sx={{ mt: 4, display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button variant="outlined" startIcon={<BadgeIcon />} onClick={() => setVerCarnet(true)}
-                sx={{ color: PUB.cyan, borderColor: PUB.lineStrong, '&:hover': { borderColor: PUB.cyan, bgcolor: PUB.goldSoft } }}>
-                Ver mi carnet
-              </Button>
-              <Button variant="outlined" onClick={reiniciar}
-                sx={{ color: PUB.fgDim, borderColor: PUB.line, '&:hover': { borderColor: PUB.lineStrong } }}>
-                Registrar otro jugador
-              </Button>
-              <Button variant="contained" onClick={() => navigate('/login')}
-                sx={{ bgcolor: PUB.cyan, color: '#020621', fontWeight: 700, '&:hover': { bgcolor: '#8ff5ff', color: '#020621' } }}>
-                Ir al panel
-              </Button>
-            </Box>
-          </Box>
-        ) : (
-          <>
-            <Box className="pl-fade-up" sx={{ mb: 4, display: 'flex', alignItems: 'center', gap: 2.5, flexWrap: 'wrap' }}>
-              <Box sx={{ width: 64, height: 64, borderRadius: 3, background: 'linear-gradient(135deg, #0b2a6b, #061138)', border: `1px solid ${PUB.lineStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <SportsSoccerIcon sx={{ color: PUB.cyan, fontSize: 28 }} />
+        <Box component="main" sx={{ position: 'relative', zIndex: 1, maxWidth: 560, mx: 'auto', px: { xs: 2, sm: 4 }, py: { xs: 4, sm: 6 } }}>
+          {organo ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 10 }}><CircularProgress size={28} sx={{ color: T.primary }} /></Box>
+          ) : noExiste ? (
+            <Alert severity="error" sx={{ bgcolor: T.redSoft, border: '1px solid rgba(185,28,28,.25)', color: T.red }}>
+              El link de inscripción no es válido o fue desactivado.
+            </Alert>
+          ) : exito ? (
+            <Box className="pl-fade-up" sx={{ background: T.card, border: `1px solid ${T.line}`, borderRadius: '16px', p: { xs: 4, sm: 5 }, textAlign: 'center', boxShadow: T.shadow }}>
+              <Box sx={{ width: 72, height: 72, mx: 'auto', borderRadius: '50%', bgcolor: T.greenSoft, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <HowToRegIcon sx={{ fontSize: 36, color: T.green }} />
               </Box>
-              <Box sx={{ minWidth: 0, flex: 1 }}>
-                <Typography sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '.18em', color: PUB.cyan, textTransform: 'uppercase' }}>
-                  Inscripción de jugadores
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 22, sm: 26 }, mt: 2.5, letterSpacing: '-.01em', color: T.fg }}>
+                ¡Inscripción registrada!
+              </Typography>
+              <Typography sx={{ color: T.fgDim, mt: 1.5, fontSize: 15 }}>
+                <strong style={{ color: T.fg }}>{exito.jugador?.nombre}</strong> quedó inscripto en{' '}
+                <strong style={{ color: T.primary }}>{info.equipo.nombre}</strong> ({info.torneo.nombre}).
+              </Typography>
+              {exito.jugador?.numero_camiseta != null && (
+                <Typography sx={{ color: T.muted, fontSize: 13, mt: 1 }}>
+                  Camiseta N° {exito.jugador.numero_camiseta}
                 </Typography>
-                <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 20, sm: 26 }, mt: 0.5, textTransform: 'uppercase', color: PUB.fg }}>
-                  {info.equipo.nombre}
-                </Typography>
-                <Typography sx={{ color: PUB.fgDim, fontSize: 13.5, mt: 0.5 }}>{info.torneo.nombre}</Typography>
+              )}
+              <Box sx={{ mt: 4, display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Button variant="outlined" startIcon={<BadgeIcon />} onClick={() => setVerCarnet(true)}
+                  sx={{ color: T.primary, borderColor: T.lineStrong, bgcolor: '#ffffff', '&:hover': { borderColor: T.primary, bgcolor: T.primarySoft } }}>
+                  Ver mi carnet
+                </Button>
+                <Button variant="outlined" onClick={reiniciar}
+                  sx={{ color: T.fgDim, borderColor: T.line, bgcolor: '#ffffff', '&:hover': { borderColor: T.lineStrong, bgcolor: '#f8fafc' } }}>
+                  Registrar otro jugador
+                </Button>
+                <Button variant="contained" onClick={() => navigate('/login')}
+                  sx={{ bgcolor: T.primary, color: '#ffffff', fontWeight: 600, boxShadow: 'none', '&:hover': { bgcolor: T.primaryDark, boxShadow: 'none' } }}>
+                  Ir al panel
+                </Button>
               </Box>
             </Box>
+          ) : (
+            <>
+              <Box className="pl-fade-up" sx={{ mb: 3, background: T.card, border: `1px solid ${T.line}`, borderRadius: '16px', p: { xs: 2.5, sm: 3 }, boxShadow: T.shadow, display: 'flex', alignItems: 'center', gap: 2.5, flexWrap: 'wrap' }}>
+                <Box sx={{ width: 60, height: 60, borderRadius: '14px', background: `linear-gradient(135deg, ${T.primary}, ${T.primaryDark})`, boxShadow: '0 6px 14px -6px rgba(0,74,198,.55)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <SportsSoccerIcon sx={{ color: '#ffffff', fontSize: 26 }} />
+                </Box>
+                <Box sx={{ minWidth: 0, flex: 1 }}>
+                  <Typography sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '.12em', color: T.primary, textTransform: 'uppercase' }}>
+                    Inscripción de jugadores
+                  </Typography>
+                  <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 20, sm: 24 }, mt: 0.25, letterSpacing: '-.01em', color: T.fg }}>
+                    {info.equipo.nombre}
+                  </Typography>
+                  <Typography sx={{ color: T.muted, fontSize: 13.5, mt: 0.25 }}>{info.torneo.nombre}</Typography>
+                </Box>
+              </Box>
 
-            {info.inscripciones_abiertas === false && (
-              <Alert severity="warning" className="pl-fade-up" sx={{ mb: 3, bgcolor: 'rgba(255,170,0,.08)', border: `1px solid ${PUB.yellow}`, color: PUB.fg }}>
-                Las inscripciones están cerradas por ahora. Si el torneo las rehabilita, este link vuelve a funcionar.
-              </Alert>
-            )}
+              {info.inscripciones_abiertas === false && (
+                <Alert severity="warning" className="pl-fade-up" sx={{ mb: 3, bgcolor: T.yellowSoft, border: '1px solid rgba(217,119,6,.3)', color: T.yellow }}>
+                  Las inscripciones están cerradas por ahora. Si el torneo las rehabilita, este link vuelve a funcionar.
+                </Alert>
+              )}
 
-            <Box className="pl-fade-up" component="form" onSubmit={handleSubmit}
-              sx={{ background: PUB.panelDeep, border: `1px solid ${PUB.line}`, borderRadius: 3, p: { xs: 3, sm: 4 }, mb: 3 }}>
-              <Typography sx={{ mb: 2.5, fontSize: 10, letterSpacing: '.14em', color: PUB.muted, fontWeight: 700, textTransform: 'uppercase' }}>
-                Tus datos
-              </Typography>
+              <Box className="pl-fade-up" component="form" onSubmit={handleSubmit}
+                sx={{ position: 'relative', overflow: 'hidden', background: T.card, border: `1px solid ${T.line}`, borderRadius: '16px', p: { xs: 3, sm: 4 }, mb: 3, boxShadow: T.shadow }}>
+                <Box sx={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: `linear-gradient(90deg, ${T.primary}, #3b82f6)` }} />
+                <Typography sx={{ mb: 2.5, fontSize: 11, letterSpacing: '.12em', color: T.muted, fontWeight: 700, textTransform: 'uppercase' }}>
+                  Tus datos
+                </Typography>
 
-              <Box component="input" required placeholder="Nombre completo *" value={form.nombre} onChange={set('nombre')} sx={campo} />
-              <Box component="input" type="number" min={0} max={999} placeholder="N° de camiseta" value={form.numero_camiseta} onChange={set('numero_camiseta')} sx={campo} />
+                <TextField label="Nombre completo *" required fullWidth
+                  value={form.nombre} onChange={set('nombre')}
+                  sx={tfSx} />
+                <TextField label="N° de camiseta" type="number" fullWidth
+                  slotProps={{ htmlInput: { min: 0, max: 999 } }}
+                  value={form.numero_camiseta} onChange={set('numero_camiseta')}
+                  sx={tfSx} />
 
-              <FormControl fullWidth sx={{ mb: 1.5 }}>
-                <InputLabel id="r-pos-label" sx={{ color: PUB.muted }}>Posición</InputLabel>
-                <Select labelId="r-pos-label" label="Posición" value={form.posicion} onChange={set('posicion')} sx={selectSx}>
-                  {POSICIONES.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
-                </Select>
-              </FormControl>
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="r-pos-label" sx={labelSx}>Posición</InputLabel>
+                  <Select labelId="r-pos-label" label="Posición" value={form.posicion} onChange={set('posicion')} sx={selectSx}>
+                    {POSICIONES.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
+                  </Select>
+                </FormControl>
 
-              <Box component="input" type="date" value={form.fecha_nacimiento} onChange={set('fecha_nacimiento')} sx={{ ...campo, colorScheme: 'dark' }} />
-              <Box component="input" placeholder="Documento de identidad" value={form.documento_identidad} onChange={set('documento_identidad')} sx={campo} />
-              <Box component="input" placeholder="Teléfono" value={form.telefono} onChange={set('telefono')} sx={campo} />
+                <TextField
+                  label="Fecha de nacimiento"
+                  type="date"
+                  fullWidth
+                  value={form.fecha_nacimiento}
+                  onChange={set('fecha_nacimiento')}
+                  sx={{ ...tfSx, colorScheme: 'light' }}
+                />
+                <TextField label="Documento de identidad" fullWidth
+                  value={form.documento_identidad} onChange={set('documento_identidad')}
+                  sx={tfSx} />
+                <TextField label="Teléfono" fullWidth
+                  value={form.telefono} onChange={set('telefono')}
+                  sx={tfSx} />
 
-              <Typography sx={{ mt: 2, mb: 1.5, fontSize: 10, letterSpacing: '.14em', color: PUB.muted, fontWeight: 700, textTransform: 'uppercase' }}>
-                Datos médicos (opcional)
-              </Typography>
+                <Typography sx={{ mt: 2, mb: 2, fontSize: 11, letterSpacing: '.12em', color: T.muted, fontWeight: 700, textTransform: 'uppercase' }}>
+                  Datos médicos (opcional)
+                </Typography>
 
-              <FormControl fullWidth sx={{ mb: 1.5 }}>
-                <InputLabel id="r-sangre-label" sx={{ color: PUB.muted }}>Tipo de sangre</InputLabel>
-                <Select labelId="r-sangre-label" label="Tipo de sangre" value={form.tipo_sangre} onChange={set('tipo_sangre')} sx={selectSx}>
-                  {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-                </Select>
-              </FormControl>
-              <Box component="input" placeholder="EPS / Entidad de salud" value={form.eps} onChange={set('eps')} sx={campo} />
-              <Box component="input" placeholder="Contacto de emergencia (nombre y teléfono)" value={form.contacto_emergencia} onChange={set('contacto_emergencia')} sx={campo} />
-              <Box component="input" placeholder="Alergias o condiciones médicas" value={form.alergias} onChange={set('alergias')} sx={campo} />
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="r-sangre-label" sx={labelSx}>Tipo de sangre</InputLabel>
+                  <Select labelId="r-sangre-label" label="Tipo de sangre" value={form.tipo_sangre} onChange={set('tipo_sangre')} sx={selectSx}>
+                    {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                  </Select>
+                </FormControl>
+                <TextField label="EPS / Entidad de salud" fullWidth
+                  value={form.eps} onChange={set('eps')}
+                  sx={tfSx} />
+                <TextField label="Contacto de emergencia (nombre y teléfono)" fullWidth
+                  value={form.contacto_emergencia} onChange={set('contacto_emergencia')}
+                  sx={tfSx} />
+                <TextField label="Alergias o condiciones médicas" fullWidth
+                  value={form.alergias} onChange={set('alergias')}
+                  sx={tfSx} />
 
-              <FormControl fullWidth sx={{ mb: 1.5 }}>
-                <InputLabel id="r-pierna-label" sx={{ color: PUB.muted }}>Pierna hábil</InputLabel>
-                <Select labelId="r-pierna-label" label="Pierna hábil" value={form.pierna_habil} onChange={set('pierna_habil')} sx={selectSx}>
-                  {PIERNAS.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
-                </Select>
-              </FormControl>
+                <FormControl fullWidth sx={{ mb: 2 }}>
+                  <InputLabel id="r-pierna-label" sx={labelSx}>Pierna hábil</InputLabel>
+                  <Select labelId="r-pierna-label" label="Pierna hábil" value={form.pierna_habil} onChange={set('pierna_habil')} sx={selectSx}>
+                    {PIERNAS.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
+                  </Select>
+                </FormControl>
 
-              <Box component="input" type="number" min={100} max={250} placeholder="Altura (cm)" value={form.altura_cm} onChange={set('altura_cm')} sx={campo} />
+                <TextField label="Altura (cm)" type="number" fullWidth
+                  slotProps={{ htmlInput: { min: 100, max: 250 } }}
+                  value={form.altura_cm} onChange={set('altura_cm')}
+                  sx={tfSx} />
 
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 0.5 }}>
-                <input id="r-foto-input" ref={setFotoRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
-                  onChange={(e) => pickFoto(e.target.files?.[0])} />
-                <Avatar variant="rounded" src={form.foto_url || undefined}
-                  sx={{ width: 52, height: 52, bgcolor: form.foto_url ? 'transparent' : 'rgba(255,255,255,.08)', border: `1px solid ${PUB.line}`, color: PUB.muted }}>
-                  {!form.foto_url && <CameraAltIcon fontSize="small" />}
-                </Avatar>
-                <Box>
-                  <Button size="small" component="label" htmlFor="r-foto-input" startIcon={<CameraAltIcon />}
-                    sx={{ color: PUB.cyan, borderColor: PUB.lineStrong, border: '1px solid', borderRadius: '8px', px: 1.5, py: 0.5, cursor: 'pointer' }}>
-                    {form.foto_url ? 'Cambiar foto' : 'Subir foto (opcional)'}
-                  </Button>
-                  {form.foto_url && (
-                    <Button size="small" onClick={() => setForm({ ...form, foto_url: '' })}
-                      sx={{ ml: 1, color: PUB.live }}>
-                      Quitar
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, py: 0.5 }}>
+                  <input id="r-foto-input" ref={setFotoRef} type="file" accept="image/png,image/jpeg,image/webp" hidden
+                    onChange={(e) => pickFoto(e.target.files?.[0])} />
+                  <Avatar variant="rounded" src={form.foto_url || undefined}
+                    sx={{ width: 56, height: 56, borderRadius: '12px', bgcolor: '#f1f5f9', border: `1px solid ${T.line}`, color: T.muted }}>
+                    {!form.foto_url && <CameraAltIcon fontSize="small" />}
+                  </Avatar>
+                  <Box>
+                    <Button size="small" component="label" htmlFor="r-foto-input" startIcon={<CameraAltIcon />}
+                      sx={{ color: T.primary, bgcolor: '#ffffff', borderColor: T.lineStrong, border: '1px solid', borderRadius: '10px', px: 1.75, py: 0.75, cursor: 'pointer', '&:hover': { borderColor: T.primary, bgcolor: T.primarySoft } }}>
+                      {form.foto_url ? 'Cambiar foto' : 'Subir foto (opcional)'}
                     </Button>
-                  )}
+                    {form.foto_url && (
+                      <Button size="small" onClick={() => setForm({ ...form, foto_url: '' })}
+                        sx={{ ml: 1, color: T.red, '&:hover': { bgcolor: T.redSoft } }}>
+                        Quitar
+                      </Button>
+                    )}
+                  </Box>
+                </Box>
+
+                {error && <Alert severity="error" sx={{ mt: 1, mb: 1, bgcolor: T.redSoft, border: '1px solid rgba(185,28,28,.25)', color: T.red }}>{error}</Alert>}
+
+                <Button type="submit" variant="contained" fullWidth disabled={enviando}
+                  sx={{ mt: 2.5, py: 1.8, bgcolor: T.primary, color: '#ffffff', fontWeight: 700, fontSize: 15, borderRadius: '12px', letterSpacing: '.01em', textTransform: 'none', boxShadow: '0 8px 18px -8px rgba(0,74,198,.55)', '&:hover': { bgcolor: T.primaryDark, boxShadow: '0 10px 22px -8px rgba(0,74,198,.6)' }, '&:disabled': { opacity: .65, boxShadow: 'none' } }}>
+                  {enviando ? <CircularProgress size={20} color="inherit" /> : 'Inscribirme'}
+                </Button>
+              </Box>
+
+              <Box className="pl-fade-up" sx={{ display: 'flex', gap: 2, alignItems: 'center', color: T.muted, fontSize: 13, flexWrap: 'wrap' }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <GroupsIcon sx={{ fontSize: 16 }} />
+                  <span><strong style={{ color: T.fgDim }}>{info.jugadores_inscritos}</strong> de {info.max_jugadores} cupos ocupados</span>
+                </Box>
+                <Box sx={{ flex: 1, minWidth: 120 }}>
+                  <Box sx={{ height: 6, borderRadius: 100, bgcolor: T.line, overflow: 'hidden' }}>
+                    <Box sx={{ height: '100%', borderRadius: 100, background: `linear-gradient(90deg, ${T.primary}, #3b82f6)`, transition: 'width 1s ease', width: `${Math.min(100, Math.round((info.jugadores_inscritos / info.max_jugadores) * 100))}%` }} />
+                  </Box>
                 </Box>
               </Box>
+            </>
+          )}
+        </Box>
 
-              {error && <Alert severity="error" sx={{ mt: 1, mb: 1, bgcolor: PUB.liveSoft, border: `1px solid ${PUB.live}`, color: PUB.fg }}>{error}</Alert>}
-
-              <Button type="submit" variant="contained" fullWidth disabled={enviando}
-                sx={{ mt: 2, py: 1.8, bgcolor: PUB.cyan, color: '#020621', fontWeight: 800, fontSize: 15, letterSpacing: '.04em', textTransform: 'uppercase', '&:hover': { bgcolor: '#8ff5ff' }, '&:disabled': { opacity: .6 } }}>
-                {enviando ? <CircularProgress size={20} color="inherit" /> : 'Inscribirme'}
-              </Button>
-            </Box>
-
-            <Box className="pl-fade-up" sx={{ display: 'flex', gap: 2, alignItems: 'center', color: PUB.muted, fontSize: 12.5, flexWrap: 'wrap' }}>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                <GroupsIcon sx={{ fontSize: 15 }} />
-                <span><strong style={{ color: PUB.fgDim }}>{info.jugadores_inscritos}</strong> de {info.max_jugadores} cupos ocupados</span>
-              </Box>
-              <Box sx={{ flex: 1, minWidth: 120 }}>
-                <Box sx={{ height: 6, borderRadius: 100, bgcolor: 'rgba(255,255,255,.08)', overflow: 'hidden' }}>
-                  <Box className="pl-stat-bar-fill" sx={{ height: '100%', width: `${Math.min(100, Math.round((info.jugadores_inscritos / info.max_jugadores) * 100))}%` }} />
-                </Box>
-              </Box>
-            </Box>
-          </>
-        )}
+        <JugadorCarnet
+          open={verCarnet}
+          onClose={() => setVerCarnet(false)}
+          jugador={exito?.jugador || null}
+          equipo={info?.equipo.nombre}
+          torneo={info?.torneo.nombre}
+          organizador={info?.organizador}
+        />
       </Box>
-
-      <JugadorCarnet
-        open={verCarnet}
-        onClose={() => setVerCarnet(false)}
-        jugador={exito?.jugador || null}
-        equipo={info?.equipo.nombre}
-        torneo={info?.torneo.nombre}
-        organizador={info?.organizador}
-      />
-    </Box>
+    </ThemeProvider>
   )
 }

@@ -21,6 +21,7 @@ import ListItemText from '@mui/material/ListItemText'
 import InputAdornment from '@mui/material/InputAdornment'
 import CircularProgress from '@mui/material/CircularProgress'
 import { apiGet, apiPost } from '../api'
+import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import {
   Add as AddIcon, Schedule as ScheduleIcon,
@@ -254,15 +255,7 @@ export default function Partidos({ selectedTorneoId }) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <div>
-          <Typography variant="h5" fontWeight={700}>Partidos</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {partidos.length} partidos · {jugadosCount} jugados · {partidos.length - jugadosCount} por jugar
-          </Typography>
-        </div>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Nuevo partido</Button>
-      </Box>
+      <PageHeader title="Partidos" subtitle={`${partidos.length} partidos · ${jugadosCount} jugados · ${partidos.length - jugadosCount} por jugar`} actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Nuevo partido</Button>} />
 
       <Box sx={{ mb: 3 }}>
         <Typography variant="subtitle2" fontWeight={600} mb={1}>Selecciona una jornada</Typography>

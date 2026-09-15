@@ -28,6 +28,7 @@ import Grid from '@mui/material/Grid'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { apiGet, apiPost, apiDelete } from '../api'
+import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import {
   Check as CheckIcon, AccessTime as AccessTimeIcon,
@@ -447,10 +448,7 @@ export default function Planilla({ selectedTorneoId }) {
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={700} mb={0.5}>Planilla</Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>
-        Registra minuto a minuto las acciones del partido.
-      </Typography>
+      <PageHeader title="Planilla" subtitle="Registra minuto a minuto las acciones del partido." />
 
       <FormControl size="small" fullWidth sx={{ maxWidth: 420, mb: 3 }}>
         <InputLabel>Partido</InputLabel>

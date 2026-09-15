@@ -5,6 +5,7 @@ import CardContent from '@mui/material/CardContent'
 import Switch from '@mui/material/Switch'
 import Typography from '@mui/material/Typography'
 import Divider from '@mui/material/Divider'
+import PageHeader from '../components/PageHeader'
 
 export default function Config({ user, setDarkMode }) {
   const [dark, setDark] = useState(() => localStorage.getItem('tf_darkMode') === 'true')
@@ -16,8 +17,7 @@ export default function Config({ user, setDarkMode }) {
 
   return (
     <Box sx={{ maxWidth: 600 }}>
-      <Typography variant="h5" fontWeight={700} mb={0.5}>Configuración</Typography>
-      <Typography variant="body2" color="text.secondary" mb={3}>Preferencias de la cuenta y del sistema.</Typography>
+      <PageHeader title="Configuración" subtitle="Preferencias de la cuenta y del sistema." />
 
       <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)', mb: 2 }}>
         <CardContent>

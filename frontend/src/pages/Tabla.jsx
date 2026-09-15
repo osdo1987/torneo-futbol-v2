@@ -7,11 +7,11 @@ import TableCell from '@mui/material/TableCell'
 import TableContainer from '@mui/material/TableContainer'
 import TableHead from '@mui/material/TableHead'
 import TableRow from '@mui/material/TableRow'
-import Typography from '@mui/material/Typography'
 import Chip from '@mui/material/Chip'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import { apiGet } from '../api'
+import PageHeader from '../components/PageHeader'
 
 export default function Tabla({ selectedTorneoId }) {
   const { data, isLoading, isError, error } = useQuery({
@@ -28,13 +28,13 @@ export default function Tabla({ selectedTorneoId }) {
 
   return (
     <Box>
-      <Typography variant="h5" fontWeight={700} mb={0.5}>Tabla de posiciones</Typography>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
-        <Typography variant="body2" color="text.secondary">{data?.torneo}</Typography>
-        {posiciones.some((f) => f.clasifica) && (
+      <PageHeader
+        title="Tabla de posiciones"
+        subtitle={data?.torneo}
+        badge={posiciones.some((f) => f.clasifica) && (
           <Chip label="Fila verde = clasifica a la fase final" color="success" size="small" />
         )}
-      </Box>
+      />
 
       <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)' }}>
         <TableContainer>

@@ -38,7 +38,7 @@ export default function Login({ onLogin }) {
         <Box sx={{ textAlign: 'center', mb: 3 }}>
           <Box sx={{
             width: 56, height: 56, borderRadius: 3, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: 'linear-gradient(135deg,#004ac6,#22d3ee)', color: '#fff', mb: 2,
+            background: 'linear-gradient(135deg,#0052cc,#39b8fd)', color: '#fff', mb: 2,
           }}>
             <SportsSoccerIcon fontSize="large" />
           </Box>

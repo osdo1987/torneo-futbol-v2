@@ -552,13 +552,7 @@ export default function Equipos({ user, selectedTorneoId }) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <div>
-          <Typography variant="h5" fontWeight={700}>Equipos</Typography>
-          <Typography variant="body2" color="text.secondary">Inscribe delegaciones y gestiona sus plantillas.</Typography>
-        </div>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Inscribir equipo</Button>
-      </Box>
+      <PageHeader title="Equipos" subtitle="Inscribe delegaciones y gestiona sus plantillas." actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Inscribir equipo</Button>} />
 
       <Grid container spacing={2}>
         <Grid item xs={12} md={4}>

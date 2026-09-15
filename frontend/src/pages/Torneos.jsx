@@ -24,6 +24,7 @@ import MenuItem from '@mui/material/MenuItem'
 import Checkbox from '@mui/material/Checkbox'
 import FormControlLabel from '@mui/material/FormControlLabel'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 
 const ESTADO_META = {
@@ -266,13 +267,7 @@ export default function Torneos({ user, selectedTorneoId, onSelectTorneo }) {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <div>
-          <Typography variant="h5" fontWeight={700}>Torneos</Typography>
-          <Typography variant="body2" color="text.secondary">Crea y gestiona el ciclo de vida de tus torneos.</Typography>
-        </div>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Nuevo Torneo</Button>
-      </Box>
+      <PageHeader title="Torneos" subtitle="Crea y gestiona el ciclo de vida de tus torneos." actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)}>Nuevo Torneo</Button>} />
 
       {torneos.length === 0 && <Alert severity="info">No hay torneos. Crea el primero.</Alert>}
 

@@ -31,6 +31,7 @@ import {
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 
 const empty = { name: '', slug: '', whatsapp: '', address: '', email: '', password: '' }
@@ -118,13 +119,7 @@ export default function SuperAdmin() {
 
   return (
     <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <div>
-          <Typography variant="h5" fontWeight={700}>Organizadores</Typography>
-          <Typography variant="body2" color="text.secondary">Gestiona los tenants (ligas / canchas).</Typography>
-        </div>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)}>Nuevo organizador</Button>
-      </Box>
+      <PageHeader title="Organizadores" subtitle="Gestiona los tenants (ligas / canchas)." actions={<Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpenCreate(true)}>Nuevo organizador</Button>} />
 
       <Grid container spacing={2}>
         {organizadores.map((o) => {
