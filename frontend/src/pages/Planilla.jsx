@@ -28,7 +28,6 @@ import Grid from '@mui/material/Grid'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
 import { apiGet, apiPost, apiDelete } from '../api'
-import PageHeader from '../components/PageHeader'
 import { useToast } from '../components/Toast'
 import {
   Check as CheckIcon, AccessTime as AccessTimeIcon,
@@ -36,6 +35,10 @@ import {
   Block as RedCardIcon, Flag as AutogolIcon, Delete as DeleteIcon,
   SwapHoriz as SwapIcon, PlayArrow as PlayIcon, Pause as PauseIcon,
   Replay as ReplayIcon, ArrowDownward as ArrowDownwardIcon, ArrowUpward as ArrowUpwardIcon,
+  Undo as UndoIcon, PersonAdd as PersonAddIcon, PictureAsPdf as PdfIcon,
+  Verified as VerifiedIcon, HistoryToggleOff as HistoryToggleOffIcon,
+  PublishedWithChanges as PublishedWithChangesIcon, VerifiedUser as VerifiedUserIcon,
+  Stadium as StadiumIcon,
 } from '@mui/icons-material'
 
 const RESULTADOS = {
@@ -126,6 +129,12 @@ const POSICION_FILA = { ARQUERO: 0, DEFENSOR: 1, MEDIOCAMPISTA: 2, DELANTERO: 3 
 
 const fmtTiempo = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
+const fmtFecha = (iso) => {
+  if (!iso) return null
+  const d = new Date(iso)
+  return `${d.toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short' })} · ${d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}`
+}
+
 export default function Planilla({ selectedTorneoId }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -140,6 +149,8 @@ export default function Planilla({ selectedTorneoId }) {
   const [vistaEquipo, setVistaEquipo] = useState({})
   const [ordenLocal, setOrdenLocal] = useState({})
   const [hoverKey, setHoverKey] = useState('')
+  const [finalizarOpen, setFinalizarOpen] = useState(false)
+  const [adicion, setAdicion] = useState(0)
   const dragJugador = useRef({ eqId: null, jugadorId: null, rol: '' })
   const lastLiveRef = useRef(null)
   const liveReadyRef = useRef(false)
@@ -292,6 +303,8 @@ export default function Planilla({ selectedTorneoId }) {
     onError: (e) => toast.show(e.message, 'error'),
   })
 
+  const abrirFinalizar = () => setFinalizarOpen(true)
+
   const alinearMut = useMutation({
     mutationFn: ({ jugadorId, titular, numeroCamiseta }) => {
       const body = { jugador_id: jugadorId, titular }
@@ -348,6 +361,28 @@ export default function Planilla({ selectedTorneoId }) {
     Object.entries(contAmarillas).forEach(([id, n]) => { if (n >= 2) set.add(Number(id)) })
     return set
   }, [eventos])
+
+  const cambiosPorEquipo = useMemo(() => {
+    const m = {}
+    ;(eventos || []).forEach((e) => { if (e.tipo === 'CAMBIO') m[e.equipo_id] = (m[e.equipo_id] || 0) + 1 })
+    return m
+  }, [eventos])
+
+  const lineaEventos = useMemo(() => {
+    if (!partido) return []
+    const localId = partido.equipo_local_id
+    return [...(eventos || [])]
+      .sort((a, b) => a.minuto - b.minuto || (a.id || 0) - (b.id || 0))
+      .reduce((acc, ev) => {
+        const prev = acc[acc.length - 1]?.score || { l: 0, v: 0 }
+        const s = { ...prev }
+        const golLocal = (ev.tipo === 'GOL' && ev.equipo_id === localId) || (ev.tipo === 'AUTOGOL' && ev.equipo_id !== localId)
+        if (golLocal) s.l++
+        else if (ev.tipo === 'GOL' || ev.tipo === 'AUTOGOL') s.v++
+        acc.push({ ev, score: s })
+        return acc
+      }, [])
+  }, [eventos, partido])
 
   const enCanchaDe = (equipoId) => convocadosDe(equipoId)
     .filter((j) => alineacionMap[j.id].titular && !expulsados.has(j.id))
@@ -448,18 +483,54 @@ export default function Planilla({ selectedTorneoId }) {
 
   return (
     <Box>
-      <PageHeader title="Planilla" subtitle="Registra minuto a minuto las acciones del partido." />
+      <Card elevation={0} sx={{ mb: 2, p: { xs: 2, sm: 2.5 }, borderRadius: 2.5, boxShadow: '0 1px 3px rgba(0,0,0,0.05)', border: '1px solid', borderColor: 'divider' }}>
+        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', xl: 'row' }, gap: 2, alignItems: { xl: 'center' }, justifyContent: 'space-between' }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.75, flexWrap: 'wrap' }}>
+              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.6, px: 1, py: 0.3, borderRadius: 1, bgcolor: 'rgba(0,104,70,0.1)', color: '#006846', fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: '#006846', animation: 'torneoPulse 1.6s ease-in-out infinite' }} />
+                Transmisión oficial
+              </Box>
+              {partido && (
+                <Box component="span" sx={{ fontFamily: 'JetBrains Mono, Menlo, monospace', fontSize: 11, fontWeight: 600, color: 'text.secondary' }}>
+                  ACTA REF-{new Date().getFullYear()}-{String(partido.id).padStart(4, '0')}
+                </Box>
+              )}
+            </Box>
+            <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>Planilla de Juego</Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, maxWidth: 620 }}>
+              Control reglamentario en tiempo real · Convocatorias, alineaciones, goles, tarjetas, cambios IFAB y homologación.
+            </Typography>
+          </Box>
 
-      <FormControl size="small" fullWidth sx={{ maxWidth: 420, mb: 3 }}>
-        <InputLabel>Partido</InputLabel>
-        <Select value={selId} label="Partido" onChange={(e) => setSelId(e.target.value)}>
-          {partidos.map((p) => (
-            <MenuItem key={p.id} value={String(p.id)}>
-              {`J${p.jornada} · ${eqName(p.equipo_local_id)} vs ${eqName(p.equipo_visitante_id)} — ${(RESULTADOS[p.resultado] || [p.resultado])[0]}`}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+          <Box sx={{ display: 'flex', alignItems: { sm: 'center' }, gap: 1, flexWrap: 'wrap', width: { xs: '100%', xl: 'auto' } }}>
+            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto', xl: '0 1 auto' } }}>
+              <Typography variant="caption" sx={{ textTransform: 'uppercase', fontWeight: 800, color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.25 }}>
+                <StadiumIcon sx={{ fontSize: 13, color: 'primary.main' }} /> Partido activo
+              </Typography>
+              <FormControl size="small" fullWidth>
+                <Select value={selId} onChange={(e) => setSelId(e.target.value)} sx={{ bgcolor: 'background.default', borderRadius: 1.5, fontSize: 13, minWidth: { sm: 300 } }}>
+                  {partidos.map((p) => (
+                    <MenuItem key={p.id} value={String(p.id)}>
+                      {`J${p.jornada} · ${eqName(p.equipo_local_id)} vs ${eqName(p.equipo_visitante_id)}`}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button variant="outlined" startIcon={<PdfIcon />} onClick={() => toast.show('Exportar PDF del acta próximamente', 'info')} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
+                PDF Acta
+              </Button>
+              {editable && !finalizarMut.isPending && (
+                <Button variant="contained" startIcon={<VerifiedIcon />} onClick={abrirFinalizar} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
+                  Finalizar y Homologar
+                </Button>
+              )}
+            </Box>
+          </Box>
+        </Box>
+      </Card>
 
       {!partido ? (
         <Alert severity="info">Selecciona un partido.</Alert>
@@ -469,21 +540,30 @@ export default function Planilla({ selectedTorneoId }) {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
           <Card elevation={0} sx={{ borderRadius: 3, overflow: 'hidden', boxShadow: '0 16px 40px rgba(15,23,42,0.25)' }}>
             <Box bgcolor="#111827" color="#fff">
-              <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: '#1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+              <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.25, bgcolor: '#1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                 <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <Chip size="small" label={`Jornada ${partido.jornada}`} sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
+                  {editable ? (
+                    <Chip size="small" label={iniciado ? '● EN CURSO' : 'SIN INICIAR'}
+                      sx={{ bgcolor: iniciado ? '#059669' : '#374151', color: iniciado ? '#022c22' : '#d1d5db', fontWeight: 800, letterSpacing: '0.04em', ...(iniciado ? { animation: 'torneoPulse 1.6s ease-in-out infinite' } : {}) }} />
+                  ) : (
+                    <Chip size="small" label={label} color={color} />
+                  )}
+                  <Chip size="small" label={`Jornada ${partido.jornada} · Cancha principal`} sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
                   {partido.fecha_programada && (
-                    <Chip size="small"
-                      label={new Date(partido.fecha_programada).toLocaleString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                      sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
+                    <Chip size="small" label={fmtFecha(partido.fecha_programada)} sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
                   )}
                 </Box>
-                <Chip size="small" label={editable ? 'En curso' : label} color={editable ? 'success' : color} />
+                <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <Chip size="small" label="Árbitro por designar (AFA)" sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1' }} />
+                  <Chip size="small" label={iniciado ? '● SINCRONIZADO' : 'CONECTADO'}
+                    sx={{ bgcolor: 'rgba(16,185,129,0.15)', color: '#34d399', fontFamily: 'JetBrains Mono, Menlo, monospace', letterSpacing: '0.05em', fontWeight: 700 }} />
+                </Box>
               </Box>
 
               <Box sx={{ px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 4 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
                 <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'left' } }}>
-                  <Typography variant="h6" fontWeight={800} color="#fff">{eqName(partido.equipo_local_id)}</Typography>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>Club Atlético</Typography>
+                  <Typography variant="h5" fontWeight={900} color="#fff" sx={{ textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{eqName(partido.equipo_local_id)}</Typography>
                   {editable && (
                     <Box sx={{ display: 'flex', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                       <Tooltip title={iniciado ? 'Registrar gol' : 'Inicia el partido para registrar acciones'}>
@@ -507,6 +587,13 @@ export default function Planilla({ selectedTorneoId }) {
                           </IconButton>
                         </span>
                       </Tooltip>
+                      <Tooltip title="Anular último gol de este equipo">
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => anularGol(partido.equipo_local_id)}>
+                            <UndoIcon sx={{ color: '#f87171', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Box>
                   )}
                 </Box>
@@ -520,13 +607,17 @@ export default function Planilla({ selectedTorneoId }) {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
                     <Chip size="small" icon={<AccessTimeIcon sx={{ fontSize: '0.9rem !important' }} />}
                       label={iniciado
-                        ? `${fmtTiempo(crono.seg)} · ${half === 1 ? 'Primer tiempo' : 'Segundo tiempo'}`
+                        ? `${fmtTiempo(crono.seg)} ${adicion > 0 ? `(+${adicion}')` : ''}`
                         : 'Sin iniciar'}
                       sx={{
                         bgcolor: iniciado ? '#1e3a8a' : '#1f2937',
                         color: iniciado ? '#93c5fd' : '#6b7280',
-                        fontFamily: 'monospace', fontWeight: 700,
+                        fontFamily: 'JetBrains Mono, Menlo, monospace', fontWeight: 700,
                       }} />
+                    <Chip size="small" label={half === 1 ? '1T' : '2T'} sx={{ bgcolor: '#334155', color: '#e2e8f0', fontFamily: 'JetBrains Mono, Menlo, monospace', fontWeight: 700 }} />
+                    <Chip size="small" label={`+${adicion}' ADICIÓN`}
+                      onClick={() => setAdicion((a) => (a === 0 ? 4 : a === 4 ? 6 : 0))}
+                      sx={{ bgcolor: '#334155', color: '#6ee7b7', fontFamily: 'JetBrains Mono, Menlo, monospace', fontWeight: 700, cursor: 'pointer', '&:hover': { bgcolor: '#48738f' } }} />
                     {editable && (
                       <>
                         <Tooltip title={crono.running ? 'Pausar' : (iniciado ? 'Reanudar' : 'Iniciar partido')}>
@@ -546,7 +637,8 @@ export default function Planilla({ selectedTorneoId }) {
                 </Box>
 
                 <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'right' } }}>
-                  <Typography variant="h6" fontWeight={800} color="#fff">{eqName(partido.equipo_visitante_id)}</Typography>
+                  <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>Club Deportivo</Typography>
+                  <Typography variant="h5" fontWeight={900} color="#fff" sx={{ textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{eqName(partido.equipo_visitante_id)}</Typography>
                   {editable && (
                     <Box sx={{ display: 'flex', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
                       <Tooltip title={iniciado ? 'Registrar gol' : 'Inicia el partido para registrar acciones'}>
@@ -570,6 +662,13 @@ export default function Planilla({ selectedTorneoId }) {
                           </IconButton>
                         </span>
                       </Tooltip>
+                      <Tooltip title="Anular último gol de este equipo">
+                        <span>
+                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => anularGol(partido.equipo_visitante_id)}>
+                            <UndoIcon sx={{ color: '#f87171', fontSize: 19 }} />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </Box>
                   )}
                 </Box>
@@ -579,11 +678,7 @@ export default function Planilla({ selectedTorneoId }) {
                 <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end' }}>
                   <Button variant="contained" color="error" startIcon={<CheckIcon />}
                     disabled={finalizarMut.isPending}
-                    onClick={() => {
-                      if (window.confirm('¿Finalizar el partido y guardar el resultado?')) {
-                        finalizarMut.mutate({ id: partido.id, body: { goles_local: marcador.local, goles_visitante: marcador.visitante } })
-                      }
-                    }}>
+                    onClick={abrirFinalizar}>
                     {finalizarMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Finalizar partido'}
                   </Button>
                 </Box>
@@ -669,7 +764,10 @@ export default function Planilla({ selectedTorneoId }) {
                   <Grid item xs={12} sm={6} key={eq.id}>
                     <Card elevation={0} variant="outlined" sx={{ height: '100%' }}>
                       <CardContent sx={{ pt: 1.5 }}>
-                        <Typography variant="subtitle1" fontWeight={700} mb={0.5}>{eq.nombre}</Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
+                        <Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: Number(eq.id) === partido.equipo_local_id ? '#dc2626' : '#2563eb' }} />
+                        <Typography variant="subtitle1" fontWeight={700}>{eq.nombre} <Box component="span" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: 12 }}>· Plantel</Box></Typography>
+                      </Box>
                         <Typography variant="caption" color="text.secondary">
                           {alEquipo.length} jugando · {titulares} titular(es) · {suplentes} suplente(s)
                         </Typography>
@@ -715,7 +813,7 @@ export default function Planilla({ selectedTorneoId }) {
                                     if (/^\d*$/.test(v)) setForm({ ...form, numero: v })
                                   }}
                                   sx={{ width: 76 }} />
-                                <Button size="medium" variant="contained" color="success"
+                                <Button size="medium" variant="contained" color="success" startIcon={<PersonAddIcon sx={{ fontSize: 17 }} />}
                                   disabled={!form.jugador_id || alinearMut.isPending}
                                   onClick={() => {
                                     const jugador = eq.plantel.find((x) => String(x.id) === form.jugador_id)
@@ -918,32 +1016,43 @@ export default function Planilla({ selectedTorneoId }) {
             <Grid item xs={12} lg={7}>
               <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', height: '100%' }}>
                 <CardContent>
-                  <Typography variant="h6" fontWeight={700} mb={2}>Resumen del partido</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <HistoryToggleOffIcon sx={{ color: 'primary.main' }} />
+                      <Typography variant="h6" fontWeight={700}>Resumen del partido</Typography>
+                    </Box>
+                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.06em' }}>Cronología minuto a minuto</Typography>
+                  </Box>
                   {loadingEventos ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                   ) : !eventos || eventos.length === 0 ? (
                     <Alert severity="info">No hay acciones registradas en este partido.</Alert>
                   ) : (
                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                      {[...eventos]
-                        .sort((a, b) => a.minuto - b.minuto)
-                        .map((ev) => {
-                          const estilo = ESTILO_EVENTO[ev.tipo] || ESTILO_EVENTO.GOL
-                          const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : null
-                          const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : null
-                          const primary = ev.tipo === 'CAMBIO'
-                            ? `${sala || '?'} ↔ ${entra || '?'}`
-                            : (ev.jugador_id ? entra : 'Sin jugador asociado')
-                          return (
-                            <Box key={ev.id} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', mb: 1.5 }}>
-                              <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: estilo.bg, border: `2px solid ${estilo.border}`, color: estilo.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                {estilo.icon}
-                              </Box>
-                              <Box sx={{ flex: 1, bgcolor: estilo.bg, border: `1px solid ${estilo.border}`, borderRadius: 2, p: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-                                <Box sx={{ minWidth: 0 }}>
+                      {lineaEventos.map(({ ev, score }) => {
+                        const estilo = ESTILO_EVENTO[ev.tipo] || ESTILO_EVENTO.GOL
+                        const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : null
+                        const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : null
+                        const esGol = ev.tipo === 'GOL' || ev.tipo === 'AUTOGOL'
+                        const primary = ev.tipo === 'CAMBIO'
+                          ? `${sala || '?'} ↔ ${entra || '?'}`
+                          : (ev.jugador_id ? entra : 'Sin jugador asociado')
+                        return (
+                          <Box key={ev.id} sx={{ display: 'flex', gap: 1.5, alignItems: 'flex-start', mb: 1.5 }}>
+                            <Box sx={{ width: 32, height: 32, borderRadius: '50%', bgcolor: estilo.bg, border: `2px solid ${estilo.border}`, color: estilo.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              {estilo.icon}
+                            </Box>
+                            <Box sx={{ flex: 1, bgcolor: estilo.bg, border: `1px solid ${estilo.border}`, borderRadius: 2, p: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, flexWrap: 'wrap' }}>
                                   <Typography variant="body2" fontWeight={700}>{primary}</Typography>
-                                  <Typography variant="caption" color="text.secondary">{TIPO_LABEL[ev.tipo] || ev.tipo} · {eqName(ev.equipo_id)}</Typography>
+                                  {esGol && (
+                                    <Chip label={`[${score.l} - ${score.v}]`} size="small"
+                                      sx={{ height: 18, fontSize: 10, fontWeight: 800, bgcolor: estilo.border, color: estilo.color }} />
+                                  )}
                                 </Box>
+                                <Typography variant="caption" color="text.secondary">{TIPO_LABEL[ev.tipo] || ev.tipo} · {eqName(ev.equipo_id)}</Typography>
+                              </Box>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
                                   <Chip label={`${ev.minuto}'`} size="small" variant="outlined"
                                     sx={{ borderColor: estilo.border, bgcolor: '#fff', color: estilo.color, fontWeight: 700 }} />
@@ -966,13 +1075,67 @@ export default function Planilla({ selectedTorneoId }) {
             <Grid item xs={12} lg={5}>
               <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', height: '100%' }}>
                 <CardContent>
-                  <Typography variant="h6" fontWeight={700} mb={2}>Cambios realizados</Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <PublishedWithChangesIcon sx={{ color: 'primary.main' }} />
+                      <Typography variant="h6" fontWeight={700}>Cambios y ventanas FIFA</Typography>
+                    </Box>
+                    <Chip label="Regla IFAB 3" size="small" sx={{ bgcolor: 'rgba(29,78,216,0.10)', color: 'primary.main', fontWeight: 800, fontSize: 10, height: 22 }} />
+                  </Box>
                   {loadingEventos ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
                   ) : !eventos || eventos.filter((e) => e.tipo === 'CAMBIO').length === 0 ? (
                     <Alert severity="info">No hay cambios registrados aún.</Alert>
                   ) : (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                    <>
+                      {(() => {
+                        const cambios = eventos.filter((e) => e.tipo === 'CAMBIO').sort((a, b) => a.minuto - b.minuto)
+                        const ultimo = cambios[cambios.length - 1]
+                        const sala = ultimo.jugador_sale_id ? nombreDe(ultimo.jugador_sale_id, ultimo.equipo_id) : '?'
+                        const entra = ultimo.jugador_id ? nombreDe(ultimo.jugador_id, ultimo.equipo_id) : '?'
+                        return (
+                          <Box sx={{ p: 1.25, borderRadius: 2, bgcolor: 'rgba(29,78,216,0.05)', border: '1px solid', borderColor: 'rgba(59,130,246,0.30)', mb: 1.5 }}>
+                            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.75, gap: 1 }}>
+                              <Typography variant="caption" color="text.secondary" fontWeight={700}>Último cambio (Min {ultimo.minuto}')</Typography>
+                              <Typography variant="caption" color="primary.main" fontWeight={800} noWrap>{eqName(ultimo.equipo_id)}</Typography>
+                            </Box>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: '#fff', borderRadius: 1, border: '1px solid #fee2e2', color: '#b91c1c', px: 1, py: 0.75, minWidth: 0 }}>
+                                <ArrowDownwardIcon fontSize="small" />
+                                <Typography variant="body2" fontWeight={600} noWrap>Sale: {sala}</Typography>
+                              </Box>
+                              <Typography color="text.secondary" sx={{ fontSize: 14, flexShrink: 0 }}>→</Typography>
+                              <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', gap: 0.75, bgcolor: '#fff', borderRadius: 1, border: '1px solid #bbf7d0', color: '#15803d', px: 1, py: 0.75, minWidth: 0 }}>
+                                <ArrowUpwardIcon fontSize="small" />
+                                <Typography variant="body2" fontWeight={600} noWrap>Entra: {entra}</Typography>
+                              </Box>
+                            </Box>
+                          </Box>
+                        )
+                      })()}
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.25, mb: 2 }}>
+                        {[partido.equipo_local_id, partido.equipo_visitante_id].map((eqId) => {
+                          const n = cambiosPorEquipo[eqId] || 0
+                          const ventanas = Math.min(3, Math.max(1, n))
+                          return (
+                            <Box key={eqId}>
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
+                                <Box component="span" sx={{ fontWeight: 700, color: 'text.primary', display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
+                                  <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: Number(eqId) === partido.equipo_local_id ? '#dc2626' : '#2563eb' }} />
+                                  <Typography variant="body2" fontWeight={700} noWrap>{eqName(eqId)}</Typography>
+                                </Box>
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', fontFamily: 'JetBrains Mono, Menlo, monospace', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                  {n} cambio(s) · {ventanas} de 3 ventanas
+                                </Typography>
+                              </Box>
+                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.75, mt: 0.5 }}>
+                                {[0, 1, 2].map((i) => <Box key={i} sx={{ height: 5, borderRadius: 1, bgcolor: i < ventanas ? 'primary.main' : 'divider' }} />)}
+                              </Box>
+                            </Box>
+                          )
+                        })}
+                      </Box>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
                       {eventos
                         .filter((e) => e.tipo === 'CAMBIO')
                         .sort((a, b) => a.minuto - b.minuto)
@@ -999,7 +1162,21 @@ export default function Planilla({ selectedTorneoId }) {
                             </Box>
                           )
                         })}
-                    </Box>
+                      </Box>
+                      {partido && (
+                        <Box sx={{ mt: 2, p: 1.5, borderRadius: 2, bgcolor: 'rgba(0,104,70,0.06)', border: '1px solid', borderColor: 'rgba(0,104,70,0.20)', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                          <VerifiedUserIcon sx={{ color: '#006846', fontSize: 20, flexShrink: 0 }} />
+                          <Box sx={{ fontSize: 12 }}>
+                            <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', display: 'block' }}>Certificación federativa en tiempo real</Box>
+                            <Box component="span" sx={{ color: 'text.secondary', fontWeight: 600 }}>Sincronizado con el Tribunal de Penas. Token criptográfico:{' '}
+                              <Box component="span" sx={{ fontFamily: 'JetBrains Mono, Menlo, monospace', color: 'primary.main', fontWeight: 700 }}>
+                                #{`TRN-${new Date().getFullYear()}-${String(partido.id).padStart(4, '0')}`}
+                              </Box>
+                            </Box>
+                          </Box>
+                        </Box>
+                      )}
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -1125,6 +1302,56 @@ export default function Planilla({ selectedTorneoId }) {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAccion(null)}>Cancelar</Button>
         </DialogActions>
+      </Dialog>
+
+      {/* Finalizar y Homologar */}
+      <Dialog open={finalizarOpen} onClose={() => setFinalizarOpen(false)} fullWidth maxWidth="xs">
+        {partido && (
+          <>
+            <DialogContent sx={{ pt: 3, textAlign: 'center' }}>
+              <Box sx={{ width: 52, height: 52, borderRadius: '50%', bgcolor: 'primary.main', color: 'primary.contrastText', display: 'flex', alignItems: 'center', justifyContent: 'center', mx: 'auto', mb: 1.5, boxShadow: '0 2px 6px rgba(29,78,216,0.4)' }}>
+                <VerifiedIcon sx={{ fontSize: 28 }} />
+              </Box>
+              <Typography variant="h6" fontWeight={800}>¿Finalizar y homologar el partido?</Typography>
+              {(() => {
+                const ganador = marcador.local > marcador.visitante
+                  ? eqName(partido.equipo_local_id)
+                  : marcador.visitante > marcador.local ? eqName(partido.equipo_visitante_id) : null
+                return (
+                  <Typography variant="body2" sx={{ color: 'text.secondary', mt: 1 }}>
+                    Se emitirá el Acta Oficial Federativa definitiva con el resultado final{' '}
+                    <Box component="span" sx={{ fontWeight: 800, color: 'text.primary', fontFamily: 'JetBrains Mono, Menlo, monospace' }}>{marcador.local} - {marcador.visitante}</Box>{' '}
+                    {ganador ? <>a favor de <Box component="span" sx={{ fontWeight: 800, color: 'text.primary' }}>{ganador}</Box>.</> : 'empate. '}
+                    Esta acción cerrará la planilla.
+                  </Typography>
+                )
+              })()}
+              <Box sx={{ mt: 2, p: 1.5, borderRadius: 2, bgcolor: 'rgba(29,78,216,0.05)', border: '1px solid', borderColor: 'rgba(59,130,246,0.30)', textAlign: 'left', fontSize: 12 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'text.primary', mb: 0.5 }}>
+                  <Box component="span">Token arbitral:</Box>
+                  <Box component="span" sx={{ fontFamily: 'JetBrains Mono, Menlo, monospace', color: 'primary.main', fontWeight: 800 }}>
+                    #{`TRN-${new Date().getFullYear()}-${String(partido.id).padStart(4, '0')}`}
+                  </Box>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'text.secondary' }}>
+                  <Box component="span">Árbitro principal:</Box>
+                  <Box component="span" fontWeight={700}>Por designar (AFA)</Box>
+                </Box>
+              </Box>
+            </DialogContent>
+            <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
+              <Button onClick={() => setFinalizarOpen(false)} disabled={finalizarMut.isPending}>Volver</Button>
+              <Button variant="contained" startIcon={<VerifiedIcon />} disabled={finalizarMut.isPending}
+                onClick={() => {
+                  finalizarMut.mutate({ id: partido.id, body: { goles_local: marcador.local, goles_visitante: marcador.visitante } }, {
+                    onSettled: () => setFinalizarOpen(false),
+                  })
+                }}>
+                {finalizarMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Firmar y Homologar'}
+              </Button>
+            </DialogActions>
+          </>
+        )}
       </Dialog>
     </Box>
   )

@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Planilla de Juego - TorneoPro Premier Athletic</title>
+  <link href="https://fonts.googleapis.com/css2?family=Chivo:wght@700;800;900&amp;family=Hanken+Grotesk:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@600;700&amp;display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+  <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            "surface": "#f8f9ff",
+            "surface-low": "#eff4ff",
+            "surface-card": "#ffffff",
+            "primary": "#1d4ed8",
+            "primary-dark": "#0037b0",
+            "navy-dark": "#0b1c30",
+            "secondary": "#565e74",
+            "success": "#006948",
+            "success-light": "#dcfce7",
+            "success-dark": "#166534",
+            "warning": "#facc15",
+            "warning-light": "#fef9c3",
+            "warning-dark": "#854d0e",
+            "error": "#ef4444",
+            "error-light": "#fee2e2",
+            "error-dark": "#991b1b"
+          },
+          fontFamily: {
+            headline: ["Chivo", "sans-serif"],
+            body: ["Hanken Grotesk", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"]
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: 'Hanken Grotesk', sans-serif; background-color: #f8f9ff; color: #0b1c30; }
+    h1, h2, h3, h4, .font-head { font-family: 'Chivo', sans-serif; }
+    .font-num { font-family: 'JetBrains Mono', monospace; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  </style>
+</head>
+<body class="min-h-screen">
+
+<!-- SIDEBAR -->
+<aside class="fixed left-0 top-0 h-full w-64 bg-white shadow-sm z-40 flex flex-col justify-between border-r border-slate-200">
+  <div class="p-5">
+    <div class="flex items-center gap-2.5 mb-6">
+      <div class="w-9 h-9 rounded bg-primary flex items-center justify-center text-white shadow-sm">
+        <span class="material-symbols-outlined text-[22px]">military_tech</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-head text-base uppercase font-bold text-navy-dark leading-none">TorneoPro</span>
+        <span class="text-[11px] font-bold uppercase tracking-wider text-secondary">League Ops OS</span>
+      </div>
+    </div>
+    <div class="mb-5 p-2.5 rounded-lg bg-surface-low border border-blue-100 flex flex-col gap-1">
+      <div class="flex items-center justify-between">
+        <span class="text-[10px] font-bold uppercase tracking-wider text-slate-500">Competición</span>
+        <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase">
+          <span class="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>En Vivo
+        </span>
+      </div>
+      <span class="font-head text-sm font-bold text-navy-dark truncate">Torneo Clausura 2025</span>
+    </div>
+    <div>
+      <span class="px-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">Operaciones de Liga</span>
+      <nav class="mt-2 flex flex-col gap-1 text-sm font-semibold text-slate-600">
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">grid_view</span>Dashboard</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">trophy</span>Torneos</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">shield</span>Equipos</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">sports_soccer</span>Partidos</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 bg-primary text-white rounded-lg shadow-sm font-bold" href="#"><span class="material-symbols-outlined text-[19px]">receipt_long</span>Planilla de Juego</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">leaderboard</span>Posiciones</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">analytics</span>Estadísticas</a>
+        <a class="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-100 transition-colors" href="#"><span class="material-symbols-outlined text-[19px]">gavel</span>Sanciones</a>
+      </nav>
+    </div>
+  </div>
+  <div class="p-4 border-t border-slate-100">
+    <div class="p-2.5 rounded-lg bg-surface-low flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
+        <div class="flex flex-col">
+          <span class="text-[10px] uppercase tracking-wider text-slate-500 font-bold">Telemetría</span>
+          <span class="font-num text-[11px] text-emerald-700 font-bold">SINCRONIZADO</span>
+        </div>
+      </div>
+      <span class="material-symbols-outlined text-slate-400 text-[18px]">satellite_alt</span>
+    </div>
+  </div>
+</aside>
+
+<!-- MAIN WRAPPER -->
+<div class="pl-64">
+  <!-- TOP NAVBAR -->
+  <header class="sticky top-0 h-16 bg-white/95 backdrop-blur-md shadow-xs z-30 flex items-center justify-between px-8 border-b border-slate-200">
+    <div class="flex items-center gap-2 text-xs font-semibold text-slate-500">
+      <span>Competiciones</span>
+      <span class="material-symbols-outlined text-[14px]">chevron_right</span>
+      <span class="text-navy-dark font-bold">Torneo Clausura 2025</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-white font-bold text-xs hover:bg-primary-dark shadow-sm">
+        <span class="material-symbols-outlined text-[17px]">add</span>NUEVO PARTIDO
+      </button>
+      <div class="flex items-center gap-2 pl-3 border-l border-slate-200">
+        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center font-bold text-xs text-white">CG</div>
+        <div class="flex flex-col leading-tight">
+          <span class="text-xs font-bold text-navy-dark">Comisionado General</span>
+          <span class="text-[10px] text-secondary">Director de Sede</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENT -->
+  <main class="p-8 max-w-7xl mx-auto space-y-6">
+
+    <!-- HEADER & MATCH SELECTOR -->
+    <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+      <div>
+        <div class="flex items-center gap-2 mb-1">
+          <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold uppercase tracking-wider">
+            ● Transmisión Oficial
+          </span>
+          <span class="font-num text-xs text-secondary font-semibold">ACTA REF-2025-0744</span>
+        </div>
+        <h1 class="font-head text-2xl font-black text-navy-dark">Planilla de Juego</h1>
+        <p class="text-xs text-secondary mt-0.5">Control reglamentario en tiempo real · Convocatorias, alineaciones, goles, tarjetas, cambios IFAB y homologación.</p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2.5">
+        <div class="px-3 py-2 rounded-lg bg-surface-low border border-slate-200 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[20px]">stadium</span>
+          <div class="flex flex-col">
+            <span class="text-[9px] uppercase font-bold text-secondary">Partido activo</span>
+            <span class="font-head text-xs font-bold text-navy-dark">J7 · Huracán vs Palermo</span>
+          </div>
+        </div>
+        <button class="px-3 py-2 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold inline-flex items-center gap-1.5 shadow-xs">
+          <span class="material-symbols-outlined text-primary text-[17px]">picture_as_pdf</span> PDF Acta
+        </button>
+        <button onclick="openModal('modal-finalizar')" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm">
+          <span class="material-symbols-outlined text-[17px]">verified</span> Finalizar &amp; Homologar
+        </button>
+      </div>
+    </div>
+
+    <!-- MASTER SCOREBOARD -->
+    <div class="relative overflow-hidden rounded-2xl shadow-lg bg-slate-900 text-white p-6 border border-slate-800">
+      <div class="flex flex-wrap items-center justify-between pb-4 border-b border-slate-800 text-xs gap-2">
+        <div class="flex items-center gap-3">
+          <span class="px-2.5 py-0.5 rounded-full bg-emerald-500 text-slate-950 font-bold uppercase text-[10px] tracking-wider animate-pulse">
+            EN CURSO
+          </span>
+          <span class="text-slate-300 font-semibold">Jornada 7 · Cancha Principal A (Estadio Ducó)</span>
+        </div>
+        <div class="flex items-center gap-3 text-slate-300">
+          <span>Árbitro: <strong class="text-white">Patricio Loustau</strong> (AFA)</span>
+          <span class="px-2 py-0.5 rounded bg-slate-800 text-emerald-400 font-num text-[11px] font-bold">SINCRONIZADO</span>
+        </div>
+      </div>
+
+      <div class="py-6 flex flex-col md:flex-row items-center justify-between gap-6">
+        <!-- Team Local -->
+        <div class="flex-1 flex items-center gap-4 w-full md:w-auto">
+          <div class="relative w-16 h-16 rounded-xl bg-red-600 flex items-center justify-center text-white font-head font-black text-2xl shadow-md shrink-0">
+            H
+            <span class="absolute -bottom-2 px-1.5 py-0.5 rounded bg-blue-600 text-[9px] font-bold uppercase tracking-wider">LOCAL</span>
+          </div>
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Club Atlético</span>
+            <h2 class="font-head text-2xl font-black uppercase text-white leading-tight">Huracán</h2>
+            <div class="flex flex-wrap items-center gap-1.5 mt-2">
+              <button onclick="openModalGol('huracan')" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">sports_soccer</span> + Gol
+              </button>
+              <button onclick="openModalTarjeta('huracan')" class="px-2.5 py-1 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase flex items-center gap-1">
+                <span class="w-2.5 h-3.5 bg-amber-700 rounded-2xs"></span> + Tarjeta
+              </button>
+              <button onclick="openModalCambio('huracan')" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">swap_horiz</span> + Cambio
+              </button>
+              <button onclick="anularUltimoGol('huracan')" class="px-2 py-1 rounded bg-red-950/80 hover:bg-red-900 text-red-200 text-xs font-bold uppercase flex items-center gap-1" title="Anular último gol de Huracán">
+                <span class="material-symbols-outlined text-[14px]">undo</span> Anular Gol
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Score & Clock -->
+        <div class="flex flex-col items-center justify-center shrink-0 text-center">
+          <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-slate-800/80 border border-slate-700 mb-2">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="cronometro-display" class="font-num text-emerald-400 font-bold text-lg tracking-wider">68:22</span>
+            <button onclick="togglePeriodo()" id="badge-periodo" class="px-1.5 py-0.5 rounded bg-slate-700 hover:bg-slate-600 text-[10px] font-bold text-slate-200 uppercase">
+              2T
+            </button>
+          </div>
+          <div class="flex items-center gap-4 my-1">
+            <span id="score-home" class="font-num font-black text-5xl text-white">2</span>
+            <span class="text-4xl text-slate-600 font-light">:</span>
+            <span id="score-away" class="font-num font-black text-5xl text-slate-200">1</span>
+          </div>
+          <div class="flex items-center gap-2 mt-2">
+            <button onclick="toggleTimer()" id="btn-timer-play" class="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white" title="Pausar / Reanudar">
+              <span id="icon-timer" class="material-symbols-outlined text-[16px]">pause</span>
+            </button>
+            <button onclick="resetTimer()" class="w-7 h-7 rounded bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-white" title="Reiniciar cronómetro">
+              <span class="material-symbols-outlined text-[16px]">replay</span>
+            </button>
+            <button onclick="toggleAdicion()" id="btn-adicion" class="px-2 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-emerald-300 font-num text-xs font-bold flex items-center gap-1">
+              <span id="label-adicion">+4' ADICIÓN</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Team Away -->
+        <div class="flex-1 flex flex-row-reverse md:flex-row items-center gap-4 justify-end w-full md:w-auto text-right">
+          <div>
+            <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Club Deportivo</span>
+            <h2 class="font-head text-2xl font-black uppercase text-white leading-tight">Palermo</h2>
+            <div class="flex flex-wrap items-center gap-1.5 mt-2 justify-end">
+              <button onclick="anularUltimoGol('palermo')" class="px-2 py-1 rounded bg-red-950/80 hover:bg-red-900 text-red-200 text-xs font-bold uppercase flex items-center gap-1" title="Anular último gol de Palermo">
+                <span class="material-symbols-outlined text-[14px]">undo</span> Anular Gol
+              </button>
+              <button onclick="openModalGol('palermo')" class="px-2.5 py-1 rounded bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold uppercase flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">sports_soccer</span> + Gol
+              </button>
+              <button onclick="openModalTarjeta('palermo')" class="px-2.5 py-1 rounded bg-amber-400 hover:bg-amber-300 text-slate-950 text-xs font-bold uppercase flex items-center gap-1">
+                <span class="w-2.5 h-3.5 bg-amber-700 rounded-2xs"></span> + Tarjeta
+              </button>
+              <button onclick="openModalCambio('palermo')" class="px-2.5 py-1 rounded bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase flex items-center gap-1">
+                <span class="material-symbols-outlined text-[15px]">swap_horiz</span> + Cambio
+              </button>
+            </div>
+          </div>
+          <div class="relative w-16 h-16 rounded-xl bg-blue-700 flex items-center justify-center text-white font-head font-black text-2xl shadow-md shrink-0">
+            P
+            <span class="absolute -bottom-2 px-1.5 py-0.5 rounded bg-slate-700 text-[9px] font-bold uppercase tracking-wider">VISITA</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: JUGADORES QUE JUEGAN (CONSOLAS DUALES DE EQUIPOS) -->
+    <div>
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <h3 class="font-head text-lg font-bold text-navy-dark">Jugadores que juegan</h3>
+          <p class="text-xs text-secondary">Elige el jugador y número con el que juega; alterna entre Lista oficial y Pizarra de Formación táctica.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- EQUIPO LOCAL: HURACÁN -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+          <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-red-600"></span>
+              <span class="font-head text-sm font-bold text-navy-dark">Atlético Huracán · Plantel</span>
+            </div>
+            <!-- Toggle Lista vs Formación -->
+            <div class="inline-flex rounded-lg bg-slate-200 p-0.5 text-xs font-bold">
+              <button onclick="setHuracanView('cancha')" id="huracan-btn-cancha" class="px-3 py-1 rounded-md bg-white text-primary shadow-xs">Formación</button>
+              <button onclick="setHuracanView('lista')" id="huracan-btn-lista" class="px-3 py-1 rounded-md text-slate-600 hover:text-navy-dark">Lista</button>
+            </div>
+          </div>
+
+          <!-- Formulario Agregar Jugador a Lista -->
+          <div class="p-3 bg-white border-b border-slate-100 flex flex-wrap items-center gap-2">
+            <select id="huracan-add-select" class="flex-1 min-w-[180px] text-xs py-1.5 px-2.5 rounded border border-slate-300 bg-slate-50 font-medium">
+              <option value="">Seleccionar jugador disponible...</option>
+              <option value="J. Novillo">J. Novillo (Defensor)</option>
+              <option value="S. Hezze">S. Hezze (Centrocampista)</option>
+              <option value="G. Gudiño">G. Gudiño (Delantero)</option>
+              <option value="M. Cóccaro">M. Cóccaro (Delantero)</option>
+            </select>
+            <input id="huracan-add-num" type="number" placeholder="N°" min="1" max="99" class="w-16 text-xs py-1.5 px-2 rounded border border-slate-300 bg-slate-50 text-center font-num font-bold"/>
+            <button onclick="addPlayerToSquad('huracan')" class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase inline-flex items-center gap-1 shadow-xs">
+              <span class="material-symbols-outlined text-[15px]">person_add</span> Agregar
+            </button>
+          </div>
+
+          <!-- Cancha Huracán -->
+          <div id="huracan-view-cancha" class="p-3 bg-slate-100/60">
+            <div class="relative w-full h-[410px] rounded-xl overflow-hidden shadow-inner flex flex-col justify-between p-3" style="background: linear-gradient(180deg, #155724 0%, #1e7e34 50%, #155724 100%);">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none stroke-white/30 fill-none" stroke-width="2">
+                <rect height="calc(100% - 20px)" rx="8" width="calc(100% - 20px)" x="10" y="10"></rect>
+                <line x1="10" x2="calc(100% - 10px)" y1="50%" y2="50%"></line>
+                <circle cx="50%" cy="50%" r="45"></circle>
+                <circle class="fill-white/60" cx="50%" cy="50%" r="3"></circle>
+                <rect height="65" width="50%" x="25%" y="10"></rect>
+                <rect height="65" width="50%" x="25%" y="calc(100% - 75px)"></rect>
+              </svg>
+
+              <!-- DELANTEROS -->
+              <div class="relative z-10 flex items-center justify-around w-full pt-1">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">7</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Mazzantti</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="relative w-9 h-9 rounded-full bg-primary text-white font-num text-xs font-bold flex items-center justify-center shadow ring-2 ring-emerald-400">
+                    9
+                    <span class="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-emerald-500 text-[8px] flex items-center justify-center text-white font-bold">⚽2</span>
+                  </div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-emerald-900 text-emerald-100 text-[9px] font-bold">Valenzuela</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">11</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Morales</span>
+                </div>
+              </div>
+
+              <!-- MEDIOS -->
+              <div class="relative z-10 flex items-center justify-around w-10/12 mx-auto">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">8</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Silva</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">5</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Fattori</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">10</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Castro</span>
+                </div>
+              </div>
+
+              <!-- DEFENSA -->
+              <div class="relative z-10 flex items-center justify-between w-full px-4">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">3</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Ibáñez</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">6</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Lucas</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow ring-2 ring-amber-400">2</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px] font-bold">Tobio (C)</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">4</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Tenaglia</span>
+                </div>
+              </div>
+
+              <!-- ARQUERO -->
+              <div class="relative z-10 flex items-center justify-center w-full pb-1">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-amber-500 text-white font-num text-xs font-bold flex items-center justify-center shadow ring-2 ring-white">1</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Andrada</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Banca -->
+            <div class="mt-2.5 p-2 bg-white rounded-lg border border-slate-200 flex flex-wrap items-center gap-1.5">
+              <span class="text-[10px] font-bold uppercase text-secondary mr-1">Banca:</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#12 Meza</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#14 Goñi</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#18 Soñora</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#22 Pérez</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#25 Pussetto</span>
+            </div>
+          </div>
+
+          <!-- Lista Huracán -->
+          <div id="huracan-view-lista" class="hidden p-3 overflow-y-auto max-h-[460px]">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="py-2 px-2">N°</th>
+                  <th class="py-2 px-2">Jugador / Pos</th>
+                  <th class="py-2 px-2 text-center">T / S</th>
+                  <th class="py-2 px-2 text-center">Tarjetas</th>
+                  <th class="py-2 px-2 text-right">Quitar</th>
+                </tr>
+              </thead>
+              <tbody id="huracan-tbody" class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#1</td>
+                  <td class="py-2 px-2"><strong>M. Andrada</strong> <span class="text-slate-400">· Arquero</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center text-slate-400">-</td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#2</td>
+                  <td class="py-2 px-2"><strong>F. Tobio (C)</strong> <span class="text-slate-400">· Defensor</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center text-slate-400">-</td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+                <tr class="hover:bg-slate-50 bg-emerald-50/40">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#9</td>
+                  <td class="py-2 px-2"><strong>M. Valenzuela</strong> <span class="text-emerald-700 font-bold">⚽ 2 goles</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center text-slate-400">-</td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="py-2 px-2 font-num font-bold text-slate-500">#25</td>
+                  <td class="py-2 px-2"><strong>I. Pussetto</strong> <span class="text-slate-400">· Delantero</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">T</button>
+                      <button class="px-2 py-0.5 rounded bg-slate-600 text-white">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center text-slate-400">-</td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- EQUIPO VISITANTE: PALERMO -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden flex flex-col">
+          <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-blue-600"></span>
+              <span class="font-head text-sm font-bold text-navy-dark">Deportivo Palermo · Plantel</span>
+            </div>
+            <!-- Toggle Lista vs Formación -->
+            <div class="inline-flex rounded-lg bg-slate-200 p-0.5 text-xs font-bold">
+              <button onclick="setPalermoView('lista')" id="palermo-btn-lista" class="px-3 py-1 rounded-md bg-white text-primary shadow-xs">Lista</button>
+              <button onclick="setPalermoView('cancha')" id="palermo-btn-cancha" class="px-3 py-1 rounded-md text-slate-600 hover:text-navy-dark">Formación</button>
+            </div>
+          </div>
+
+          <!-- Formulario Agregar Jugador a Lista -->
+          <div class="p-3 bg-white border-b border-slate-100 flex flex-wrap items-center gap-2">
+            <select id="palermo-add-select" class="flex-1 min-w-[180px] text-xs py-1.5 px-2.5 rounded border border-slate-300 bg-slate-50 font-medium">
+              <option value="">Seleccionar jugador disponible...</option>
+              <option value="S. Simón">S. Simón (Centrocampista)</option>
+              <option value="M. Borja">M. Borja (Delantero)</option>
+              <option value="C. Echeverri">C. Echeverri (Centrocampista)</option>
+              <option value="L. González">L. González (Defensor)</option>
+            </select>
+            <input id="palermo-add-num" type="number" placeholder="N°" min="1" max="99" class="w-16 text-xs py-1.5 px-2 rounded border border-slate-300 bg-slate-50 text-center font-num font-bold"/>
+            <button onclick="addPlayerToSquad('palermo')" class="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs uppercase inline-flex items-center gap-1 shadow-xs">
+              <span class="material-symbols-outlined text-[15px]">person_add</span> Agregar
+            </button>
+          </div>
+
+          <!-- Lista Palermo -->
+          <div id="palermo-view-lista" class="p-3 overflow-y-auto max-h-[460px]">
+            <table class="w-full text-left text-xs">
+              <thead class="bg-slate-50 text-slate-500 uppercase font-bold border-b border-slate-200">
+                <tr>
+                  <th class="py-2 px-2">N°</th>
+                  <th class="py-2 px-2">Jugador / Pos</th>
+                  <th class="py-2 px-2 text-center">T / S</th>
+                  <th class="py-2 px-2 text-center">Incidencia</th>
+                  <th class="py-2 px-2 text-right">Quitar</th>
+                </tr>
+              </thead>
+              <tbody id="palermo-tbody" class="divide-y divide-slate-100">
+                <tr class="hover:bg-slate-50">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#1</td>
+                  <td class="py-2 px-2"><strong>F. Armani</strong> <span class="text-slate-400">· Arquero (C)</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center text-slate-400">Limpio</td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+                <tr class="hover:bg-slate-50 bg-amber-50/50">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#2</td>
+                  <td class="py-2 px-2"><strong>M. Cardozo</strong> <span class="text-slate-400">· Defensor Central</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[10px]">
+                      <span class="w-2 h-3 bg-amber-500 rounded-2xs"></span> 38'
+                    </span>
+                  </td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+                <tr class="hover:bg-slate-50 bg-emerald-50/40">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#9</td>
+                  <td class="py-2 px-2"><strong>F. Rossi</strong> <span class="text-slate-400">· Delantero</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center">
+                    <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                      ⚽ 41'
+                    </span>
+                  </td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+                <tr class="hover:bg-slate-50">
+                  <td class="py-2 px-2 font-num font-bold text-primary">#10</td>
+                  <td class="py-2 px-2"><strong>M. Lanzini</strong> <span class="text-slate-400">· Creador</span></td>
+                  <td class="py-2 px-2 text-center">
+                    <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+                      <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+                      <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+                    </div>
+                  </td>
+                  <td class="py-2 px-2 text-center text-emerald-600 font-bold">Asist 41'</td>
+                  <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Cancha Palermo (oculta inicialmente) -->
+          <div id="palermo-view-cancha" class="hidden p-3 bg-slate-100/60">
+            <div class="relative w-full h-[410px] rounded-xl overflow-hidden shadow-inner flex flex-col justify-between p-3" style="background: linear-gradient(180deg, #1e3a8a 0%, #172554 100%);">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none stroke-white/30 fill-none" stroke-width="2">
+                <rect height="calc(100% - 20px)" rx="8" width="calc(100% - 20px)" x="10" y="10"></rect>
+                <line x1="10" x2="calc(100% - 10px)" y1="50%" y2="50%"></line>
+                <circle cx="50%" cy="50%" r="45"></circle>
+                <circle class="fill-white/60" cx="50%" cy="50%" r="3"></circle>
+                <rect height="65" width="50%" x="25%" y="10"></rect>
+                <rect height="65" width="50%" x="25%" y="calc(100% - 75px)"></rect>
+              </svg>
+              <div class="relative z-10 flex items-center justify-around w-full pt-1">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">11</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Solari</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-9 h-9 rounded-full bg-emerald-500 text-white font-num text-xs font-bold flex items-center justify-center shadow ring-2 ring-white">9</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-emerald-900 text-white text-[9px] font-bold">Rossi ⚽</span>
+                </div>
+              </div>
+              <div class="relative z-10 flex items-center justify-around w-10/12 mx-auto">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">10</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Lanzini</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">8</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Fernández</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">5</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Zuculini</span>
+                </div>
+              </div>
+              <div class="relative z-10 flex items-center justify-between w-full px-4">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">3</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Casco</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow ring-2 ring-amber-400">2</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Cardozo 🟨</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">6</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Funes</span>
+                </div>
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-white text-navy-dark font-num text-xs font-bold flex items-center justify-center shadow">4</div>
+                  <span class="mt-1 px-1 py-0.5 rounded bg-black/70 text-white text-[9px]">Santoro</span>
+                </div>
+              </div>
+              <div class="relative z-10 flex items-center justify-center w-full pb-1">
+                <div class="flex flex-col items-center">
+                  <div class="w-8 h-8 rounded-full bg-amber-500 text-white font-num text-xs font-bold flex items-center justify-center shadow ring-2 ring-white">1</div>
+                  <span class="mt-1 px-1.5 py-0.5 rounded bg-black/70 text-white text-[9px]">Armani</span>
+                </div>
+              </div>
+            </div>
+            <div class="mt-2.5 p-2 bg-white rounded-lg border border-slate-200 flex flex-wrap items-center gap-1.5">
+              <span class="text-[10px] font-bold uppercase text-secondary mr-1">Banca:</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#12 Centurión</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#15 Simón</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#19 Borja</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-xs font-medium border border-slate-200">#23 Echeverri</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FEED CRONOLÓGICO Y CONTROL DE CAMBIOS FIFA -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- CRONOLOGÍA (7 COLS) -->
+      <div class="lg:col-span-7 bg-white p-5 rounded-xl border border-slate-200 shadow-xs flex flex-col">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">history_toggle_off</span>
+            <h4 class="font-head text-base font-bold text-navy-dark">Resumen del Partido</h4>
+          </div>
+          <span class="text-[11px] font-bold text-secondary uppercase tracking-wider">Cronología Minuto a Minuto</span>
+        </div>
+
+        <div id="timeline-container" class="space-y-3">
+          <!-- Event 1 -->
+          <div class="flex items-center justify-between p-3 rounded-lg bg-emerald-50/60 border border-emerald-100">
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">⚽</div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-num text-xs font-bold text-emerald-800">14'</span>
+                  <span class="text-xs font-bold text-navy-dark">Gol de Atlético Huracán</span>
+                  <span class="px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-900 font-num text-[10px] font-bold">[1 - 0]</span>
+                </div>
+                <span class="text-[11px] text-slate-500">M. Valenzuela #9 · Remate de cabeza tras córner</span>
+              </div>
+            </div>
+            <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+          </div>
+
+          <!-- Event 2 -->
+          <div class="flex items-center justify-between p-3 rounded-lg bg-amber-50/60 border border-amber-100">
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center text-xs font-bold shrink-0">🟨</div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-num text-xs font-bold text-amber-800">38'</span>
+                  <span class="text-xs font-bold text-navy-dark">Tarjeta Amarilla</span>
+                  <span class="px-1.5 py-0.2 rounded bg-amber-200 text-amber-900 text-[10px] font-bold">Palermo</span>
+                </div>
+                <span class="text-[11px] text-slate-500">M. Cardozo #2 · Falta táctica reiterada</span>
+              </div>
+            </div>
+            <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+          </div>
+
+          <!-- Event 3 -->
+          <div class="flex items-center justify-between p-3 rounded-lg bg-blue-50/60 border border-blue-100">
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">⚽</div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-num text-xs font-bold text-blue-800">41'</span>
+                  <span class="text-xs font-bold text-navy-dark">Gol de Deportivo Palermo</span>
+                  <span class="px-1.5 py-0.2 rounded bg-blue-200 text-blue-900 font-num text-[10px] font-bold">[1 - 1]</span>
+                </div>
+                <span class="text-[11px] text-slate-500">F. Rossi #9 · Definición cruzada tras asistencia de M. Lanzini</span>
+              </div>
+            </div>
+            <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+          </div>
+
+          <!-- Event 4 -->
+          <div class="flex items-center justify-between p-3 rounded-lg bg-emerald-50/60 border border-emerald-100">
+            <div class="flex items-center gap-3">
+              <div class="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">⚽</div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="font-num text-xs font-bold text-emerald-800">53'</span>
+                  <span class="text-xs font-bold text-navy-dark">Gol de Atlético Huracán</span>
+                  <span class="px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-900 font-num text-[10px] font-bold">[2 - 1]</span>
+                </div>
+                <span class="text-[11px] text-slate-500">M. Valenzuela #9 · Remate raso cruzado al segundo poste</span>
+              </div>
+            </div>
+            <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VENTANAS FIFA (5 COLS) -->
+      <div class="lg:col-span-5 space-y-4">
+        <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-xs">
+          <div class="flex items-center justify-between mb-3">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary text-[20px]">published_with_changes</span>
+              <h4 class="font-head text-base font-bold text-navy-dark">Cambios y Ventanas FIFA</h4>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-slate-100 text-secondary text-[10px] font-bold uppercase">Regla IFAB 3</span>
+          </div>
+
+          <!-- Último cambio -->
+          <div class="p-3 rounded-lg bg-surface-low border border-blue-100 mb-3">
+            <div class="flex items-center justify-between text-[11px] text-secondary font-medium mb-1.5">
+              <span>Último cambio (Min 64')</span>
+              <span class="text-primary font-bold">Huracán · Ventana 1 de 3</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs font-bold">
+              <div class="p-2 rounded bg-white border border-red-200 text-red-700 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">arrow_downward</span>
+                <span>Sale: #19 C. Díaz</span>
+              </div>
+              <div class="p-2 rounded bg-white border border-emerald-200 text-emerald-700 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px]">arrow_upward</span>
+                <span>Entra: #11 E. Morales</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contador de ventanas -->
+          <div class="space-y-2 text-xs">
+            <div>
+              <div class="flex justify-between font-semibold mb-1">
+                <span>Atl. Huracán</span>
+                <span class="text-primary font-num font-bold">2 ventanas / 4 cambios</span>
+              </div>
+              <div class="grid grid-cols-3 gap-1 h-1.5">
+                <div class="bg-primary rounded-full"></div>
+                <div class="bg-slate-200 rounded-full"></div>
+                <div class="bg-slate-200 rounded-full"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between font-semibold mb-1">
+                <span>Dep. Palermo</span>
+                <span class="text-secondary font-num font-bold">3 ventanas / 5 cambios</span>
+              </div>
+              <div class="grid grid-cols-3 gap-1 h-1.5">
+                <div class="bg-slate-200 rounded-full"></div>
+                <div class="bg-slate-200 rounded-full"></div>
+                <div class="bg-slate-200 rounded-full"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="p-4 rounded-xl bg-surface-low border border-blue-100 flex items-start gap-3">
+          <span class="material-symbols-outlined text-emerald-600 text-[22px] shrink-0">verified_user</span>
+          <div class="text-xs">
+            <span class="font-bold text-navy-dark block">Certificación Federativa en Tiempo Real</span>
+            <p class="text-slate-500 mt-0.5">Sincronizado con el Tribunal de Penas y Colegio Arbitral. Token criptográfico: <strong class="font-num text-primary">#TRN-9982-CL25</strong>.</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </main>
+</div>
+
+<!-- ========================================================= -->
+<!-- MODALES INTERACTIVOS DE PLANILLA.JSX -->
+<!-- ========================================================= -->
+
+<!-- 1. MODAL REGISTRAR GOL / AUTOGOL -->
+<div id="modal-gol" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+    <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="text-xl">⚽</span>
+        <div>
+          <h4 class="font-head text-base font-bold text-navy-dark">Registrar Gol / Autogol</h4>
+          <p id="modal-gol-equipo" class="text-xs text-secondary font-semibold">Atlético Huracán</p>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-gol')" class="text-slate-400 hover:text-navy-dark"><span class="material-symbols-outlined text-[20px]">close</span></button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <!-- Toggle Gol vs Autogol -->
+      <div class="flex rounded-lg bg-slate-100 p-1 text-xs font-bold">
+        <button onclick="setTipoGol('gol')" id="toggle-gol-favor" class="flex-1 py-1.5 rounded-md bg-white text-primary shadow-xs">⚽ Gol a favor</button>
+        <button onclick="setTipoGol('autogol')" id="toggle-gol-contra" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-navy-dark">⚠️ Autogol en contra</button>
+      </div>
+
+      <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+        <label class="text-xs font-bold uppercase text-secondary">Minuto de Incidencia:</label>
+        <div class="flex items-center gap-1.5">
+          <input id="gol-minuto" type="number" min="1" max="120" value="69" class="w-16 py-1 px-2 rounded border border-slate-300 bg-white text-center font-num text-xs font-bold text-primary"/>
+          <span class="text-xs font-bold text-secondary">' min</span>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-bold uppercase text-slate-500 block mb-2">Selecciona Jugador Autor (1 Clic):</label>
+        <div id="gol-jugadores-grid" class="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto p-1">
+          <!-- Dinámico -->
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-lg bg-slate-50 flex items-center justify-between text-xs">
+        <span class="text-secondary font-medium">Asignado a:</span>
+        <span id="gol-selected-label" class="font-bold text-navy-dark">#9 Matías Valenzuela</span>
+      </div>
+    </div>
+
+    <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between">
+      <button onclick="anularUltimoGolDirecto()" class="px-3 py-1.5 rounded bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold uppercase inline-flex items-center gap-1">
+        <span class="material-symbols-outlined text-[15px]">undo</span> Anular último gol
+      </button>
+      <div class="flex items-center gap-2">
+        <button onclick="closeModal('modal-gol')" class="px-3 py-1.5 rounded text-secondary hover:bg-slate-200 text-xs font-bold uppercase">Cancelar</button>
+        <button onclick="confirmarGol()" class="px-4 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold uppercase shadow-sm">Guardar Gol</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. MODAL REGISTRAR TARJETA -->
+<div id="modal-tarjeta" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+    <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-4 h-5 bg-amber-400 rounded-2xs inline-block"></span>
+        <div>
+          <h4 class="font-head text-base font-bold text-navy-dark">Registrar Tarjeta Arbitral</h4>
+          <p id="modal-tarjeta-equipo" class="text-xs text-secondary font-semibold">Deportivo Palermo</p>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-tarjeta')" class="text-slate-400 hover:text-navy-dark"><span class="material-symbols-outlined text-[20px]">close</span></button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <!-- Toggle Amarilla / Roja -->
+      <div class="flex rounded-lg bg-slate-100 p-1 text-xs font-bold">
+        <button onclick="setTipoTarjeta('amarilla')" id="toggle-tarjeta-amarilla" class="flex-1 py-1.5 rounded-md bg-amber-400 text-slate-950 shadow-xs flex items-center justify-center gap-1">
+          <span class="w-2.5 h-3.5 bg-amber-700 rounded-2xs"></span> Amarilla
+        </button>
+        <button onclick="setTipoTarjeta('roja')" id="toggle-tarjeta-roja" class="flex-1 py-1.5 rounded-md text-slate-600 hover:text-navy-dark flex items-center justify-center gap-1">
+          <span class="w-2.5 h-3.5 bg-red-600 rounded-2xs"></span> Roja Directa
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2">
+        <div class="col-span-1 p-2 rounded-lg bg-slate-50 border border-slate-200">
+          <label class="text-[10px] font-bold uppercase text-secondary block mb-1">Minuto:</label>
+          <input id="tarjeta-minuto" type="number" min="1" max="120" value="70" class="w-full py-1 px-2 rounded border border-slate-300 bg-white text-center font-num text-xs font-bold text-primary"/>
+        </div>
+        <div class="col-span-2 p-2 rounded-lg bg-slate-50 border border-slate-200">
+          <label class="text-[10px] font-bold uppercase text-secondary block mb-1">Motivo Reglamentario:</label>
+          <select id="tarjeta-motivo" class="w-full py-1 px-2 rounded border border-slate-300 bg-white text-xs font-medium">
+            <option value="Conducta antideportiva">Conducta antideportiva</option>
+            <option value="Falta temeraria">Falta temeraria</option>
+            <option value="Desaprobación verbal">Desaprobación con acciones</option>
+            <option value="Pérdida deliberada de tiempo">Retardar reanudación</option>
+            <option value="Juego brusco grave">Juego brusco grave (Roja)</option>
+          </select>
+        </div>
+      </div>
+
+      <div>
+        <label class="text-xs font-bold uppercase text-slate-500 block mb-2">Selecciona Jugador Infractor:</label>
+        <div id="tarjeta-jugadores-grid" class="grid grid-cols-5 gap-2 max-h-40 overflow-y-auto p-1">
+          <!-- Dinámico -->
+        </div>
+      </div>
+
+      <div class="p-2.5 rounded-lg bg-slate-50 flex items-center justify-between text-xs">
+        <span class="text-secondary font-medium">Sancionado:</span>
+        <span id="tarjeta-selected-label" class="font-bold text-navy-dark">#2 Mauro Cardozo</span>
+      </div>
+    </div>
+
+    <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+      <button onclick="closeModal('modal-tarjeta')" class="px-3 py-1.5 rounded text-secondary hover:bg-slate-200 text-xs font-bold uppercase">Cancelar</button>
+      <button onclick="confirmarTarjeta()" class="px-4 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-bold uppercase shadow-sm">Registrar Sanción</button>
+    </div>
+  </div>
+</div>
+
+<!-- 3. MODAL REGISTRAR SUSTITUCIÓN / CAMBIO (Layout SALE vs ENTRA) -->
+<div id="modal-cambio" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden border border-slate-200">
+    <div class="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary text-[22px]">swap_horiz</span>
+        <div>
+          <h4 class="font-head text-base font-bold text-navy-dark">Registrar Sustitución Reglamentaria</h4>
+          <p id="modal-cambio-equipo" class="text-xs text-secondary font-semibold">Huracán · Ventana restante 2 de 3</p>
+        </div>
+      </div>
+      <button onclick="closeModal('modal-cambio')" class="text-slate-400 hover:text-navy-dark"><span class="material-symbols-outlined text-[20px]">close</span></button>
+    </div>
+
+    <div class="p-5 space-y-4">
+      <div class="flex items-center justify-between p-2.5 rounded-lg bg-slate-50 border border-slate-200">
+        <label class="text-xs font-bold uppercase text-secondary">Minuto del Cambio:</label>
+        <div class="flex items-center gap-1.5">
+          <input id="cambio-minuto" type="number" min="1" max="120" value="71" class="w-16 py-1 px-2 rounded border border-slate-300 bg-white text-center font-num text-xs font-bold text-primary"/>
+          <span class="text-xs font-bold text-secondary">' min</span>
+        </div>
+      </div>
+
+      <!-- Cuadrículas SALE vs ENTRA -->
+      <div class="grid grid-cols-2 gap-4">
+        <!-- SALE (Titulares) -->
+        <div class="p-3 rounded-xl bg-red-50/60 border border-red-200 flex flex-col gap-2">
+          <div class="flex items-center justify-between border-b border-red-200 pb-1 text-xs">
+            <span class="font-bold text-red-700 flex items-center gap-1 uppercase text-[10px]">
+              <span class="material-symbols-outlined text-[14px]">arrow_downward</span> SALE (Cancha)
+            </span>
+            <span id="cambio-sale-label" class="font-bold text-red-900 truncate">#7 Mazzantti</span>
+          </div>
+          <div id="cambio-sale-grid" class="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto p-1">
+            <!-- Botones circulares rojos -->
+          </div>
+        </div>
+
+        <!-- ENTRA (Suplentes) -->
+        <div class="p-3 rounded-xl bg-emerald-50/60 border border-emerald-200 flex flex-col gap-2">
+          <div class="flex items-center justify-between border-b border-emerald-200 pb-1 text-xs">
+            <span class="font-bold text-emerald-700 flex items-center gap-1 uppercase text-[10px]">
+              <span class="material-symbols-outlined text-[14px]">arrow_upward</span> ENTRA (Banca)
+            </span>
+            <span id="cambio-entra-label" class="font-bold text-emerald-900 truncate">#25 Pussetto</span>
+          </div>
+          <div id="cambio-entra-grid" class="grid grid-cols-3 gap-1.5 max-h-40 overflow-y-auto p-1">
+            <!-- Botones circulares verdes -->
+          </div>
+        </div>
+      </div>
+
+      <div class="p-2 rounded bg-slate-50 text-[11px] text-slate-500 flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-primary text-[16px]">info</span>
+        <span>El jugador reemplazado no puede volver a ingresar. Consume 1 ventana IFAB.</span>
+      </div>
+    </div>
+
+    <div class="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-end gap-2">
+      <button onclick="closeModal('modal-cambio')" class="px-3 py-1.5 rounded text-secondary hover:bg-slate-200 text-xs font-bold uppercase">Cancelar</button>
+      <button onclick="confirmarCambio()" class="px-4 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-bold uppercase shadow-sm">Confirmar Cambio</button>
+    </div>
+  </div>
+</div>
+
+<!-- 4. MODAL FINALIZAR PARTIDO -->
+<div id="modal-finalizar" class="fixed inset-0 z-50 hidden bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+  <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden border border-slate-200 p-6 text-center space-y-4">
+    <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mx-auto shadow-md">
+      <span class="material-symbols-outlined text-[28px]">verified</span>
+    </div>
+    <h3 class="font-head text-lg font-bold text-navy-dark">¿Finalizar y Homologar Partido?</h3>
+    <p class="text-xs text-secondary">
+      Se emitirá el Acta Oficial Federativa definitiva con el resultado final <strong id="finalizar-resultado" class="text-navy-dark font-bold">2 - 1</strong> a favor de <strong class="text-navy-dark">Huracán</strong>. Esta acción cerrará la planilla.
+    </p>
+    <div class="p-3 rounded-lg bg-surface-low border border-slate-200 text-left text-xs space-y-1">
+      <div class="flex justify-between font-semibold text-navy-dark">
+        <span>Token Arbitral:</span>
+        <span class="font-num text-primary font-bold">#TRN-9982-CL25</span>
+      </div>
+      <div class="flex justify-between text-slate-500">
+        <span>Árbitro Principal:</span>
+        <span>Patricio Loustau (AFA)</span>
+      </div>
+    </div>
+    <div class="flex items-center justify-end gap-2 pt-2">
+      <button onclick="closeModal('modal-finalizar')" class="px-3 py-1.5 rounded text-secondary hover:bg-slate-100 text-xs font-bold uppercase">Volver</button>
+      <button onclick="ejecutarFinalizar()" class="px-4 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-bold uppercase shadow-sm">Firmar &amp; Homologar</button>
+    </div>
+  </div>
+</div>
+
+<!-- JAVASCRIPT DE LÓGICA DE PLANILLA -->
+<script>
+  let teamActive = 'huracan';
+  let tipoGol = 'gol';
+  let tipoTarjeta = 'amarilla';
+  let timerActive = true;
+  let timerSecs = 68 * 60 + 22;
+  let timerId = null;
+  let periodo = '2T';
+  let scoreHome = 2;
+  let scoreAway = 1;
+
+  const squadData = {
+    huracan: {
+      nombre: 'Atlético Huracán',
+      titulares: [
+        { num: 1, name: 'Andrada', pos: 'POR' },
+        { num: 2, name: 'Tobio', pos: 'DEF' },
+        { num: 3, name: 'Ibáñez', pos: 'DEF' },
+        { num: 4, name: 'Tenaglia', pos: 'DEF' },
+        { num: 5, name: 'Fattori', pos: 'MED' },
+        { num: 6, name: 'Lucas', pos: 'DEF' },
+        { num: 7, name: 'Mazzantti', pos: 'DEL' },
+        { num: 8, name: 'Silva', pos: 'MED' },
+        { num: 9, name: 'Valenzuela', pos: 'DEL' },
+        { num: 10, name: 'Castro', pos: 'MED' },
+        { num: 11, name: 'Morales', pos: 'DEL' }
+      ],
+      suplentes: [
+        { num: 12, name: 'Meza', pos: 'POR' },
+        { num: 14, name: 'Goñi', pos: 'DEF' },
+        { num: 18, name: 'Soñora', pos: 'MED' },
+        { num: 22, name: 'Pérez', pos: 'MED' },
+        { num: 25, name: 'Pussetto', pos: 'DEL' }
+      ]
+    },
+    palermo: {
+      nombre: 'Deportivo Palermo',
+      titulares: [
+        { num: 1, name: 'Armani', pos: 'POR' },
+        { num: 2, name: 'Cardozo', pos: 'DEF' },
+        { num: 3, name: 'Casco', pos: 'DEF' },
+        { num: 4, name: 'Santoro', pos: 'DEF' },
+        { num: 5, name: 'Zuculini', pos: 'MED' },
+        { num: 6, name: 'Funes', pos: 'DEF' },
+        { num: 8, name: 'Fernández', pos: 'MED' },
+        { num: 9, name: 'Rossi', pos: 'DEL' },
+        { num: 10, name: 'Lanzini', pos: 'MED' },
+        { num: 11, name: 'Solari', pos: 'DEL' }
+      ],
+      suplentes: [
+        { num: 12, name: 'Centurión', pos: 'POR' },
+        { num: 15, name: 'Simón', pos: 'MED' },
+        { num: 19, name: 'Borja', pos: 'DEL' },
+        { num: 23, name: 'Echeverri', pos: 'MED' }
+      ]
+    }
+  };
+
+  let playerGolSel = null;
+  let playerTarjSel = null;
+  let playerSaleSel = null;
+  let playerEntraSel = null;
+
+  // Cronómetro
+  function runTimer() {
+    if (timerId) clearInterval(timerId);
+    timerId = setInterval(() => {
+      if (timerActive) {
+        timerSecs++;
+        const m = Math.floor(timerSecs / 60);
+        const s = timerSecs % 60;
+        const d = document.getElementById('cronometro-display');
+        if (d) d.textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+      }
+    }, 1000);
+  }
+  runTimer();
+
+  function toggleTimer() {
+    timerActive = !timerActive;
+    const ic = document.getElementById('icon-timer');
+    if (ic) ic.textContent = timerActive ? 'pause' : 'play_arrow';
+  }
+
+  function resetTimer() {
+    timerSecs = periodo === '1T' ? 0 : 45 * 60;
+    const m = Math.floor(timerSecs / 60);
+    const s = timerSecs % 60;
+    document.getElementById('cronometro-display').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  function togglePeriodo() {
+    periodo = periodo === '1T' ? '2T' : '1T';
+    document.getElementById('badge-periodo').textContent = periodo;
+    resetTimer();
+  }
+
+  function toggleAdicion() {
+    const b = document.getElementById('label-adicion');
+    if (b.textContent.includes('+4')) b.textContent = "+6' ADICIÓN";
+    else if (b.textContent.includes('+6')) b.textContent = "+2' ADICIÓN";
+    else b.textContent = "+4' ADICIÓN";
+  }
+
+  // Toggles de vista
+  function setHuracanView(view) {
+    const cancha = document.getElementById('huracan-view-cancha');
+    const lista = document.getElementById('huracan-view-lista');
+    const btnC = document.getElementById('huracan-btn-cancha');
+    const btnL = document.getElementById('huracan-btn-lista');
+    if (view === 'cancha') {
+      cancha.classList.remove('hidden');
+      lista.classList.add('hidden');
+      btnC.className = "px-3 py-1 rounded-md bg-white text-primary shadow-xs";
+      btnL.className = "px-3 py-1 rounded-md text-slate-600 hover:text-navy-dark";
+    } else {
+      cancha.classList.add('hidden');
+      lista.classList.remove('hidden');
+      btnL.className = "px-3 py-1 rounded-md bg-white text-primary shadow-xs";
+      btnC.className = "px-3 py-1 rounded-md text-slate-600 hover:text-navy-dark";
+    }
+  }
+
+  function setPalermoView(view) {
+    const lista = document.getElementById('palermo-view-lista');
+    const cancha = document.getElementById('palermo-view-cancha');
+    const btnL = document.getElementById('palermo-btn-lista');
+    const btnC = document.getElementById('palermo-btn-cancha');
+    if (view === 'lista') {
+      lista.classList.remove('hidden');
+      cancha.classList.add('hidden');
+      btnL.className = "px-3 py-1 rounded-md bg-white text-primary shadow-xs";
+      btnC.className = "px-3 py-1 rounded-md text-slate-600 hover:text-navy-dark";
+    } else {
+      lista.classList.add('hidden');
+      cancha.classList.remove('hidden');
+      btnC.className = "px-3 py-1 rounded-md bg-white text-primary shadow-xs";
+      btnL.className = "px-3 py-1 rounded-md text-slate-600 hover:text-navy-dark";
+    }
+  }
+
+  // Modales
+  function openModal(id) {
+    const m = document.getElementById(id);
+    if (m) m.classList.remove('hidden');
+  }
+
+  function closeModal(id) {
+    const m = document.getElementById(id);
+    if (m) m.classList.add('hidden');
+  }
+
+  function openModalGol(team) {
+    teamActive = team;
+    const squad = squadData[team];
+    document.getElementById('modal-gol-equipo').textContent = squad.nombre;
+    const grid = document.getElementById('gol-jugadores-grid');
+    grid.innerHTML = '';
+    squad.titulares.forEach(p => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = "p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-emerald-100 hover:border-emerald-300 flex flex-col items-center gap-0.5 transition-colors";
+      btn.innerHTML = `<span class="w-6 h-6 rounded-full bg-white font-num font-bold text-xs text-primary shadow-xs flex items-center justify-center">#${p.num}</span><span class="text-[9px] font-bold text-slate-700 truncate w-full text-center">${p.name}</span>`;
+      btn.onclick = () => {
+        playerGolSel = p;
+        document.getElementById('gol-selected-label').textContent = `#${p.num} ${p.name} (${p.pos})`;
+      };
+      grid.appendChild(btn);
+    });
+    playerGolSel = squad.titulares[0];
+    document.getElementById('gol-selected-label').textContent = `#${playerGolSel.num} ${playerGolSel.name}`;
+    openModal('modal-gol');
+  }
+
+  function setTipoGol(t) {
+    tipoGol = t;
+    const bF = document.getElementById('toggle-gol-favor');
+    const bC = document.getElementById('toggle-gol-contra');
+    if (t === 'gol') {
+      bF.className = "flex-1 py-1.5 rounded-md bg-white text-primary shadow-xs";
+      bC.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-navy-dark";
+    } else {
+      bC.className = "flex-1 py-1.5 rounded-md bg-white text-red-600 shadow-xs";
+      bF.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-navy-dark";
+    }
+  }
+
+  function confirmarGol() {
+    const min = document.getElementById('gol-minuto').value || '69';
+    if (teamActive === 'huracan') {
+      scoreHome++;
+      document.getElementById('score-home').textContent = scoreHome;
+    } else {
+      scoreAway++;
+      document.getElementById('score-away').textContent = scoreAway;
+    }
+
+    const tCont = document.getElementById('timeline-container');
+    const div = document.createElement('div');
+    div.className = "flex items-center justify-between p-3 rounded-lg bg-emerald-50/60 border border-emerald-100";
+    div.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-bold shrink-0">⚽</div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-num text-xs font-bold text-emerald-800">${min}'</span>
+            <span class="text-xs font-bold text-navy-dark">${tipoGol === 'gol' ? 'Gol' : 'Autogol'} de ${squadData[teamActive].nombre}</span>
+            <span class="px-1.5 py-0.2 rounded bg-emerald-200 text-emerald-900 font-num text-[10px] font-bold">[${scoreHome} - ${scoreAway}]</span>
+          </div>
+          <span class="text-[11px] text-slate-500">${playerGolSel ? '#' + playerGolSel.num + ' ' + playerGolSel.name : 'Jugador'} · Anotación reglamentaria</span>
+        </div>
+      </div>
+      <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+    `;
+    tCont.prepend(div);
+    closeModal('modal-gol');
+  }
+
+  function anularUltimoGol(team) {
+    if (team === 'huracan' && scoreHome > 0) {
+      scoreHome--;
+      document.getElementById('score-home').textContent = scoreHome;
+    } else if (team === 'palermo' && scoreAway > 0) {
+      scoreAway--;
+      document.getElementById('score-away').textContent = scoreAway;
+    }
+  }
+
+  function anularUltimoGolDirecto() {
+    anularUltimoGol(teamActive);
+    closeModal('modal-gol');
+  }
+
+  function openModalTarjeta(team) {
+    teamActive = team;
+    const squad = squadData[team];
+    document.getElementById('modal-tarjeta-equipo').textContent = squad.nombre;
+    const grid = document.getElementById('tarjeta-jugadores-grid');
+    grid.innerHTML = '';
+    squad.titulares.forEach(p => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = "p-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-amber-100 hover:border-amber-300 flex flex-col items-center gap-0.5 transition-colors";
+      btn.innerHTML = `<span class="w-6 h-6 rounded-full bg-white font-num font-bold text-xs text-amber-800 shadow-xs flex items-center justify-center">#${p.num}</span><span class="text-[9px] font-bold text-slate-700 truncate w-full text-center">${p.name}</span>`;
+      btn.onclick = () => {
+        playerTarjSel = p;
+        document.getElementById('tarjeta-selected-label').textContent = `#${p.num} ${p.name} (${p.pos})`;
+      };
+      grid.appendChild(btn);
+    });
+    playerTarjSel = squad.titulares[1];
+    document.getElementById('tarjeta-selected-label').textContent = `#${playerTarjSel.num} ${playerTarjSel.name}`;
+    openModal('modal-tarjeta');
+  }
+
+  function setTipoTarjeta(t) {
+    tipoTarjeta = t;
+    const bA = document.getElementById('toggle-tarjeta-amarilla');
+    const bR = document.getElementById('toggle-tarjeta-roja');
+    if (t === 'amarilla') {
+      bA.className = "flex-1 py-1.5 rounded-md bg-amber-400 text-slate-950 shadow-xs flex items-center justify-center gap-1";
+      bR.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-navy-dark flex items-center justify-center gap-1";
+    } else {
+      bR.className = "flex-1 py-1.5 rounded-md bg-red-600 text-white shadow-xs flex items-center justify-center gap-1";
+      bA.className = "flex-1 py-1.5 rounded-md text-slate-600 hover:text-navy-dark flex items-center justify-center gap-1";
+    }
+  }
+
+  function confirmarTarjeta() {
+    const min = document.getElementById('tarjeta-minuto').value || '70';
+    const motivo = document.getElementById('tarjeta-motivo').value;
+    const tCont = document.getElementById('timeline-container');
+    const div = document.createElement('div');
+    const esAmarilla = tipoTarjeta === 'amarilla';
+    div.className = `flex items-center justify-between p-3 rounded-lg ${esAmarilla ? 'bg-amber-50/60 border border-amber-100' : 'bg-red-50/60 border border-red-100'}`;
+    div.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full ${esAmarilla ? 'bg-amber-400 text-slate-950' : 'bg-red-600 text-white'} flex items-center justify-center text-xs font-bold shrink-0">${esAmarilla ? '🟨' : '🟥'}</div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-num text-xs font-bold ${esAmarilla ? 'text-amber-800' : 'text-red-800'}">${min}'</span>
+            <span class="text-xs font-bold text-navy-dark">Tarjeta ${esAmarilla ? 'Amarilla' : 'Roja'}</span>
+            <span class="px-1.5 py-0.2 rounded ${esAmarilla ? 'bg-amber-200 text-amber-900' : 'bg-red-200 text-red-900'} text-[10px] font-bold">${squadData[teamActive].nombre}</span>
+          </div>
+          <span class="text-[11px] text-slate-500">${playerTarjSel ? '#' + playerTarjSel.num + ' ' + playerTarjSel.name : 'Jugador'} · ${motivo}</span>
+        </div>
+      </div>
+      <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+    `;
+    tCont.prepend(div);
+    closeModal('modal-tarjeta');
+  }
+
+  function openModalCambio(team) {
+    teamActive = team;
+    const squad = squadData[team];
+    document.getElementById('modal-cambio-equipo').textContent = `${squad.nombre} · Control de ventanas`;
+    const gSale = document.getElementById('cambio-sale-grid');
+    const gEntra = document.getElementById('cambio-entra-grid');
+    gSale.innerHTML = '';
+    gEntra.innerHTML = '';
+
+    squad.titulares.forEach(p => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = "p-1.5 rounded-lg border border-red-200 bg-white hover:bg-red-100 text-red-800 font-num text-xs font-bold flex items-center justify-center";
+      b.textContent = `#${p.num} ${p.name}`;
+      b.onclick = () => {
+        playerSaleSel = p;
+        document.getElementById('cambio-sale-label').textContent = `#${p.num} ${p.name}`;
+      };
+      gSale.appendChild(b);
+    });
+
+    squad.suplentes.forEach(p => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = "p-1.5 rounded-lg border border-emerald-200 bg-white hover:bg-emerald-100 text-emerald-800 font-num text-xs font-bold flex items-center justify-center";
+      b.textContent = `#${p.num} ${p.name}`;
+      b.onclick = () => {
+        playerEntraSel = p;
+        document.getElementById('cambio-entra-label').textContent = `#${p.num} ${p.name}`;
+      };
+      gEntra.appendChild(b);
+    });
+
+    playerSaleSel = squad.titulares[0];
+    playerEntraSel = squad.suplentes[0];
+    document.getElementById('cambio-sale-label').textContent = `#${playerSaleSel.num} ${playerSaleSel.name}`;
+    document.getElementById('cambio-entra-label').textContent = `#${playerEntraSel.num} ${playerEntraSel.name}`;
+    openModal('modal-cambio');
+  }
+
+  function confirmarCambio() {
+    const min = document.getElementById('cambio-minuto').value || '71';
+    const tCont = document.getElementById('timeline-container');
+    const div = document.createElement('div');
+    div.className = "flex items-center justify-between p-3 rounded-lg bg-blue-50/60 border border-blue-100";
+    div.innerHTML = `
+      <div class="flex items-center gap-3">
+        <div class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold shrink-0">↔</div>
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="font-num text-xs font-bold text-blue-800">${min}'</span>
+            <span class="text-xs font-bold text-navy-dark">Sustitución Reglamentaria</span>
+            <span class="px-1.5 py-0.2 rounded bg-blue-200 text-blue-900 text-[10px] font-bold">${squadData[teamActive].nombre}</span>
+          </div>
+          <span class="text-[11px] text-slate-600">Sale: <strong class="text-red-600">#${playerSaleSel ? playerSaleSel.num + ' ' + playerSaleSel.name : ''}</strong> ↔ Entra: <strong class="text-emerald-600">#${playerEntraSel ? playerEntraSel.num + ' ' + playerEntraSel.name : ''}</strong></span>
+        </div>
+      </div>
+      <button onclick="this.closest('div.flex').remove()" class="text-slate-400 hover:text-red-600 p-1" title="Eliminar"><span class="material-symbols-outlined text-[16px]">delete</span></button>
+    `;
+    tCont.prepend(div);
+    closeModal('modal-cambio');
+  }
+
+  function addPlayerToSquad(team) {
+    const sel = document.getElementById(`${team}-add-select`);
+    const numInp = document.getElementById(`${team}-add-num`);
+    const val = sel.value;
+    const num = numInp.value || Math.floor(Math.random() * 80 + 10);
+    if (!val) return;
+
+    const tbody = document.getElementById(`${team}-tbody`);
+    const tr = document.createElement('tr');
+    tr.className = "hover:bg-slate-50";
+    tr.innerHTML = `
+      <td class="py-2 px-2 font-num font-bold text-primary">#${num}</td>
+      <td class="py-2 px-2"><strong>${val}</strong></td>
+      <td class="py-2 px-2 text-center">
+        <div class="inline-flex rounded border border-slate-200 p-0.5 bg-slate-100 text-[10px] font-bold">
+          <button class="px-2 py-0.5 rounded bg-primary text-white">T</button>
+          <button class="px-2 py-0.5 rounded text-slate-600 hover:text-black">S</button>
+        </div>
+      </td>
+      <td class="py-2 px-2 text-center text-slate-400">Limpio</td>
+      <td class="py-2 px-2 text-right"><button onclick="quitarJugador(this)" class="text-slate-400 hover:text-red-600"><span class="material-symbols-outlined text-[16px]">delete</span></button></td>
+    `;
+    tbody.appendChild(tr);
+    sel.value = '';
+    numInp.value = '';
+  }
+
+  function quitarJugador(btn) {
+    btn.closest('tr').remove();
+  }
+
+  function ejecutarFinalizar() {
+    document.getElementById('finalizar-resultado').textContent = `${scoreHome} - ${scoreAway}`;
+    alert(`¡Partido Finalizado y Homologado con éxito!\nResultado Oficial: ${scoreHome} - ${scoreAway}.\nToken: #TRN-9982-CL25 registrado.`);
+    closeModal('modal-finalizar');
+  }
+</script>
+
+</body>
+</html>
