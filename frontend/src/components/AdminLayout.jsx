@@ -338,7 +338,7 @@ const nav = (
             {!isSuperadmin ? (
               <>
                 <Select
-                  value={selectedTorneoId || ''}
+                  value={torneoActivo?.id ?? ''}
                   onChange={(e) => onSelectTorneo(e.target.value)}
                   displayEmpty
                   size="small"

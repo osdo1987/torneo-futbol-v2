@@ -170,7 +170,7 @@ function MatchCard({ p, st, posLocal, posVisita }) {
               color="error"
               label={st.label}
               sx={{ height: 22, fontWeight: 800, fontSize: '0.7rem', '& .MuiChip-label': { px: 1 } }}
-              icon={<Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff', ml: 1, animation: `${pulse} 1.2s ease-in-out infinite` }} />)}
+              icon={<Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#fff', ml: 1, animation: `${pulse} 1.2s ease-in-out infinite` }} />}
             />
           ) : esPostergado ? (
             <Chip size="small" color="warning" label={st.label} sx={{ height: 22, fontWeight: 800, fontSize: '0.7rem' }} />
@@ -275,17 +275,17 @@ function MatchCard({ p, st, posLocal, posVisita }) {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, color: 'text.secondary' }}>
-          {esFinalizado && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />)}
+          {esFinalizado && <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />}
           <Typography variant="caption">
             {esFinalizado ? 'Resultado registrado' : esVivo ? 'Partido en curso' : 'Esperando inicio'}
           </Typography>
         </Box>
         <Box sx={{ display: 'flex', gap: 0.5 }}>
-          <Button size="small" component={Link} to={`/planilla?partido=${p.id}`} startIcon={<FeedIcon sx={{ fontSize: 16 }} />)}>
+          <Button size="small" component={Link} to={`/planilla?partido=${p.id}`} startIcon={<FeedIcon sx={{ fontSize: 16 }} />}>
             Planilla
           </Button>
           {!esFinalizado && (
-            <Button size="small" component={Link} to="/partidos" startIcon={<PendingActionsIcon sx={{ fontSize: 16 }} />)}>
+            <Button size="small" component={Link} to="/partidos" startIcon={<PendingActionsIcon sx={{ fontSize: 16 }} />}>
               Gestionar
             </Button>
           )}
@@ -372,9 +372,9 @@ function PendientesCard() {
     <Card sx={{ overflow: 'hidden' }}>
       <SectionCardHeader
         tone="error"
-        icon={<PriorityHighIcon sx={{ fontSize: 19 }} />)}
+        icon={<PriorityHighIcon sx={{ fontSize: 19 }} />}
         title="Operaciones Pendientes"
-        action={<Chip size="small" label={`${TAREAS_DEMO.length}`} color="error" sx={{ height: 20, fontWeight: 800 }} />)}
+        action={<Chip size="small" label={`${TAREAS_DEMO.length}`} color="error" sx={{ height: 20, fontWeight: 800 }} />}
       />
       <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1 }}>
         {TAREAS_DEMO.map((t) => (
@@ -597,7 +597,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
               key="equipos"
               component={Link}
               to="/equipos"
-              startIcon={<GroupAddIcon sx={{ fontSize: 20 }} />)}
+              startIcon={<GroupAddIcon sx={{ fontSize: 20 }} />}
               sx={{
                 px: 2,
                 py: 1.25,
@@ -615,7 +615,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
               component={Link}
               to="/partidos"
               variant="contained"
-              startIcon={<AddCircleIcon sx={{ fontSize: 20 }} />)}
+              startIcon={<AddCircleIcon sx={{ fontSize: 20 }} />}
               sx={{ px: 2, py: 1.25 }}
             >
               Nuevo Partido
@@ -737,7 +737,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
                 <Card sx={{ overflow: 'hidden' }}>
                   <SectionCardHeader
                     tone="primary"
-                    icon={<MilitaryTechIcon sx={{ fontSize: 19 }} />)}
+                    icon={<MilitaryTechIcon sx={{ fontSize: 19 }} />}
                     title="Top Goleadores"
                     action={(
                       <Button size="small" component={Link} to="/estadisticas" sx={{ fontWeight: 700, fontSize: '0.72rem' }}>
@@ -800,7 +800,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
                 {/* Lider de la tabla */}
                 {landingResumen?.lider && (
                   <Card sx={{ overflow: 'hidden' }}>
-                    <SectionCardHeader tone="success" icon={<EmojiEventsIcon sx={{ fontSize: 19 }} />)} title="Líder de la tabla" />
+                    <SectionCardHeader tone="success" icon={<EmojiEventsIcon sx={{ fontSize: 19 }} />} title="Líder de la tabla" />
                     <Box sx={{ px: 2, py: 1.5, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <Box sx={{ minWidth: 0 }}>
                         <Typography sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
