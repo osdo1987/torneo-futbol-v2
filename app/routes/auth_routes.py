@@ -62,3 +62,50 @@ def get_current_user_route():
     if not user:
         return jsonify({'error': 'Usuario no encontrado'}), 404
     return jsonify(user_schema.dump(user)), 200
+
+
+@auth_bp.route('/users', methods=['GET'])
+@jwt_required()
+@require_roles('SUPERADMIN', 'ORGANIZADOR')
+def list_users(user):
+    """Lista los usuarios. SUPERADMIN ve todos; ORGANIZADOR los de su tenant."""
+    return jsonify(AuthService.list_users(user)), 200
+
+
+@auth_bp.route('/users', methods=['POST'])
+@jwt_required()
+@require_roles('SUPERADMIN', 'ORGANIZADOR')
+def create_user(user):
+    """Crea un usuario ORGANIZADOR/STAFF/REFEREE dentro del tenant."""
+    data = request.get_json() or {}
+    result, status = AuthService.create_user(user, data)
+    return jsonify(result), status
+
+
+@auth_bp.route('/users/<int:user_id>/role', methods=['PUT'])
+@jwt_required()
+@require_roles('SUPERADMIN', 'ORGANIZADOR')
+def change_user_role(user, user_id):
+    """Cambia el rol de un usuario del tenant."""
+    data = request.get_json() or {}
+    result, status = AuthService.update_role(user, user_id, data.get('role'))
+    return jsonify(result), status
+
+
+@auth_bp.route('/users/<int:user_id>/password', methods=['PUT'])
+@jwt_required()
+@require_roles('SUPERADMIN', 'ORGANIZADOR')
+def reset_user_password(user, user_id):
+    """Restablece la contraseña de un usuario."""
+    data = request.get_json() or {}
+    result, status = AuthService.reset_password(user, user_id, data.get('password'))
+    return jsonify(result), status
+
+
+@auth_bp.route('/users/<int:user_id>', methods=['DELETE'])
+@jwt_required()
+@require_roles('SUPERADMIN', 'ORGANIZADOR')
+def delete_user(user, user_id):
+    """Elimina un usuario del tenant."""
+    result, status = AuthService.delete_user(user, user_id)
+    return jsonify(result), status

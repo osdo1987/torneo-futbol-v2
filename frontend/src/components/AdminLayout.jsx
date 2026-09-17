@@ -37,6 +37,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   EditCalendar as EditCalendarIcon,
   Stadium as StadiumIcon,
+  ManageAccounts as ManageAccountsIcon,
 } from '@mui/icons-material'
 
 // Layout del design system "Torneo Pro · Athletic Suite" (layout-test/dashboard.html)
@@ -102,6 +103,7 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
   const location = useLocation()
 
   const isSuperadmin = user?.role === 'SUPERADMIN'
+  const isReferee = user?.role === 'REFEREE'
   const initial = (user?.email || '?').charAt(0).toUpperCase()
   const torneoActivo = torneos.find((t) => String(t.id) === String(selectedTorneoId)) || torneos[0]
 
@@ -109,11 +111,24 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
     if (isSuperadmin) {
       return [
         { path: '/super', label: 'Organizadores', icon: <StorefrontIcon /> },
+        { path: '/usuarios', label: 'Usuarios', icon: <ManageAccountsIcon /> },
         { path: '/config', label: 'Configuración', icon: <SettingsIcon /> },
       ]
     }
-    return [
-      { path: '/', label: 'Dashboard', icon: <DashboardIcon /> },
+    if (isReferee) {
+      return [
+        { path: '/partidos', label: 'Partidos', icon: <SportsSoccerIcon /> },
+        { path: '/planilla', label: 'Planilla', icon: <EditNoteIcon /> },
+        { path: '/tabla', label: 'Posiciones', icon: <TableChartIcon /> },
+        { path: '/sanciones', label: 'Sanciones', icon: <GavelIcon /> },
+        { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
+      ]
+    }
+    const items = [{ path: '/', label: 'Dashboard', icon: <DashboardIcon /> }]
+    if (user?.role === 'ORGANIZADOR') {
+      items.push({ path: '/usuarios', label: 'Usuarios', icon: <ManageAccountsIcon /> })
+    }
+    items.push(
       { path: '/torneos', label: 'Torneos', icon: <EmojiEventsIcon /> },
       { path: '/equipos', label: 'Equipos', icon: <GroupIcon /> },
       { path: '/partidos', label: 'Partidos', icon: <SportsSoccerIcon /> },
@@ -121,10 +136,11 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       { path: '/planilla', label: 'Planilla', icon: <EditNoteIcon /> },
       { path: '/tabla', label: 'Posiciones', icon: <TableChartIcon /> },
       { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
-    ]
-  }, [isSuperadmin])
+    )
+    return items
+  }, [isSuperadmin, isReferee, user?.role])
 
-  const secondaryItems = isSuperadmin
+  const secondaryItems = isSuperadmin || isReferee
     ? []
     : [
         { path: '/landing', label: 'Landing pública', icon: <PublicIcon /> },
@@ -268,7 +284,7 @@ const nav = (
                 {user?.nombre || user?.email || 'Usuario'}
               </Typography>
               <Typography noWrap sx={{ fontSize: '0.75rem', lineHeight: '1rem', color: 'onSurfaceVariant' }}>
-                {user?.organizadorName || (isSuperadmin ? 'Super Admin' : 'Organizador')}
+                {user?.organizadorName || (isReferee ? 'Árbitro' : isSuperadmin ? 'Super Admin' : 'Organizador')}
               </Typography>
             </Box>
           </Box>
@@ -427,7 +443,7 @@ const nav = (
 
             <Box sx={{ flex: 1 }} />
 
-            {!isSuperadmin && (
+            {!isSuperadmin && !isReferee && (
               <>
                 <Button
                   component={Link}

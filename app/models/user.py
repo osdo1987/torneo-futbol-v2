@@ -3,7 +3,7 @@ from datetime import datetime
 
 
 class User(db.Model):
-    """Usuario del sistema. Roles: SUPERADMIN, ORGANIZADOR, STAFF."""
+    """Usuario del sistema. Roles: SUPERADMIN, ORGANIZADOR, STAFF, REFEREE."""
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)

@@ -4,7 +4,7 @@ from app.extensions import db
 from app.models.fase import Fase
 from app.models.torneo import Torneo
 from app.schemas.fase_schema import FaseSchema
-from app.routes._authz import get_current_user, ensure_torneo_organizador
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role
 
 fase_bp = Blueprint('fases', __name__)
 fase_schema = FaseSchema()
@@ -39,6 +39,8 @@ def create_fase():
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     try:
         fase = fase_schema.load(data)
         db.session.add(fase)
@@ -58,6 +60,8 @@ def update_fase(fase_id):
         return jsonify({'error': 'Fase no encontrada'}), 404
     if not ensure_torneo_organizador(user, fase.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     for key, value in data.items():
         if key in ('id', 'torneo_id', 'partidos'):
@@ -75,6 +79,8 @@ def delete_fase(fase_id):
     if not fase:
         return jsonify({'error': 'Fase no encontrada'}), 404
     if not ensure_torneo_organizador(user, fase.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     db.session.delete(fase)
     db.session.commit()

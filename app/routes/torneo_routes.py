@@ -9,7 +9,7 @@ from app.schemas.torneo_schema import TorneoSchema
 from app.schemas.equipo_schema import EquipoSchema
 from app.schemas.partido_schema import PartidoSchema
 from app.schemas.fase_schema import FaseSchema
-from app.routes._authz import get_current_user, require_roles, ensure_torneo_organizador
+from app.routes._authz import get_current_user, require_roles, ensure_torneo_organizador, ensure_management_role
 
 torneo_bp = Blueprint('torneos', __name__)
 torneo_schema = TorneoSchema()
@@ -68,6 +68,8 @@ def update_torneo(torneo_id):
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     torneo, error = TorneoService.update(torneo, data)
     if error:
@@ -84,6 +86,8 @@ def change_estado(torneo_id):
     if not torneo:
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     nuevo_estado = data.get('estado')
@@ -144,6 +148,8 @@ def delete_torneo(torneo_id):
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     TorneoService.delete(torneo)
     return jsonify({'message': 'Torneo eliminado'}), 200
 
@@ -157,6 +163,8 @@ def actualizar_reglas(torneo_id):
     if not torneo:
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     try:
@@ -178,6 +186,8 @@ def generar_fixture(torneo_id):
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     resumen, error = FixtureService.generar(torneo, reemplazar=bool(data.get('reemplazar')))
     if error:
@@ -194,6 +204,8 @@ def generar_fase_final(torneo_id):
     if not torneo:
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     resumen, error = FixtureService.generar_fase_final(torneo)
     if error:

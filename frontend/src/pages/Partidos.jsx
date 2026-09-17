@@ -105,10 +105,11 @@ function Pill({ bg, color, sx, children }) {
   )
 }
 
-export default function Partidos({ selectedTorneoId }) {
+export default function Partidos({ selectedTorneoId, user }) {
   const qc = useQueryClient()
   const toast = useToast()
   const navigate = useNavigate()
+  const isReferee = user?.role === 'REFEREE'
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({ equipo_local_id: '', equipo_visitante_id: '', jornada: 1 })
   const [resultOpen, setResultOpen] = useState(null)
@@ -351,23 +352,25 @@ export default function Partidos({ selectedTorneoId }) {
               >
                 Abrir planilla
               </Button>
-              <IconButton size="small" title="Editar resultado" onClick={() => { setResultOpen(p); setResultForm({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }) }}
-                sx={{ color: 'text.secondary', bgcolor: 'background.default', '&:hover': { color: 'primary.main' } }}>
-                <EditNoteIcon sx={{ fontSize: 19 }} />
-              </IconButton>
+              {!isReferee && (
+                <IconButton size="small" title="Editar resultado" onClick={() => { setResultOpen(p); setResultForm({ goles_local: p.goles_local, goles_visitante: p.goles_visitante }) }}
+                  sx={{ color: 'text.secondary', bgcolor: 'background.default', '&:hover': { color: 'primary.main' } }}>
+                  <EditNoteIcon sx={{ fontSize: 19 }} />
+                </IconButton>
+              )}
               <IconButton size="small" title="Ver eventos del partido" onClick={() => setEventosOpen(p)}
                 sx={{ color: 'text.secondary', bgcolor: 'background.default', '&:hover': { color: '#006591' } }}>
                 <SportsSoccerIcon sx={{ fontSize: 19 }} />
               </IconButton>
             </Box>
           ) : (
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, pl: 1.5, pt: 1.25, borderTop: '1px dashed', borderColor: 'divider' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: isReferee ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: 1, pl: 1.5, pt: 1.25, borderTop: '1px dashed', borderColor: 'divider' }}>
               {[
                 { key: 'planilla', label: 'Planilla', icon: AssignmentIcon, tone: 'primary', onClick: () => navigate(`/planilla?partido=${p.id}`) },
                 { key: 'marcador', label: 'Marcador', icon: ScoreboardIcon, tone: 'secondary', onClick: () => { if (window.confirm('¿Iniciar el marcador en vivo? Se abrirá la planilla del partido.')) liveMut.mutate(p.id) } },
                 { key: 'horario', label: 'Horario', icon: ScheduleIcon, tone: 'default', onClick: () => { setProgOpen(p); setProgForm({ fecha_programada: toLocalInput(p.fecha_programada) }) } },
                 { key: 'w', label: 'W (W/O)', icon: FlagIcon, tone: 'error', onClick: () => { setWOpen(p); setWForm({ bando: 'LOCAL' }) } },
-              ].map((b) => (
+              ].filter((b) => !isReferee || b.key === 'planilla' || b.key === 'marcador').map((b) => (
                 <Button
                   key={b.key}
                   onClick={b.onClick}
@@ -423,9 +426,15 @@ export default function Partidos({ selectedTorneoId }) {
               <CalendarTodayIcon sx={{ fontSize: 18, color: 'primary.main' }} />
               <Typography sx={{ fontWeight: 700, fontSize: 13 }}>{jornadas.length} jornadas</Typography>
             </Box>
-            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ textTransform: 'none', fontWeight: 700, height: 44, flex: { xs: '1 1 auto', md: '0 0 auto' } }}>
-              Nuevo partido
-            </Button>
+            {isReferee ? (
+              <Box sx={{ px: 1.5, py: 1, borderRadius: 1.5, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider' }}>
+                <Typography sx={{ fontWeight: 700, fontSize: 13, color: 'text.secondary' }}>Solo lectura · Anotaciones</Typography>
+              </Box>
+            ) : (
+              <Button variant="contained" startIcon={<AddIcon />} onClick={() => setOpen(true)} sx={{ textTransform: 'none', fontWeight: 700, height: 44, flex: { xs: '1 1 auto', md: '0 0 auto' } }}>
+                Nuevo partido
+              </Button>
+            )}
           </Box>
         </Box>
       </Box>

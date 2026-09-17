@@ -4,7 +4,7 @@ from app.services.equipo_service import EquipoService
 from app.services.torneo_service import TorneoService
 from app.schemas.equipo_schema import EquipoSchema
 from app.schemas.jugador_schema import JugadorSchema
-from app.routes._authz import get_current_user, ensure_torneo_organizador
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role
 
 equipo_bp = Blueprint('equipos', __name__)
 equipo_schema = EquipoSchema()
@@ -56,6 +56,8 @@ def create_equipo():
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     if torneo.estado not in ('CREADO', 'INSCRIPCIONES_ABIERTAS'):
         return jsonify({'error': 'Solo se pueden inscribir equipos con inscripciones abiertas'}), 400
     equipo, error = EquipoService.create(data)
@@ -73,6 +75,8 @@ def update_equipo(equipo_id):
         return jsonify({'error': 'Equipo no encontrado'}), 404
     if not ensure_torneo_organizador(user, equipo.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     equipo, error = EquipoService.update(equipo, data)
     if error:
@@ -88,6 +92,8 @@ def delete_equipo(equipo_id):
     if not equipo:
         return jsonify({'error': 'Equipo no encontrado'}), 404
     if not ensure_torneo_organizador(user, equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     EquipoService.delete(equipo)
     return jsonify({'message': 'Equipo eliminado'}), 200
@@ -119,6 +125,8 @@ def generar_link_inscripcion(equipo_id):
         return jsonify({'error': 'Equipo no encontrado'}), 404
     if not ensure_torneo_organizador(user, equipo.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     if not equipo.inscripcion_slug:
         from app.models.equipo import Equipo
         while True:
@@ -144,6 +152,8 @@ def importar_plantilla(equipo_id):
     if not equipo:
         return jsonify({'error': 'Equipo no encontrado'}), 404
     if not ensure_torneo_organizador(user, equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     torneo = equipo.torneo
     if not torneo.inscripciones_jugadores_abiertas and torneo.estado not in ('CREADO', 'INSCRIPCIONES_ABIERTAS'):

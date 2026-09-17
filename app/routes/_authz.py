@@ -42,3 +42,13 @@ def ensure_torneo_organizador(user, torneo):
     if user.role == 'SUPERADMIN':
         return True
     return user.organizador_id == torneo.organizador_id
+
+
+# Roles con capacidad de gestión (administran datos del tenant o el sistema).
+# REFEREE queda fuera: solo opera en la planilla / anotaciones del partido.
+MANAGEMENT_ROLES = ('SUPERADMIN', 'ORGANIZADOR', 'STAFF')
+
+
+def ensure_management_role(user):
+    """Verifica que el user tenga un rol de gestión (no REFEREE)."""
+    return bool(user) and user.role in MANAGEMENT_ROLES

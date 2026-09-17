@@ -3,7 +3,7 @@ from flask_jwt_extended import jwt_required
 from app.services.jugador_service import JugadorService
 from app.services.equipo_service import EquipoService
 from app.schemas.jugador_schema import JugadorSchema
-from app.routes._authz import get_current_user, ensure_torneo_organizador
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role
 from app.models.evento_partido import EventoPartido
 from app.models.jugador import Jugador
 from app.models.partido import Partido
@@ -57,6 +57,8 @@ def create_jugador():
         return jsonify({'error': 'Equipo no encontrado'}), 404
     if not ensure_torneo_organizador(user, equipo.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
 
     error = JugadorService.validar_inscripcion_jugador(equipo, data)
     if error:
@@ -77,6 +79,8 @@ def update_jugador(jugador_id):
         return jsonify({'error': 'Jugador no encontrado'}), 404
     if not ensure_torneo_organizador(user, jugador.equipo.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     jugador, error = JugadorService.update(jugador, data)
     if error:
@@ -92,6 +96,8 @@ def set_jugador_foto(jugador_id):
     if not jugador:
         return jsonify({'error': 'Jugador no encontrado'}), 404
     if not ensure_torneo_organizador(user, jugador.equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     foto = data.get('foto_url')
@@ -119,6 +125,8 @@ def liberar_jugador(jugador_id):
         return jsonify({'error': 'Jugador no encontrado'}), 404
     if not ensure_torneo_organizador(user, jugador.equipo.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     # Regla configurable: no dar de baja a quien ya disputó un partido
     reglas = reglas_normalizadas(jugador.equipo.torneo)
     if reglas.get('bloquear_baja_tras_jugar'):
@@ -142,6 +150,8 @@ def delete_jugador(jugador_id):
     if not jugador:
         return jsonify({'error': 'Jugador no encontrado'}), 404
     if not ensure_torneo_organizador(user, jugador.equipo.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     JugadorService.delete(jugador)
     return jsonify({'message': 'Jugador eliminado'}), 200

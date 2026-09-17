@@ -17,6 +17,7 @@ import Tabla from './pages/Tabla'
 import Estadisticas from './pages/Estadisticas'
 import SuperAdmin from './pages/SuperAdmin'
 import Config from './pages/Config'
+import Usuarios from './pages/Usuarios'
 
 export default function App({ setDarkMode }) {
   const navigate = useNavigate()
@@ -45,6 +46,8 @@ export default function App({ setDarkMode }) {
   }
 
   const isSuperadmin = user?.role === 'SUPERADMIN'
+  const isReferee = user?.role === 'REFEREE'
+  const canManageUsers = isSuperadmin || user?.role === 'ORGANIZADOR'
 
   // Cargar torneos (no para SUPERADMIN)
   const { data: torneos = [] } = useQuery({
@@ -111,17 +114,18 @@ export default function App({ setDarkMode }) {
           : <Navigate to="/" replace />
       } />
       <Route path="/torneos" element={layoutPages(<Torneos user={user} selectedTorneoId={activeTorneoId} onSelectTorneo={onSelectTorneo} />)} />
-      <Route path="/equipos" element={layoutPages(<Equipos user={user} selectedTorneoId={activeTorneoId} />)} />
+      <Route path="/equipos" element={layoutPages(isReferee ? <Navigate to="/" replace /> : <Equipos user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/partidos" element={layoutPages(<Partidos user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/sanciones" element={layoutPages(<Sanciones user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/planilla" element={layoutPages(<Planilla user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/tabla" element={layoutPages(<Tabla user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/estadisticas" element={layoutPages(<Estadisticas user={user} selectedTorneoId={activeTorneoId} />)} />
+      <Route path="/usuarios" element={layoutPages(canManageUsers ? <Usuarios user={user} /> : <Navigate to="/" replace />)} />
       <Route path="/config" element={layoutPages(<Config user={user} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />
-      <Route path="/landing" element={layoutPages(<LandingConfig user={user} />)} />
+      <Route path="/landing" element={layoutPages(isReferee ? <Navigate to="/" replace /> : <LandingConfig user={user} />)} />
       <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
       <Route path="/r/:slug" element={<RegistroJugador />} />
-      <Route path="/" element={layoutPages(<Dashboard user={user} selectedTorneoId={activeTorneoId} />)} />
+      <Route path="/" element={layoutPages(isReferee ? <Planilla user={user} selectedTorneoId={activeTorneoId} /> : <Dashboard user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

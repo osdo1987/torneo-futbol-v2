@@ -75,6 +75,14 @@ def run():
         manager.set_password('manager123')
         db.session.add(manager)
 
+        staff = User(email='staff@demo.com', password_hash='', role='STAFF', organizador_id=org.id)
+        staff.set_password('staff123')
+        db.session.add(staff)
+
+        referee = User(email='referee@demo.com', password_hash='', role='REFEREE', organizador_id=org.id)
+        referee.set_password('referee123')
+        db.session.add(referee)
+
         # Torneo 1 - EN_JUEGO
         t1 = Torneo(
             organizador_id=org.id, nombre='Copa Osdosoft 2026', estado='EN_JUEGO',
@@ -147,6 +155,8 @@ def run():
         print('Seed completado correctamente.')
         print('  SUPERADMIN: superadmin@demo.com / super1234')
         print('  ORGANIZADOR: manager@demo.com / manager123')
+        print('  STAFF: staff@demo.com / staff123')
+        print('  REFEREE: referee@demo.com / referee123')
 
 
 if __name__ == '__main__':

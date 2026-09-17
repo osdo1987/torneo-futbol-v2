@@ -6,7 +6,7 @@ from app.schemas.partido_schema import PartidoSchema
 from app.models.partido_alineacion import PartidoAlineacion
 from app.models.jugador import Jugador
 from app.extensions import db
-from app.routes._authz import get_current_user, ensure_torneo_organizador
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role
 
 partido_bp = Blueprint('partidos', __name__)
 partido_schema = PartidoSchema()
@@ -54,6 +54,8 @@ def create_partido():
         return jsonify({'error': 'Torneo no encontrado'}), 404
     if not ensure_torneo_organizador(user, torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     partido, error = PartidoService.create(data)
     if error:
         return jsonify({'error': error}), 400
@@ -68,6 +70,8 @@ def programar_partido(partido_id):
     if not partido:
         return jsonify({'error': 'Partido no encontrado'}), 404
     if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     partido, error = PartidoService.schedule(partido, data.get('fecha_programada'))
@@ -84,6 +88,8 @@ def aplazar_partido(partido_id):
     if not partido:
         return jsonify({'error': 'Partido no encontrado'}), 404
     if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     partido, error = PartidoService.aplazar(partido)
     if error:

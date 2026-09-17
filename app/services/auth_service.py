@@ -4,6 +4,10 @@ from app.models.user import User
 from app.models.organizador import Organizador
 from datetime import timedelta, datetime
 
+# Roles que puede asignar un gestor (SUPERADMIN / ORGANIZADOR) al crear o
+# cambiar el rol de un usuario. SUPERADMIN nunca se asigna por esta vía.
+ASSIGNABLE_ROLES = ('ORGANIZADOR', 'STAFF', 'REFEREE')
+
 
 class AuthService:
     @staticmethod
@@ -87,3 +91,124 @@ class AuthService:
         db.session.add(user)
         db.session.commit()
         return {'success': True, 'user': user.id}, 201
+
+    # ------------------------------------------------------------------
+    # Gestión de usuarios y roles (SUPERADMIN / ORGANIZADOR)
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _can_manage(actor, target):
+        """¿Puede el actor operar sobre target (cambiar rol, clave, eliminar)?"""
+        if actor.role == 'SUPERADMIN':
+            return True
+        if actor.role == 'ORGANIZADOR':
+            return target.role != 'SUPERADMIN' and target.organizador_id == actor.organizador_id
+        return False
+
+    @staticmethod
+    def _user_dict(u):
+        return {
+            'id': u.id,
+            'email': u.email,
+            'role': u.role,
+            'organizador_id': u.organizador_id,
+            'organizador_name': u.organizador.name if u.organizador else None,
+            'created_at': u.created_at,
+            'updated_at': u.updated_at,
+            'last_login': u.last_login,
+        }
+
+    @staticmethod
+    def list_users(actor):
+        """Lista los usuarios. SUPERADMIN ve todos; ORGANIZADOR los de su tenant."""
+        if actor.role == 'SUPERADMIN':
+            users = User.query.order_by(User.email).all()
+        else:
+            users = User.query.filter_by(organizador_id=actor.organizador_id).order_by(User.email).all()
+        return [AuthService._user_dict(u) for u in users]
+
+    @staticmethod
+    def create_user(actor, data):
+        """Crea un usuario con rol ORGANIZADOR/STAFF/REFEREE dentro del tenant."""
+        email = (data.get('email') or '').strip().lower()
+        password = data.get('password') or ''
+        role = (data.get('role') or 'STAFF').upper()
+        organizador_id = data.get('organizador_id')
+
+        if not email or not password:
+            return {'error': 'email y password son requeridos'}, 400
+        if len(password) < 6:
+            return {'error': 'La contraseña debe tener al menos 6 caracteres'}, 400
+        if role not in ASSIGNABLE_ROLES:
+            return {'error': f'Rol inválido. Válidos: {", ".join(ASSIGNABLE_ROLES)}'}, 400
+        if User.query.filter_by(email=email).first():
+            return {'error': 'El correo ya está en uso'}, 400
+
+        if actor.role == 'ORGANIZADOR':
+            organizador_id = actor.organizador_id
+        else:
+            # SUPERADMIN: exige indicar el tenant destino.
+            if not organizador_id or not Organizador.query.get(organizador_id):
+                return {'error': 'organizador_id es requerido'}, 400
+
+        user = User(
+            email=email,
+            password_hash='',
+            role=role,
+            organizador_id=organizador_id,
+        )
+        user.set_password(password)
+        db.session.add(user)
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return {'error': str(e)}, 400
+        return {'success': True, 'user': AuthService._user_dict(user)}, 201
+
+    @staticmethod
+    def update_role(actor, user_id, role):
+        role = (role or '').upper()
+        if role not in ASSIGNABLE_ROLES:
+            return {'error': f'Rol inválido. Válidos: {", ".join(ASSIGNABLE_ROLES)}'}, 400
+        user = User.query.get(user_id)
+        if not user:
+            return {'error': 'Usuario no encontrado'}, 404
+        if not AuthService._can_manage(actor, user):
+            return {'error': 'No autorizado'}, 403
+        if user.id == actor.id:
+            return {'error': 'No puedes cambiar tu propio rol'}, 400
+        user.role = role
+        db.session.commit()
+        return {'success': True, 'user': AuthService._user_dict(user)}, 200
+
+    @staticmethod
+    def reset_password(actor, user_id, password):
+        user = User.query.get(user_id)
+        if not user:
+            return {'error': 'Usuario no encontrado'}, 404
+        if not AuthService._can_manage(actor, user):
+            return {'error': 'No autorizado'}, 403
+        if not password or len(password) < 6:
+            return {'error': 'La contraseña debe tener al menos 6 caracteres'}, 400
+        user.set_password(password)
+        db.session.commit()
+        return {'success': True}, 200
+
+    @staticmethod
+    def delete_user(actor, user_id):
+        user = User.query.get(user_id)
+        if not user:
+            return {'error': 'Usuario no encontrado'}, 404
+        if not AuthService._can_manage(actor, user):
+            return {'error': 'No autorizado'}, 403
+        if user.id == actor.id:
+            return {'error': 'No puedes eliminar tu propia cuenta'}, 400
+        if user.role == 'ORGANIZADOR' and user.organizador_id:
+            restantes = User.query.filter_by(
+                organizador_id=user.organizador_id, role='ORGANIZADOR'
+            ).count()
+            if restantes <= 1:
+                return {'error': 'No puedes eliminar el último usuario ORGANIZADOR de este tenant'}, 400
+        db.session.delete(user)
+        db.session.commit()
+        return {'success': True}, 200

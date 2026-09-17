@@ -40,13 +40,14 @@ El sistema de **autenticación y roles** define **quién eres** y **qué puedes 
 - **Autenticación**: login con email + contraseña → se emite un **token JWT** válido por 24 horas.
 - **Autorización**: cada petición valida el token y comprueba el **rol** del usuario para permitir o denegar la acción.
 
-### 2.2. Los 3 roles
+### 2.2. Los 4 roles
 
 | Rol | Alcance | Puede hacer |
 |---|---|---|
-| **SUPERADMIN** | Toda la plataforma | Gestionar organizadores (crear/editar/eliminar), ver todos los torneos, gestionar torneos de cualquier organizador, configurar landings |
-| **ORGANIZADOR** | Su propio tenant | Gestionar sus torneos, equipos, jugadores, partidos, estadísticas y su landing. Crear usuarios STAFF dentro de su organizador |
-| **STAFF** | Su propio tenant (limitado) | Colaborar dentro de un organizador: registrar partidos, eventos y resultados (backend). El rol no tiene pantalla propia diferenciada en el frontend actual |
+| **SUPERADMIN** | Toda la plataforma | Gestionar organizadores (crear/editar/eliminar), ver todos los torneos, gestionar torneos de cualquier organizador, configurar landings y gestionar usuarios de cualquier tenant |
+| **ORGANIZADOR** | Su propio tenant | Gestionar sus torneos, equipos, jugadores, partidos, estadísticas y su landing. Gestionar los usuarios y roles de su tenant desde la sección **Usuarios** (crear, cambiar rol, restablecer contraseña, eliminar) |
+| **STAFF** | Su propio tenant | Colaborar dentro de un organizador: registrar partidos, eventos y resultados. Acceso de gestión completo al tenant |
+| **REFEREE** | Su propio tenant (solo planilla) | Árbitro: opera únicamente en la **planilla de juego** (anotaciones de goles, tarjetas, cambios, cronómetro y finalización del partido). No gestiona torneos, equipos, jugadores ni usuarios |
 
 ### 2.3. Cómo se aplica en la práctica
 
@@ -62,6 +63,8 @@ El sistema de **autenticación y roles** define **quién eres** y **qué puedes 
 |---|---|---|
 | `superadmin@demo.com` | `super1234` | SUPERADMIN |
 | `manager@demo.com` | `manager123` | ORGANIZADOR (Liga Osdosoft FC) |
+| `staff@demo.com` | `staff123` | STAFF (Liga Osdosoft FC) |
+| `referee@demo.com` | `referee123` | REFEREE (Liga Osdosoft FC) |
 
 ---
 
@@ -90,8 +93,8 @@ Solo el **SUPERADMIN** puede **crear, editar y eliminar** organizadores (endpoin
 ### 3.4. Relación organizador ↔ usuario
 
 - Al **crear un organizador** se crea automáticamente su usuario **ORGANIZADOR** (login propio con su email y contraseña).
-- El **ORGANIZADOR** puede crear usuarios **STAFF** dentro de su tenant.
-- Cada usuario (ORGANIZADOR o STAFF) tiene `organizador_id` → pertenece a un único organizador.
+- El **ORGANIZADOR** (y el **SUPERADMIN**) gestionan los usuarios del tenant desde la sección **Usuarios**: crean cuentas con rol `ORGANIZADOR` (co-admin), `STAFF` o `REFEREE`, cambian roles, restablecen contraseñas y eliminan accesos (`/api/auth/users*`).
+- Cada usuario (ORGANIZADOR, STAFF o REFEREE) tiene `organizador_id` → pertenece a un único organizador.
 
 ### 3.5. Aislamiento de datos
 
@@ -147,5 +150,5 @@ En la landing pública de cada organizador (`/l/{slug}`), que no requiere login.
 
 - Nuevas funcionalidades sobre *permisos* se agregan en `app/routes/_authz.py` y con decoradores `@require_roles`.
 - Nuevos *tipos de tenant* o campos del organizador: modelos en `app/models/organizador.py` + migración Alembic.
-- El rol `STAFF` está soportado en backend pero aún sin UI diferenciada; es un punto candidato para desarrollo.
+- La gestión de usuarios y roles vive en `app/services/auth_service.py` y `app/routes/auth_routes.py` (`/api/auth/users*`), con pantalla en `frontend/src/pages/Usuarios.jsx`. La distinción de rol REFEREE se apoya en `ensure_management_role()` (`app/routes/_authz.py`): bloquea las escrituras organizacionales (equipos/jugadores/fases/torneos/crear-programar-aplazar partidos) y deja la planilla y los eventos al alcance del árbitro.
 - El flujo de **reset de contraseña** tiene los campos en el modelo `User` (`reset_token`, `reset_token_expiry`) pero no tiene endpoints ni pantalla: también es candidato.
