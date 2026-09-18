@@ -64,7 +64,7 @@ const fmtFecha = (iso) => {
 const initials = (name) => String(name || '?')
   .split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase()
 
-export default function Usuarios({ user, selectedTorneoId }) {
+export default function Usuarios({ user, selectedTorneoId, embedded = false }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isSuper = user?.role === 'SUPERADMIN'
@@ -178,16 +178,35 @@ export default function Usuarios({ user, selectedTorneoId }) {
 
   return (
     <Box>
-      <PageHeader
-        overline="Accesos y permisos"
-        title="Usuarios"
-        subtitle="Gestiona los usuarios y roles del organizador: crea cuentas de staff, árbitros o co-organizadores, cambia roles, restablece contraseñas y elimina accesos."
-        actions={
+      {embedded ? (
+        <Box sx={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap', mb: 2 }}>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="labelSm" sx={{ textTransform: 'uppercase', color: 'primary.main' }}>
+              Accesos y permisos
+            </Typography>
+            <Typography variant="h5" sx={{ fontWeight: 800, letterSpacing: '-0.01em', mt: 0.25 }}>
+              Usuarios
+            </Typography>
+            <Typography variant="body2" sx={{ color: 'onSurfaceVariant', mt: 0.5 }}>
+              Gestiona los usuarios y roles del organizador: crea cuentas de staff, árbitros o co-organizadores, cambia roles, restablece contraseñas y elimina accesos.
+            </Typography>
+          </Box>
           <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
             Nuevo usuario
           </Button>
-        }
-      />
+        </Box>
+      ) : (
+        <PageHeader
+          overline="Accesos y permisos"
+          title="Usuarios"
+          subtitle="Gestiona los usuarios y roles del organizador: crea cuentas de staff, árbitros o co-organizadores, cambia roles, restablece contraseñas y elimina accesos."
+          actions={
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setCreateOpen(true)}>
+              Nuevo usuario
+            </Button>
+          }
+        />
+      )}
 
       <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)' }}>
         <CardContent sx={{ p: 0 }}>

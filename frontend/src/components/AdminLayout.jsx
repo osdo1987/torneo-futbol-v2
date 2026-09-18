@@ -38,7 +38,6 @@ import {
   ExpandMore as ExpandMoreIcon,
   EditCalendar as EditCalendarIcon,
   Stadium as StadiumIcon,
-  ManageAccounts as ManageAccountsIcon,
 } from '@mui/icons-material'
 
 // Layout del design system "Torneo Pro · Athletic Suite" (layout-test/dashboard.html)
@@ -113,7 +112,6 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
     if (isSuperadmin) {
       return [
         { path: '/super', label: 'Organizadores', icon: <StorefrontIcon /> },
-        { path: '/usuarios', label: 'Usuarios', icon: <ManageAccountsIcon /> },
         { path: '/config', label: 'Configuración', icon: <SettingsIcon /> },
       ]
     }
@@ -134,9 +132,6 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       ]
     }
     const items = [{ path: '/', label: 'Dashboard', icon: <DashboardIcon /> }]
-    if (user?.role === 'ORGANIZADOR' || user?.role === 'ADMIN') {
-      items.push({ path: '/usuarios', label: 'Usuarios', icon: <ManageAccountsIcon /> })
-    }
     items.push(
       { path: '/torneos', label: 'Torneos', icon: <EmojiEventsIcon /> },
       { path: '/equipos', label: 'Equipos', icon: <GroupIcon /> },
@@ -147,15 +142,13 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
     )
     return items
-  }, [isSuperadmin, isReferee, isDelegado, user?.role])
+  }, [isSuperadmin, isReferee, isDelegado])
 
   const secondaryItems = isSuperadmin || isReferee || isDelegado
     ? []
     : [
         { path: '/landing', label: 'Landing pública', icon: <PublicIcon /> },
-        ...(user?.role === 'ADMIN'
-          ? []
-          : [{ path: '/config', label: 'Configuración', icon: <SettingsIcon /> }]),
+        { path: '/config', label: 'Configuración', icon: <SettingsIcon /> },
       ]
 
   const renderNavItem = (item) => {

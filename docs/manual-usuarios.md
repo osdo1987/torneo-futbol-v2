@@ -45,8 +45,8 @@ El sistema de **autenticación y roles** define **quién eres** y **qué puedes 
 | Rol | Alcance | Puede hacer |
 |---|---|---|
 | **SUPERADMIN** | Toda la plataforma | Gestionar organizadores (crear/editar/eliminar), ver todos los torneos, gestionar torneos de cualquier organizador, configurar landings y gestionar usuarios de cualquier tenant |
-| **ORGANIZADOR** | Su propio tenant (dueño) | Todo el manejo del tenant: torneos, equipos, jugadores, partidos, planilla, estadísticas, landing y la gestión de usuarios y roles desde **Usuarios** (crear/cambiar rol/restablecer clave/eliminar) |
-| **ADMIN** | Su propio tenant (co-gestor) | Igual manejo de datos que ORGANIZADOR, más la gestión de usuarios **STAFF / Árbitro / Delegado**. No puede crear ni tocar cuentas ORGANIZADOR, otros ADMIN ni SUPERADMIN |
+| **ORGANIZADOR** | Su propio tenant (dueño) | Todo el manejo del tenant: torneos, equipos, jugadores, partidos, planilla, estadísticas, landing y la gestión de usuarios y roles desde **Configuración → Usuarios** (crear/cambiar rol/restablecer clave/eliminar) |
+| **ADMIN** | Su propio tenant (co-gestor) | Igual manejo de datos que ORGANIZADOR, más la gestión de usuarios **STAFF / Árbitro / Delegado** desde **Configuración → Usuarios**. No puede crear ni tocar cuentas ORGANIZADOR, otros ADMIN ni SUPERADMIN |
 | **STAFF** | Su propio tenant | Colaborador con gestión completa de datos (sin gestión de usuarios) |
 | **REFEREE** | Su propio tenant (solo planilla) | Árbitro: opera únicamente en la **planilla de juego** (anotaciones de goles, tarjetas, cambios, cronómetro y finalización del partido) |
 | **DELEGADO** | Su propio equipo | Mesero: carga la **alineación** (convocatoria, titulares, números) de los partidos de su equipo. Ve sus partidos, posiciones y estadísticas. No anota ni homologuea |
@@ -97,9 +97,9 @@ Solo el **SUPERADMIN** puede **crear, editar y eliminar** organizadores (endpoin
 ### 3.4. Relación organizador ↔ usuario
 
 - Al **crear un organizador** se crea automáticamente su usuario **ORGANIZADOR** (login propio con su email y contraseña).
-- El **ORGANIZADOR** (y el **SUPERADMIN**) gestionan los usuarios del tenant desde la sección **Usuarios**: crean cuentas con rol `ORGANIZADOR` (co-dueños), `ADMIN`, `STAFF`, `REFEREE` o `DELEGADO`, cambian roles, restablecen contraseñas y eliminan accesos (`/api/auth/users*`).
+- El **ORGANIZADOR** (y el **SUPERADMIN**) gestionan los usuarios del tenant desde **Configuración → Usuarios**: crean cuentas con rol `ORGANIZADOR` (co-dueños), `ADMIN`, `STAFF`, `REFEREE` o `DELEGADO`, cambian roles, restablecen contraseñas y eliminan accesos (`/api/auth/users*`).
 - El **ADMIN** gestiona solo STAFF / Árbitro / Delegado; no puede tocar cuentas de Organizador, otros Admin ni Super Admin.
-- Crear un **DELEGADO** exige asignarle su `equipo_id` (se elige en la pantalla Usuarios).
+- Crear un **DELEGADO** exige asignarle su `equipo_id` (se elige en la sección Usuarios de Configuración).
 - Cada usuario (ORGANIZADOR, ADMIN, STAFF, REFEREE o DELEGADO) tiene `organizador_id` → pertenece a un único organizador.
 
 ### 3.5. Aislamiento de datos
@@ -156,7 +156,7 @@ En la landing pública de cada organizador (`/l/{slug}`), que no requiere login.
 
 - Nuevas funcionalidades sobre *permisos* se agregan en `app/routes/_authz.py` y con decoradores `@require_roles`.
 - Nuevos *tipos de tenant* o campos del organizador: modelos en `app/models/organizador.py` + migración Alembic.
-- La gestión de usuarios y roles vive en `app/services/auth_service.py` y `app/routes/auth_routes.py` (`/api/auth/users*`), con pantalla en `frontend/src/pages/Usuarios.jsx`.
+- La gestión de usuarios y roles vive en `app/services/auth_service.py` y `app/routes/auth_routes.py` (`/api/auth/users*`); la UI está en `frontend/src/pages/Usuarios.jsx`, embebida como sección de `frontend/src/pages/Config.jsx` (ruta única `/config`; `/usuarios` redirige ahí).
 - La jerarquía de permisos se apoya en `app/routes/_authz.py`: `MANAGEMENT_ROLES` (SUPERADMIN, ORGANIZADOR, ADMIN, STAFF) gobierna las escrituras organizacionales; `ensure_planilla_role()` permite anotar a REFEREE y gestión; `ensure_delegado_equipo()` limita las alineaciones al equipo del DELEGADO (`users.equipo_id`).
 - El rol ADMIN se define por restricciones en `AuthService` (`ADMIN_MANAGEABLE_ROLES` = STAFF/REFEREE/DELEGADO) y por frontend (`Usuarios.jsx` limita sus selecciones). El DELEGADO edita su alineación desde `frontend/src/pages/MiEquipo.jsx`.
 - El flujo de **reset de contraseña** tiene los campos en el modelo `User` (`reset_token`, `reset_token_expiry`) pero no tiene endpoints ni pantalla: también es candidato.
