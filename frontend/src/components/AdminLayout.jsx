@@ -23,6 +23,7 @@ import {
   Dashboard as DashboardIcon,
   EmojiEvents as EmojiEventsIcon,
   Group as GroupIcon,
+  Groups as GroupsIcon,
   SportsSoccer as SportsSoccerIcon,
   TableChart as TableChartIcon,
   Leaderboard as LeaderboardIcon,
@@ -104,6 +105,7 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
 
   const isSuperadmin = user?.role === 'SUPERADMIN'
   const isReferee = user?.role === 'REFEREE'
+  const isDelegado = user?.role === 'DELEGADO'
   const initial = (user?.email || '?').charAt(0).toUpperCase()
   const torneoActivo = torneos.find((t) => String(t.id) === String(selectedTorneoId)) || torneos[0]
 
@@ -124,8 +126,15 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
         { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
       ]
     }
+    if (isDelegado) {
+      return [
+        { path: '/mi-equipo', label: 'Mi equipo', icon: <GroupsIcon /> },
+        { path: '/tabla', label: 'Posiciones', icon: <TableChartIcon /> },
+        { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
+      ]
+    }
     const items = [{ path: '/', label: 'Dashboard', icon: <DashboardIcon /> }]
-    if (user?.role === 'ORGANIZADOR') {
+    if (user?.role === 'ORGANIZADOR' || user?.role === 'ADMIN') {
       items.push({ path: '/usuarios', label: 'Usuarios', icon: <ManageAccountsIcon /> })
     }
     items.push(
@@ -138,13 +147,15 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
     )
     return items
-  }, [isSuperadmin, isReferee, user?.role])
+  }, [isSuperadmin, isReferee, isDelegado, user?.role])
 
-  const secondaryItems = isSuperadmin || isReferee
+  const secondaryItems = isSuperadmin || isReferee || isDelegado
     ? []
     : [
         { path: '/landing', label: 'Landing pública', icon: <PublicIcon /> },
-        { path: '/config', label: 'Configuración', icon: <SettingsIcon /> },
+        ...(user?.role === 'ADMIN'
+          ? []
+          : [{ path: '/config', label: 'Configuración', icon: <SettingsIcon /> }]),
       ]
 
   const renderNavItem = (item) => {
@@ -284,7 +295,7 @@ const nav = (
                 {user?.nombre || user?.email || 'Usuario'}
               </Typography>
               <Typography noWrap sx={{ fontSize: '0.75rem', lineHeight: '1rem', color: 'onSurfaceVariant' }}>
-                {user?.organizadorName || (isReferee ? 'Árbitro' : isSuperadmin ? 'Super Admin' : 'Organizador')}
+                {user?.organizadorName || (isReferee ? 'Árbitro' : isDelegado ? 'Delegado' : isSuperadmin ? 'Super Admin' : user?.role === 'ADMIN' ? 'Administrador' : 'Organizador')}
               </Typography>
             </Box>
           </Box>
@@ -443,7 +454,7 @@ const nav = (
 
             <Box sx={{ flex: 1 }} />
 
-            {!isSuperadmin && !isReferee && (
+            {!isSuperadmin && !isReferee && !isDelegado && (
               <>
                 <Button
                   component={Link}

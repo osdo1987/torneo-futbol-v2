@@ -6,7 +6,7 @@ from app.schemas.partido_schema import PartidoSchema
 from app.models.partido_alineacion import PartidoAlineacion
 from app.models.jugador import Jugador
 from app.extensions import db
-from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role, ensure_delegado_equipo
 
 partido_bp = Blueprint('partidos', __name__)
 partido_schema = PartidoSchema()
@@ -176,6 +176,8 @@ def upsert_alineacion(partido_id):
     jugador = Jugador.query.get(jugador_id)
     if not jugador:
         return jsonify({'error': 'Jugador no encontrado'}), 404
+    if not ensure_delegado_equipo(user, jugador.equipo_id):
+        return jsonify({'error': 'No autorizado'}), 403
     if jugador.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
         return jsonify({'error': 'El jugador no pertenece a ninguno de los equipos del partido'}), 400
     if not jugador.activo:
@@ -232,6 +234,8 @@ def delete_alineacion(partido_id, jugador_id):
     item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
     if not item:
         return jsonify({'error': 'El jugador no está en la alineación'}), 404
+    if not ensure_delegado_equipo(user, item.equipo_id):
+        return jsonify({'error': 'No autorizado'}), 403
     db.session.delete(item)
     db.session.commit()
     return jsonify({'message': 'Jugador removido de la alineación'}), 200
@@ -254,6 +258,8 @@ def guardar_orden_alineacion(partido_id):
     if not isinstance(items, list):
         return jsonify({'error': 'items es requerido'}), 400
     equipo_id = data.get('equipo_id')
+    if not ensure_delegado_equipo(user, equipo_id):
+        return jsonify({'error': 'No autorizado'}), 403
     posiciones = {'POR', 'DEF', 'MED', 'DEL', 'OTROS'}
     for it in items:
         jugador_id = it.get('jugador_id')

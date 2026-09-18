@@ -46,9 +46,27 @@ def ensure_torneo_organizador(user, torneo):
 
 # Roles con capacidad de gestión (administran datos del tenant o el sistema).
 # REFEREE queda fuera: solo opera en la planilla / anotaciones del partido.
-MANAGEMENT_ROLES = ('SUPERADMIN', 'ORGANIZADOR', 'STAFF')
+# DELEGADO queda fuera: solo gestiona la alineación de su equipo.
+MANAGEMENT_ROLES = ('SUPERADMIN', 'ORGANIZADOR', 'ADMIN', 'STAFF')
 
 
 def ensure_management_role(user):
-    """Verifica que el user tenga un rol de gestión (no REFEREE)."""
+    """Verifica que el user tenga un rol de gestión (no REFEREE ni DELEGADO)."""
     return bool(user) and user.role in MANAGEMENT_ROLES
+
+
+# Roles que puede operar en la planilla de juego (anotaciones y alineaciones).
+# REFEREE anota y finaliza; los roles de gestión también; DELEGADO NO.
+PLANILLA_ROLES = MANAGEMENT_ROLES + ('REFEREE',)
+
+
+def ensure_planilla_role(user):
+    """Verifica que el user pueda operar la planilla (anotaciones)."""
+    return bool(user) and user.role in PLANILLA_ROLES
+
+
+def ensure_delegado_equipo(user, equipo_id):
+    """Si el user es DELEGADO, exige que equipo_id sea el de su equipo. Otros roles pasan."""
+    if user.role != 'DELEGADO':
+        return True
+    return bool(user.equipo_id) and user.equipo_id == equipo_id

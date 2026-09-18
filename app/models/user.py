@@ -3,17 +3,23 @@ from datetime import datetime
 
 
 class User(db.Model):
-    """Usuario del sistema. Roles: SUPERADMIN, ORGANIZADOR, STAFF, REFEREE."""
+    """Usuario del sistema.
+    Roles: SUPERADMIN (plataforma), y por tenant: ORGANIZADOR (dueño),
+    ADMIN (co-gestor), STAFF (colaborador), REFEREE (planilla), DELEGADO (su equipo).
+    """
     __tablename__ = 'users'
 
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(128), nullable=False)
     role = db.Column(db.String(20), nullable=False, default='ORGANIZADOR')
-    # SUPERADMIN, ORGANIZADOR or STAFF
 
-    # ORGANIZADOR y STAFF pertenecen a un organizador (tenant).
+    # ORGANIZADOR, ADMIN, STAFF, REFEREE y DELEGADO pertenecen a un organizador (tenant).
     organizador_id = db.Column(db.Integer, db.ForeignKey('organizadores.id'), nullable=True)
+
+    # DELEGADO: equipo que gestiona (alineaciones). Vacío para el resto de roles.
+    equipo_id = db.Column(db.Integer, db.ForeignKey('equipos.id'), nullable=True)
+    equipo = db.relationship('Equipo', foreign_keys=[equipo_id])
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

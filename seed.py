@@ -79,9 +79,15 @@ def run():
         staff.set_password('staff123')
         db.session.add(staff)
 
+        admin = User(email='admin@demo.com', password_hash='', role='ADMIN', organizador_id=org.id)
+        admin.set_password('admin123')
+        db.session.add(admin)
+
         referee = User(email='referee@demo.com', password_hash='', role='REFEREE', organizador_id=org.id)
         referee.set_password('referee123')
         db.session.add(referee)
+
+        delegado = None  # se completa al crear los equipos del torneo 1 (ver abajo)
 
         # Torneo 1 - EN_JUEGO
         t1 = Torneo(
@@ -105,6 +111,11 @@ def run():
             db.session.add(eq)
             db.session.flush()
             if nombre == 'Leones':
+                if delegado is None:
+                    delegado = User(email='delegado@demo.com', password_hash='', role='DELEGADO',
+                                    organizador_id=org.id, equipo_id=eq.id)
+                    delegado.set_password('delegado123')
+                    db.session.add(delegado)
                 jugadores_demo = [
                     {'nombre': 'Carlos Rivas', 'numero_camiseta': 1, 'documento_identidad': 'DOC-1',
                      'posicion': 'ARQUERO', 'fecha_nacimiento': date(1998, 3, 15),
@@ -143,6 +154,10 @@ def run():
         db.session.add(Partido(torneo_id=t1.id, fase_id=fase1.id,
                                 equipo_local_id=equipos_t1[1].id, equipo_visitante_id=equipos_t1[2].id,
                                 jornada=2, fecha_programada=datetime.utcnow() + timedelta(days=2)))
+        # Partido pendiente del equipo del DELEGADO (Leones) para gestionar su alineación.
+        db.session.add(Partido(torneo_id=t1.id, fase_id=fase1.id,
+                                equipo_local_id=equipos_t1[0].id, equipo_visitante_id=equipos_t1[3].id,
+                                jornada=2, fecha_programada=datetime.utcnow() + timedelta(days=5)))
 
         # Torneo 2 - INSCRIPCIONES_ABIERTAS
         t2 = Torneo(
@@ -155,8 +170,10 @@ def run():
         print('Seed completado correctamente.')
         print('  SUPERADMIN: superadmin@demo.com / super1234')
         print('  ORGANIZADOR: manager@demo.com / manager123')
+        print('  ADMIN: admin@demo.com / admin123')
         print('  STAFF: staff@demo.com / staff123')
         print('  REFEREE: referee@demo.com / referee123')
+        print('  DELEGADO: delegado@demo.com / delegado123')
 
 
 if __name__ == '__main__':

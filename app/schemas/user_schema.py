@@ -12,8 +12,9 @@ class UserSchema(ma.SQLAlchemyAutoSchema):
 
     id = fields.Int(dump_only=True)
     email = fields.Email(required=True, validate=validate.Email())
-    role = fields.String(required=True, validate=validate.OneOf(['SUPERADMIN', 'ORGANIZADOR', 'STAFF', 'REFEREE']))
+    role = fields.String(required=True, validate=validate.OneOf(['SUPERADMIN', 'ORGANIZADOR', 'ADMIN', 'STAFF', 'REFEREE', 'DELEGADO']))
     organizador_id = fields.Int(allow_none=True)
+    equipo_id = fields.Int(allow_none=True)
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)
 

@@ -66,17 +66,17 @@ def get_current_user_route():
 
 @auth_bp.route('/users', methods=['GET'])
 @jwt_required()
-@require_roles('SUPERADMIN', 'ORGANIZADOR')
+@require_roles('SUPERADMIN', 'ORGANIZADOR', 'ADMIN')
 def list_users(user):
-    """Lista los usuarios. SUPERADMIN ve todos; ORGANIZADOR los de su tenant."""
+    """Lista los usuarios. SUPERADMIN ve todos; los del tenant solo los suyos."""
     return jsonify(AuthService.list_users(user)), 200
 
 
 @auth_bp.route('/users', methods=['POST'])
 @jwt_required()
-@require_roles('SUPERADMIN', 'ORGANIZADOR')
+@require_roles('SUPERADMIN', 'ORGANIZADOR', 'ADMIN')
 def create_user(user):
-    """Crea un usuario ORGANIZADOR/STAFF/REFEREE dentro del tenant."""
+    """Crea un usuario dentro del tenant según el alcance del rol (ADMIN solo STAFF/REFEREE/DELEGADO)."""
     data = request.get_json() or {}
     result, status = AuthService.create_user(user, data)
     return jsonify(result), status
@@ -84,17 +84,17 @@ def create_user(user):
 
 @auth_bp.route('/users/<int:user_id>/role', methods=['PUT'])
 @jwt_required()
-@require_roles('SUPERADMIN', 'ORGANIZADOR')
+@require_roles('SUPERADMIN', 'ORGANIZADOR', 'ADMIN')
 def change_user_role(user, user_id):
-    """Cambia el rol de un usuario del tenant."""
+    """Cambia el rol de un usuario del tenant (DELEGADO requiere equipo_id)."""
     data = request.get_json() or {}
-    result, status = AuthService.update_role(user, user_id, data.get('role'))
+    result, status = AuthService.update_role(user, user_id, data.get('role'), data.get('equipo_id'))
     return jsonify(result), status
 
 
 @auth_bp.route('/users/<int:user_id>/password', methods=['PUT'])
 @jwt_required()
-@require_roles('SUPERADMIN', 'ORGANIZADOR')
+@require_roles('SUPERADMIN', 'ORGANIZADOR', 'ADMIN')
 def reset_user_password(user, user_id):
     """Restablece la contraseña de un usuario."""
     data = request.get_json() or {}
@@ -104,7 +104,7 @@ def reset_user_password(user, user_id):
 
 @auth_bp.route('/users/<int:user_id>', methods=['DELETE'])
 @jwt_required()
-@require_roles('SUPERADMIN', 'ORGANIZADOR')
+@require_roles('SUPERADMIN', 'ORGANIZADOR', 'ADMIN')
 def delete_user(user, user_id):
     """Elimina un usuario del tenant."""
     result, status = AuthService.delete_user(user, user_id)

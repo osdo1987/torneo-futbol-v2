@@ -46,7 +46,7 @@ def get_torneo(torneo_id):
 
 @torneo_bp.route('', methods=['POST'])
 @jwt_required()
-@require_roles('SUPERADMIN', 'ORGANIZADOR')
+@require_roles('SUPERADMIN', 'ORGANIZADOR', 'ADMIN')
 def create_torneo(user):
     data = request.get_json() or {}
     # Forzar que el torneo pertenezca al organizador del usuario (salvo SUPERADMIN).

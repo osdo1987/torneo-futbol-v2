@@ -5,7 +5,7 @@ from app.models.evento_partido import EventoPartido
 from app.models.partido import Partido
 from app.models.jugador import Jugador
 from app.schemas.evento_schema import EventoSchema
-from app.routes._authz import get_current_user, ensure_torneo_organizador
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_planilla_role
 
 evento_bp = Blueprint('eventos', __name__)
 evento_schema = EventoSchema()
@@ -39,6 +39,8 @@ def create_evento():
     if not partido:
         return jsonify({'error': 'Partido no encontrado'}), 404
     if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_planilla_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     if partido.resultado != 'PENDIENTE':
         return jsonify({'error': 'No se pueden registrar eventos de un partido finalizado'}), 400
@@ -82,6 +84,8 @@ def delete_evento(evento_id):
     if not evento:
         return jsonify({'error': 'Evento no encontrado'}), 404
     if not ensure_torneo_organizador(user, evento.partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_planilla_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     db.session.delete(evento)
     db.session.commit()

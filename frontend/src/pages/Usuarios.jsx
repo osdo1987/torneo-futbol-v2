@@ -42,11 +42,15 @@ import { useToast } from '../components/Toast'
 const ROLE_META = {
   SUPERADMIN: { label: 'Super Admin', color: 'error' },
   ORGANIZADOR: { label: 'Organizador', color: 'primary' },
+  ADMIN: { label: 'Admin', color: 'warning' },
   STAFF: { label: 'Staff', color: 'info' },
   REFEREE: { label: 'Árbitro', color: 'secondary' },
+  DELEGADO: { label: 'Delegado', color: 'success' },
 }
 
-const ASSIGNABLE = ['ORGANIZADOR', 'STAFF', 'REFEREE']
+const ASSIGNABLE_FULL = ['ORGANIZADOR', 'ADMIN', 'STAFF', 'REFEREE', 'DELEGADO']
+const ASSIGNABLE_ADMIN = ['STAFF', 'REFEREE', 'DELEGADO']
+const ADMIN_MANAGEABLE = ['STAFF', 'REFEREE', 'DELEGADO']
 
 const fmtFecha = (iso) => {
   if (!iso) return 'Nunca'
@@ -60,15 +64,19 @@ const fmtFecha = (iso) => {
 const initials = (name) => String(name || '?')
   .split(/\s+/).slice(0, 2).map((p) => p[0]).join('').toUpperCase()
 
-export default function Usuarios({ user }) {
+export default function Usuarios({ user, selectedTorneoId }) {
   const qc = useQueryClient()
   const toast = useToast()
   const isSuper = user?.role === 'SUPERADMIN'
+  const isAdmin = user?.role === 'ADMIN'
+  const assignable = isAdmin ? ASSIGNABLE_ADMIN : ASSIGNABLE_FULL
 
   const [createOpen, setCreateOpen] = useState(false)
-  const [createForm, setCreateForm] = useState({ email: '', password: '', role: 'STAFF', organizador_id: '' })
+  const [createForm, setCreateForm] = useState({ email: '', password: '', role: 'STAFF', organizador_id: '', equipo_id: '' })
   const [resetOpen, setResetOpen] = useState(null)
   const [resetForm, setResetForm] = useState({ password: '' })
+  const [roleOpen, setRoleOpen] = useState(null)
+  const [roleForm, setRoleForm] = useState({ role: '', equipo_id: '' })
   const [showPw, setShowPw] = useState(false)
   const [showResetPw, setShowResetPw] = useState(false)
 
@@ -83,14 +91,24 @@ export default function Usuarios({ user }) {
     enabled: isSuper,
   })
 
+  const { data: equipos = [] } = useQuery({
+    queryKey: ['equipos', selectedTorneoId],
+    queryFn: () => apiGet(`/equipos?torneo_id=${selectedTorneoId}`),
+    enabled: !!selectedTorneoId,
+  })
+
   const createMut = useMutation({
     mutationFn: (body) => apiPost('/auth/users', body),
-    onSuccess: () => { qc.invalidateQueries(['users']); toast.show('Usuario creado', 'success'); setCreateOpen(false); setCreateForm({ email: '', password: '', role: 'STAFF', organizador_id: '' }) },
+    onSuccess: () => { qc.invalidateQueries(['users']); toast.show('Usuario creado', 'success'); setCreateOpen(false); setCreateForm({ email: '', password: '', role: 'STAFF', organizador_id: '', equipo_id: '' }) },
     onError: (e) => toast.show(e.message, 'error'),
   })
 
   const roleMut = useMutation({
-    mutationFn: ({ id, role }) => apiPut(`/auth/users/${id}/role`, { role }),
+    mutationFn: ({ id, role, equipo_id }) => {
+      const body = { role }
+      if (role === 'DELEGADO' && equipo_id !== undefined && equipo_id !== '') body.equipo_id = Number(equipo_id)
+      return apiPut(`/auth/users/${id}/role`, body)
+    },
     onSuccess: () => { qc.invalidateQueries(['users']); toast.show('Rol actualizado', 'success') },
     onError: (e) => toast.show(e.message, 'error'),
   })
@@ -115,14 +133,33 @@ export default function Usuarios({ user }) {
       role: createForm.role,
     }
     if (isSuper) body.organizador_id = Number(createForm.organizador_id)
+    if (createForm.role === 'DELEGADO') body.equipo_id = Number(createForm.equipo_id)
     createMut.mutate(body)
   }
 
-  const handleRoleChange = (u, next) => {
+  const askRoleChange = (u, next) => {
     if (next === u.role) return
+    if (next === 'DELEGADO') {
+      setRoleOpen({ user: u, next })
+      setRoleForm({ role: next, equipo_id: u.equipo_id || '' })
+      return
+    }
     if (window.confirm(`¿Cambiar el rol de ${u.email} a "${ROLE_META[next]?.label || next}"?`)) {
       roleMut.mutate({ id: u.id, role: next })
     }
+  }
+
+  const confirmRoleChange = (e) => {
+    e.preventDefault()
+    const body = { role: roleForm.role }
+    if (roleForm.role === 'DELEGADO') body.equipo_id = Number(roleForm.equipo_id)
+    roleMut.mutate({ id: roleOpen.user.id, ...body })
+    setRoleOpen(null)
+  }
+
+  const puedeGestionar = (u) => {
+    if (isAdmin) return ADMIN_MANAGEABLE.includes(u.role) && u.id !== user?.id
+    return u.role !== 'SUPERADMIN' && u.id !== user?.id
   }
 
   const handleReset = (e) => {
@@ -160,21 +197,19 @@ export default function Usuarios({ user }) {
             <List dense disablePadding>
               {users.map((u, i) => {
                 const meta = ROLE_META[u.role] || { label: u.role, color: 'default' }
-                const esYo = user?.id === u.id
-                const puedeEditarRol = !esYo && u.role !== 'SUPERADMIN'
-                const puedeEliminar = !esYo && u.role !== 'SUPERADMIN'
+                const gestionable = puedeGestionar(u)
                 return (
                   <Box key={u.id}>
                     {i > 0 && <Divider />}
                     <ListItem sx={{ alignItems: 'center', gap: 1.5, py: 1.5, px: { xs: 2, md: 3 } }}>
-                      <Avatar sx={{ width: 40, height: 40, bgcolor: u.role === 'REFEREE' ? 'secondary.main' : u.role === 'ORGANIZADOR' ? 'primary.main' : 'grey.500', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
+                      <Avatar sx={{ width: 40, height: 40, bgcolor: u.role === 'REFEREE' ? 'secondary.main' : (u.role === 'ORGANIZADOR' || u.role === 'SUPERADMIN') ? 'primary.main' : u.role === 'ADMIN' ? 'warning.main' : u.role === 'DELEGADO' ? 'success.main' : 'grey.500', color: '#fff', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>
                         {initials(u.email)}
                       </Avatar>
                       <ListItemText
                         primary={
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
                             <Typography component="span" sx={{ fontWeight: 700 }}>{u.email}</Typography>
-                            {esYo && <Chip label="Tú" size="small" sx={{ height: 18, fontSize: 10 }} />}
+                            {u.id === user?.id && <Chip label="Tú" size="small" sx={{ height: 18, fontSize: 10 }} />}
                           </Box>
                         }
                         secondary={
@@ -197,26 +232,26 @@ export default function Usuarios({ user }) {
                       <FormControl size="small" sx={{ minWidth: 130 }}>
                         <Select
                           value={u.role}
-                          disabled={!puedeEditarRol}
-                          onChange={(e) => handleRoleChange(u, e.target.value)}
+                          disabled={!gestionable}
+                          onChange={(e) => askRoleChange(u, e.target.value)}
                           displayEmpty
                           sx={{ fontSize: 13 }}
                         >
-                          {ASSIGNABLE.map((r) => (
+                          {assignable.map((r) => (
                             <MenuItem key={r} value={r}>{ROLE_META[r].label}</MenuItem>
                           ))}
                         </Select>
                       </FormControl>
                       <Tooltip title="Restablecer contraseña">
                         <span>
-                          <IconButton size="small" color="primary" onClick={() => { setResetOpen(u); setResetForm({ password: '' }) }}>
+                          <IconButton size="small" color="primary" disabled={!gestionable} onClick={() => { setResetOpen(u); setResetForm({ password: '' }) }}>
                             <KeyIcon fontSize="small" />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title="Eliminar usuario">
                         <span>
-                          <IconButton size="small" color="error" disabled={!puedeEliminar} onClick={() => handleDelete(u)}>
+                          <IconButton size="small" color="error" disabled={!gestionable} onClick={() => handleDelete(u)}>
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </span>
@@ -231,8 +266,9 @@ export default function Usuarios({ user }) {
       </Card>
 
       <Alert severity="info" sx={{ mt: 2 }}>
-        El rol <b>Árbitro</b> solo puede operar en la planilla de juego (anotaciones y finalización del partido).
-        El rol <b>Staff</b> colabora con la gestión completa del tenant.
+        El rol <b>Árbitro</b> solo opera en la planilla de juego (anotaciones y finalización).
+        El rol <b>Delegado</b> carga la alineación de SU equipo. El rol <b>Admin</b> administra el tenant
+        (datos y gestión de staff/árbitros/delegados), sin tocar cuentas de Organizador ni Super Admin.
       </Alert>
 
       <Dialog open={createOpen} onClose={() => setCreateOpen(false)} fullWidth maxWidth="sm">
@@ -267,11 +303,26 @@ export default function Usuarios({ user }) {
                 label="Rol"
                 onChange={(e) => setCreateForm({ ...createForm, role: e.target.value })}
               >
-                {ASSIGNABLE.map((r) => (
+                {assignable.map((r) => (
                   <MenuItem key={r} value={r}>{ROLE_META[r].label}</MenuItem>
                 ))}
               </Select>
             </FormControl>
+            {createForm.role === 'DELEGADO' && (
+              <FormControl fullWidth margin="normal">
+                <InputLabel>Equipo</InputLabel>
+                <Select
+                  value={createForm.equipo_id}
+                  label="Equipo"
+                  onChange={(e) => setCreateForm({ ...createForm, equipo_id: e.target.value })}
+                >
+                  <MenuItem value="" disabled><em>Selecciona el equipo del delegado</em></MenuItem>
+                  {equipos.map((eq) => (
+                    <MenuItem key={eq.id} value={eq.id}>{eq.nombre}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
             {isSuper && (
               <FormControl fullWidth margin="normal">
                 <InputLabel>Organizador</InputLabel>
@@ -290,8 +341,39 @@ export default function Usuarios({ user }) {
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setCreateOpen(false)}>Cancelar</Button>
-            <Button type="submit" variant="contained" startIcon={<PersonAddIcon />} disabled={createMut.isPending || (isSuper && !createForm.organizador_id)}>
+            <Button type="submit" variant="contained" startIcon={<PersonAddIcon />} disabled={createMut.isPending || (isSuper && !createForm.organizador_id) || (createForm.role === 'DELEGADO' && !createForm.equipo_id)}>
               {createMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Crear'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      <Dialog open={!!roleOpen} onClose={() => setRoleOpen(null)} fullWidth maxWidth="xs">
+        <form onSubmit={confirmRoleChange}>
+          <DialogTitle>Asignar Delegado</DialogTitle>
+          <DialogContent>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+              <SportsIcon fontSize="small" color="primary" />
+              <Typography variant="body2" color="text.secondary">Rol de <b>{roleOpen?.user?.email}</b> → Delegado</Typography>
+            </Box>
+            <FormControl fullWidth margin="normal">
+              <InputLabel>Equipo del delegado</InputLabel>
+              <Select
+                value={roleForm.equipo_id}
+                label="Equipo del delegado"
+                onChange={(e) => setRoleForm({ ...roleForm, equipo_id: e.target.value })}
+              >
+                <MenuItem value="" disabled><em>Selecciona el equipo</em></MenuItem>
+                {equipos.map((eq) => (
+                  <MenuItem key={eq.id} value={eq.id}>{eq.nombre}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setRoleOpen(null)}>Cancelar</Button>
+            <Button type="submit" variant="contained" disabled={roleMut.isPending || !roleForm.equipo_id}>
+              {roleMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar rol'}
             </Button>
           </DialogActions>
         </form>
