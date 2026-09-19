@@ -583,14 +583,15 @@ export default function Torneos({ user, selectedTorneoId, onSelectTorneo }) {
 
   const handleCreate = (e) => {
     e.preventDefault()
+    const { formato_tipo, ...rest } = form
     createMut.mutate({
-      ...form,
+      ...rest,
       max_jugadores_por_equipo: Number(form.max_jugadores_por_equipo),
       puntos_victoria: Number(form.puntos_victoria),
       puntos_empate: Number(form.puntos_empate),
       puntos_derrota: Number(form.puntos_derrota),
       organizador_id: user?.organizadorId,
-      reglas: { formato_tipo: form.formato_tipo },
+      reglas: { formato_tipo },
     })
   }
 
