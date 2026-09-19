@@ -293,37 +293,38 @@ export default function RegistroJugador() {
                 </FormControl>
 
                 <TextField
-                  label="Fecha de nacimiento"
+                  label="Fecha de nacimiento *"
                   type="date"
                   fullWidth
+                  required
                   value={form.fecha_nacimiento}
                   onChange={set('fecha_nacimiento')}
                   sx={{ ...tfSx, colorScheme: 'light' }}
                 />
-                <TextField label="Documento de identidad" fullWidth
+                <TextField label="Documento de identidad *" fullWidth required
                   value={form.documento_identidad} onChange={set('documento_identidad')}
                   sx={tfSx} />
-                <TextField label="Teléfono" fullWidth
+                <TextField label="Teléfono *" fullWidth required
                   value={form.telefono} onChange={set('telefono')}
                   sx={tfSx} />
 
                 <Typography sx={{ mt: 2, mb: 2, fontSize: 11, letterSpacing: '.12em', color: T.muted, fontWeight: 700, textTransform: 'uppercase' }}>
-                  Datos médicos (opcional)
+                  Datos médicos
                 </Typography>
 
-                <FormControl fullWidth sx={{ mb: 2 }}>
+                <FormControl fullWidth sx={{ mb: 2 }} required>
                   <InputLabel id="r-sangre-label" sx={labelSx}>Tipo de sangre</InputLabel>
                   <Select labelId="r-sangre-label" label="Tipo de sangre" value={form.tipo_sangre} onChange={set('tipo_sangre')} sx={selectSx}>
                     {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
                   </Select>
                 </FormControl>
-                <TextField label="EPS / Entidad de salud" fullWidth
+                <TextField label="EPS / Entidad de salud *" fullWidth required
                   value={form.eps} onChange={set('eps')}
                   sx={tfSx} />
-                <TextField label="Contacto de emergencia (nombre y teléfono)" fullWidth
+                <TextField label="Contacto de emergencia (nombre y teléfono) *" fullWidth required
                   value={form.contacto_emergencia} onChange={set('contacto_emergencia')}
                   sx={tfSx} />
-                <TextField label="Alergias o condiciones médicas" fullWidth
+                <TextField label="Alergias o condiciones médicas *" fullWidth required
                   value={form.alergias} onChange={set('alergias')}
                   sx={tfSx} />
 

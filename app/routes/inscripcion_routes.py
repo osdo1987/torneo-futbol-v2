@@ -49,6 +49,18 @@ def crear_inscripcion(slug):
     data = request.get_json() or {}
     if not (data.get('nombre') or '').strip():
         return jsonify({'error': 'El nombre es requerido'}), 400
+    requeridos = {
+        'documento_identidad': 'El documento de identidad es requerido',
+        'fecha_nacimiento': 'La fecha de nacimiento es requerida',
+        'telefono': 'El teléfono es requerido',
+        'tipo_sangre': 'El tipo de sangre es requerido',
+        'eps': 'La EPS / entidad de salud es requerida',
+        'contacto_emergencia': 'El contacto de emergencia es requerido',
+        'alergias': 'Las alergias o condiciones médicas son requeridas',
+    }
+    for campo, mensaje in requeridos.items():
+        if not (data.get(campo) or '').strip():
+            return jsonify({'error': mensaje}), 400
     data['equipo_id'] = equipo.id
     error = JugadorService.validar_inscripcion_jugador(equipo, data)
     if error:
