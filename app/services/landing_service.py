@@ -150,7 +150,7 @@ class LandingService:
                 'resultado': p.resultado,
                 'fecha_programada': p.fecha_programada.isoformat() if p.fecha_programada else None,
                 'en_vivo': {
-                    'seg': vivo.seg,
+                    'seg': vivo.seg_actual(),
                     'running': vivo.running,
                     'iniciado': True,
                 } if vivo else None,
@@ -163,7 +163,7 @@ class LandingService:
         vivo = PartidoEnVivo.query.get(partido_id)
         if not vivo:
             return {'partido_id': partido_id, 'seg': 0, 'running': False, 'iniciado': False}
-        return {'partido_id': vivo.partido_id, 'seg': vivo.seg, 'running': vivo.running, 'iniciado': vivo.iniciado}
+        return {'partido_id': vivo.partido_id, 'seg': vivo.seg_actual(), 'running': vivo.running, 'iniciado': vivo.iniciado}
 
     @staticmethod
     def alineaciones_partido(partido_id):

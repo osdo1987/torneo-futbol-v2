@@ -1,11 +1,10 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required
 from app.services.auth_service import AuthService
-from app.schemas.user_schema import LoginSchema, UserSchema
+from app.schemas.user_schema import LoginSchema
 from app.routes._authz import get_current_user, require_roles
 
 auth_bp = Blueprint('auth', __name__)
-user_schema = UserSchema()
 login_schema = LoginSchema()
 
 
@@ -61,7 +60,7 @@ def get_current_user_route():
     user = get_current_user()
     if not user:
         return jsonify({'error': 'Usuario no encontrado'}), 404
-    return jsonify(user_schema.dump(user)), 200
+    return jsonify(AuthService.user_dict(user)), 200
 
 
 @auth_bp.route('/users', methods=['GET'])

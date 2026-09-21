@@ -179,7 +179,15 @@ def actualizar_reglas(torneo_id):
 @torneo_bp.route('/<int:torneo_id>/fixture', methods=['POST'])
 @jwt_required()
 def generar_fixture(torneo_id):
-    """Genera el fixture todos-contra-todos según las reglas del torneo."""
+    """Genera el fixture todos-contra-todos según las reglas del torneo.
+
+    Body opcional:
+      - reemplazar: bool (borra los partidos pendientes antes de regenerar)
+      - programacion: {fecha_inicio: 'YYYY-MM-DD', hora_inicio: 'HH:MM',
+                       dias_entre_jornadas: int, horas_entre_partidos: int}
+      - espacios: [{fecha: 'YYYY-MM-DD', hora: 'HH:MM', locacion_id: int|null}, ...]
+        cupos de juego (día, hora y sede) que se asignan en orden a los partidos
+    """
     user = get_current_user()
     torneo = TorneoService.get_by_id(torneo_id)
     if not torneo:
@@ -189,7 +197,16 @@ def generar_fixture(torneo_id):
     if not ensure_management_role(user):
         return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
-    resumen, error = FixtureService.generar(torneo, reemplazar=bool(data.get('reemplazar')))
+    prog = data.get('programacion') or {}
+    resumen, error = FixtureService.generar(
+        torneo,
+        reemplazar=bool(data.get('reemplazar')),
+        fecha_inicio=prog.get('fecha_inicio'),
+        hora_inicio=prog.get('hora_inicio'),
+        dias_entre_jornadas=prog.get('dias_entre_jornadas', 7),
+        horas_entre_partidos=prog.get('horas_entre_partidos', 2),
+        espacios=data.get('espacios'),
+    )
     if error:
         return jsonify({'error': error}), 400
     return jsonify({'message': 'Fixture generado', **resumen}), 201

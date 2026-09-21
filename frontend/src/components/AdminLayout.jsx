@@ -488,6 +488,46 @@ const nav = (
               }}
             />
 
+            {user?.organizadorSlug ? (
+              <Tooltip title="Ver página pública (se abre en otra pestaña)">
+                <IconButton
+                  size="small"
+                  component="a"
+                  href={`${window.location.origin}/l/${user.organizadorSlug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Ver página pública"
+                  sx={{ p: 1, color: 'onSurfaceVariant', '&:hover': { bgcolor: 'surfaceContainerHigh', color: 'onSurface' } }}
+                >
+                  <PublicIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            ) : (
+              <Tooltip title="Notificaciones">
+                <IconButton
+                  size="small"
+                  sx={{
+                    position: 'relative',
+                    p: 1,
+                    color: 'onSurfaceVariant',
+                    '&:hover': { bgcolor: 'surfaceContainerHigh', color: 'onSurface' },
+                  }}
+                >
+                  <NotificationsIcon sx={{ fontSize: 20 }} />
+                  <Box
+                    sx={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 6,
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      bgcolor: 'error.main',
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
+            )}
             <Tooltip title="Notificaciones">
               <IconButton
                 size="small"

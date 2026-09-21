@@ -133,7 +133,7 @@
           <span class="font-num text-xs text-secondary font-semibold">ACTA REF-2025-0744</span>
         </div>
         <h1 class="font-head text-2xl font-black text-navy-dark">Planilla de Juego</h1>
-        <p class="text-xs text-secondary mt-0.5">Control reglamentario en tiempo real · Convocatorias, alineaciones, goles, tarjetas, cambios IFAB y homologación.</p>
+        <p class="text-xs text-secondary mt-0.5">Control reglamentario en tiempo real · Convocatorias, alineaciones, goles, tarjetas y cambios IFAB.</p>
       </div>
       <div class="flex flex-wrap items-center gap-2.5">
         <div class="px-3 py-2 rounded-lg bg-surface-low border border-slate-200 flex items-center gap-2">
@@ -147,7 +147,7 @@
           <span class="material-symbols-outlined text-primary text-[17px]">picture_as_pdf</span> PDF Acta
         </button>
         <button onclick="openModal('modal-finalizar')" class="px-4 py-2 rounded-lg bg-primary hover:bg-primary-dark text-white text-xs font-bold inline-flex items-center gap-1.5 shadow-sm">
-          <span class="material-symbols-outlined text-[17px]">verified</span> Finalizar &amp; Homologar
+          <span class="material-symbols-outlined text-[17px]">verified</span> Finalizar
         </button>
       </div>
     </div>
@@ -958,7 +958,7 @@
     <div class="w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center mx-auto shadow-md">
       <span class="material-symbols-outlined text-[28px]">verified</span>
     </div>
-    <h3 class="font-head text-lg font-bold text-navy-dark">¿Finalizar y Homologar Partido?</h3>
+    <h3 class="font-head text-lg font-bold text-navy-dark">¿Finalizar Partido?</h3>
     <p class="text-xs text-secondary">
       Se emitirá el Acta Oficial Federativa definitiva con el resultado final <strong id="finalizar-resultado" class="text-navy-dark font-bold">2 - 1</strong> a favor de <strong class="text-navy-dark">Huracán</strong>. Esta acción cerrará la planilla.
     </p>
@@ -974,7 +974,7 @@
     </div>
     <div class="flex items-center justify-end gap-2 pt-2">
       <button onclick="closeModal('modal-finalizar')" class="px-3 py-1.5 rounded text-secondary hover:bg-slate-100 text-xs font-bold uppercase">Volver</button>
-      <button onclick="ejecutarFinalizar()" class="px-4 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-bold uppercase shadow-sm">Firmar &amp; Homologar</button>
+      <button onclick="ejecutarFinalizar()" class="px-4 py-1.5 rounded bg-primary hover:bg-primary-dark text-white text-xs font-bold uppercase shadow-sm">Firmar &amp; Finalizar</button>
     </div>
   </div>
 </div>
@@ -1369,7 +1369,7 @@
 
   function ejecutarFinalizar() {
     document.getElementById('finalizar-resultado').textContent = `${scoreHome} - ${scoreAway}`;
-    alert(`¡Partido Finalizado y Homologado con éxito!\nResultado Oficial: ${scoreHome} - ${scoreAway}.\nToken: #TRN-9982-CL25 registrado.`);
+    alert(`¡Partido Finalizado con éxito!\nResultado Oficial: ${scoreHome} - ${scoreAway}.\nToken: #TRN-9982-CL25 registrado.`);
     closeModal('modal-finalizar');
   }
 </script>

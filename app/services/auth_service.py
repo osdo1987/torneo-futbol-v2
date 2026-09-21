@@ -15,6 +15,20 @@ ADMIN_MANAGEABLE_ROLES = ('STAFF', 'REFEREE', 'DELEGADO')
 
 class AuthService:
     @staticmethod
+    def user_dict(user):
+        """Datos del usuario para el frontend (login y /auth/me)."""
+        return {
+            'id': user.id,
+            'email': user.email,
+            'role': user.role,
+            'organizadorId': user.organizador_id,
+            'organizadorName': user.organizador.name if user.organizador else None,
+            'organizadorSlug': user.organizador.slug if user.organizador else None,
+            'equipoId': user.equipo_id,
+            'equipoName': user.equipo.nombre if user.equipo else None,
+        }
+
+    @staticmethod
     def login(email, password):
         user = User.query.filter_by(email=email).first()
         if not user or not user.check_password(password):
@@ -37,15 +51,7 @@ class AuthService:
         return {
             'message': 'Login exitoso',
             'token': access_token,
-            'user': {
-                'id': user.id,
-                'email': user.email,
-                'role': user.role,
-                'organizadorId': user.organizador_id,
-                'organizadorName': user.organizador.name if user.organizador else None,
-                'equipoId': user.equipo_id,
-                'equipoName': user.equipo.nombre if user.equipo else None,
-            }
+            'user': AuthService.user_dict(user),
         }, 200
 
     @staticmethod

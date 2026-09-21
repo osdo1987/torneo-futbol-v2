@@ -25,6 +25,8 @@ class Organizador(db.Model):
                             cascade='all, delete-orphan')
     torneos = db.relationship('Torneo', backref='organizador', lazy=True,
                               cascade='all, delete-orphan')
+    locaciones = db.relationship('Locacion', backref='organizador', lazy=True,
+                                 cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Organizador {self.name}>'

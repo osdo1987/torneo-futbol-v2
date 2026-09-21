@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useParams, useSearchParams, Link } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
 import CircularProgress from '@mui/material/CircularProgress'
@@ -24,6 +24,7 @@ import CloseIcon from '@mui/icons-material/Close'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import GroupsIcon from '@mui/icons-material/Groups'
 import { apiGet } from '../api'
+import { usePartidoStream } from '../lib/sse'
 import { PUB, FONT_DISPLAY, FONT_BODY, ESTADO_META, teamStyle, teamAbbr, FORMAT_FECHA } from '../publicTheme'
 import '../publicLanding.css'
 
@@ -72,6 +73,19 @@ const TABS = [
 
 const TOURNEY_ICONS = [StarIcon, ShieldIcon, TrendingUpIcon, PublicIcon]
 const NO_RESULTADO = ['PENDIENTE', 'POSTERGADO']
+
+// El autogol suma para el rival del equipo del jugador que lo convierte.
+function marcadorDesdeEventos(eventos, localName, visitName) {
+  const lista = Array.isArray(eventos) ? eventos : []
+  const local = lista.filter((e) => (e.tipo === 'GOL' && e.equipo === localName) || (e.tipo === 'AUTOGOL' && e.equipo === visitName))
+  const visit = lista.filter((e) => (e.tipo === 'GOL' && e.equipo === visitName) || (e.tipo === 'AUTOGOL' && e.equipo === localName))
+  return { local, visit, golesLocal: local.length, golesVisit: visit.length }
+}
+
+// Un partido está realmente en vivo si su reloj arrancó y aún no tiene resultado final.
+function estaEnVivo(p) {
+  return !!p?.en_vivo?.iniciado && NO_RESULTADO.includes(p.resultado)
+}
 
 function useToday() {
   return useMemo(() => new Date().toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit', month: 'short' }), [])
@@ -138,15 +152,14 @@ function ScoreBox({ children, sx }) {
 /* ============================================================
  * PARTIDO DESTACADO (scoreboard estilo TV)
  * ============================================================ */
-// Marcador blanco: cifras navy para legibilidad sobre la caja blanca del tanteador.
-const MARK = { fg: '#0d1b3e', fgDim: '#314a78', muted: '#5a6a94' }
-
 function FeaturedMatch({ torneo, jornadas, onFormacion }) {
+  const qc = useQueryClient()
   const flat = useMemo(() => (jornadas || []).flatMap((j) => j.partidos || []), [jornadas])
 
   const featured = useMemo(() => {
     if (!flat.length) return null
-    const vivo = flat.find((p) => p.en_vivo?.iniciado)
+    const vivo = flat.find((p) => estaEnVivo(p) && p.en_vivo?.running)
+      || flat.find((p) => estaEnVivo(p))
     if (vivo) return { p: vivo, kind: 'live' }
     const pend = flat.find((p) => NO_RESULTADO.includes(p.resultado))
     if (pend) return { p: pend, kind: 'next' }
@@ -158,23 +171,25 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
     queryKey: ['pl-eventos', featured?.p.id],
     queryFn: () => apiGet(`/landing/partido/${featured.p.id}/eventos`),
     enabled: !!featured && (featured.kind === 'last' || featured.kind === 'live'),
-    refetchInterval: featured?.kind === 'live' ? 5000 : false,
   })
 
-  const vivo = featured?.kind === 'live' ? featured.p.en_vivo : null
-  const [offset, setOffset] = useState(0)
-  const keyVivo = `${featured?.p.id}:${vivo?.seg || 0}`
-  const [prevKeyVivo, setPrevKeyVivo] = useState(keyVivo)
-  if (keyVivo !== prevKeyVivo) {
-    setPrevKeyVivo(keyVivo)
-    setOffset(0)
-  }
+  // Estado en vivo recibido por SSE: mantiene el cronómetro al segundo sin polling.
+  const [liveTick, setLiveTick] = useState(null)
+  const handleStream = useCallback((data) => {
+    if (data.seg !== undefined) setLiveTick({ seg: data.seg, running: data.running, iniciado: data.iniciado })
+    if (data.eventos) {
+      qc.invalidateQueries({ queryKey: ['pl-eventos', featured?.p?.id] })
+      qc.invalidateQueries({ queryKey: ['pl-alineaciones', featured?.p?.id] })
+      qc.invalidateQueries({ queryKey: ['pl-partidos'] })
+    }
+  }, [qc, featured?.p?.id])
 
-  useEffect(() => {
-    if (!vivo?.running) return
-    const id = setInterval(() => setOffset((o) => Math.min(5400 - (vivo?.seg || 0), o + 1)), 1000)
-    return () => clearInterval(id)
-  }, [vivo?.running, vivo?.seg])
+  // SSE real-time para cronómetro + eventos (reemplaza polling 5s)
+  usePartidoStream(featured?.p.id, featured?.kind === 'live', handleStream)
+
+  const vivo = featured?.kind === 'live'
+    ? { ...(featured.p.en_vivo || {}), ...(liveTick || {}) }
+    : null
 
   if (!featured) return null
   const { p, kind } = featured
@@ -183,120 +198,112 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
   const localName = p.equipo_local
   const visitName = p.equipo_visitante
   const horas = FORMAT_FECHA(p.fecha_programada, true)
-  const goles = (eventosQ.data?.eventos || []).filter((e) => e.tipo === 'GOL')
-  const golesLocal = goles.filter((e) => e.equipo === localName)
-  const golesVisit = goles.filter((e) => e.equipo === visitName)
-  const scoreLocal = live ? golesLocal.length : p.goles_local
-  const scoreVisit = live ? golesVisit.length : p.goles_visitante
-  const isLive = torneo?.estado === 'EN_JUEGO'
-  const enVivoBadge = live || isLive
-  const liveSeg = Math.min(5400, (vivo?.seg || 0) + (vivo?.running ? offset : 0))
+  const marcador = marcadorDesdeEventos(eventosQ.data?.eventos, localName, visitName)
+  const golesLocal = marcador.local
+  const golesVisit = marcador.visit
+  const scoreLocal = live ? marcador.golesLocal : p.goles_local
+  const scoreVisit = live ? marcador.golesVisit : p.goles_visitante
+  const conMarcador = jugado || live
+  const liveSeg = Math.min(5400, (vivo?.seg || 0))
   const livePeriodo = liveSeg <= 2700 ? 'Primer tiempo' : 'Segundo tiempo'
   const fmtTime = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
   return (
     <Box className="pl-fade-up" sx={{
       position: 'relative', borderRadius: 2, overflow: 'hidden',
-      background: 'rgba(6,13,34,.55)',
-      border: `1px solid ${live ? 'rgba(255,255,255,.45)' : PUB.line}`,
+      background: PUB.panel,
+      border: `1px solid ${live ? PUB.lineStrong : PUB.line}`,
       boxShadow: '0 10px 30px rgba(0,0,0,.5)',
+      maxWidth: 680, mx: 'auto', mb: 4,
       '&::before': {
-        content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: 1,
-        background: 'linear-gradient(60deg, transparent, rgba(246, 247, 247, 0.2), transparent)',
+        content: '""', position: 'absolute', top: 0, left: 0, right: 0, height: 2,
+        background: `linear-gradient(90deg, transparent, ${live ? PUB.cyan : PUB.lineStrong}, transparent)`,
       },
-      maxWidth: 720, mx: 'auto',
-      mb: 5,
     }}>
-      <Box sx={{ p: { xs: 2.5, sm: 3.5 } }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, justifyContent: 'space-between', flexWrap: 'wrap', mb: 3 }}>
-          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 1 }}>
-            <Box component="span" className={enVivoBadge ? 'pl-blink' : ''} sx={{ width: 9, height: 9, borderRadius: '50%', bgcolor: enVivoBadge ? PUB.live : PUB.cyan }} />
-            <Typography className={enVivoBadge ? 'pl-blink' : ''} sx={{ fontSize: 11, fontWeight: 700, letterSpacing: '.2em', color: enVivoBadge ? PUB.live : PUB.cyan, textTransform: 'uppercase' }}>
-              {enVivoBadge ? 'En vivo' : jugado ? 'Último resultado' : 'Próximo partido'}
+      <Box sx={{ px: { xs: 2, sm: 2.5 }, py: { xs: 1.75, sm: 2 } }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1.75 }}>
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+            <Box component="span" className={live ? 'pl-blink' : ''} sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: live ? PUB.live : PUB.cyan }} />
+            <Typography sx={{ fontFamily: FONT_DISPLAY, fontSize: 10, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: live ? PUB.live : PUB.cyan }}>
+              {live ? 'En vivo' : jugado ? 'Último resultado' : 'Próximo partido'}
             </Typography>
           </Box>
-          <Typography sx={{ color: PUB.muted, fontSize: 11, textTransform: 'uppercase', letterSpacing: '.08em', fontVariantNumeric: 'tabular-nums' }}>
-            Jornada {p.jornada} — {torneo.nombre}
+          <Typography noWrap sx={{ fontFamily: FONT_BODY, color: PUB.muted, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em' }}>
+            Jornada {p.jornada} · {torneo.nombre}
           </Typography>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <TeamBadge name={localName} size={{ xs: 56, sm: 76 }} />
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 16, sm: 22 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
+            <TeamBadge name={localName} size={44} />
+            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 13, sm: 15 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1.1 }}>
               {localName}
             </Typography>
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.2 }}>
-            {jugado || live ? (
-              <ScoreBox sx={{
-                flexDirection: 'column', gap: 0.5,
-                background: '#ffffff',
-                borderColor: live ? 'rgba(255,255,255,.9)' : 'rgba(13,27,62,.18)',
-                boxShadow: '0 0 18px rgba(255,255,255,.3)',
-              }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 40, sm: 52 }, lineHeight: 1, color: MARK.fg, fontVariantNumeric: 'tabular-nums' }}>
-                    {scoreLocal}
-                  </Typography>
-                  <Typography sx={{ color: MARK.fgDim, fontSize: { xs: 24, sm: 30 }, fontWeight: 400 }}>-</Typography>
-                  <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 40, sm: 52 }, lineHeight: 1, color: MARK.fg, fontVariantNumeric: 'tabular-nums' }}>
-                    {scoreVisit}
-                  </Typography>
-                </Box>
-                {live && (
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.25 }}>
-                    <Box component="span" className={vivo?.running ? 'pl-blink' : ''} sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: PUB.live }} />
-                    <Typography sx={{ fontSize: 11, fontWeight: 700, color: PUB.live, fontVariantNumeric: 'tabular-nums', letterSpacing: '.1em' }}>
-                      {fmtTime(liveSeg)} · {livePeriodo}{!vivo?.running ? ' · Pausa' : ''}
-                    </Typography>
-                  </Box>
-                )}
-                {enVivoBadge && <Typography className="pl-blink" sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '.18em', color: PUB.live }}>● EN VIVO</Typography>}
-              </ScoreBox>
+          <Box sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25,
+            minWidth: { xs: 84, sm: 104 }, px: 2, py: 0.75, borderRadius: 1.5,
+            bgcolor: PUB.panelDeep, border: `1px solid ${conMarcador ? PUB.lineStrong : PUB.line}`,
+          }}>
+            {conMarcador ? (
+              <>
+                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 28, sm: 34 }, lineHeight: 1, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreLocal}</Typography>
+                <Typography sx={{ fontFamily: FONT_DISPLAY, color: PUB.fgDim, fontSize: { xs: 18, sm: 22 }, fontWeight: 400, lineHeight: 1 }}>-</Typography>
+                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 28, sm: 34 }, lineHeight: 1, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreVisit}</Typography>
+              </>
             ) : (
-              <ScoreBox sx={{ flexDirection: 'column', gap: 0.8, borderColor: PUB.lineStrong }}>
-                <Typography className="pl-shimmer" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 34, sm: 44 }, lineHeight: 1 }}>
-                  VS
-                </Typography>
-                {horas && <Typography sx={{ fontSize: 13, fontWeight: 600, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{horas}</Typography>}
-              </ScoreBox>
+              <Typography className="pl-shimmer" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 22, sm: 26 }, lineHeight: 1, letterSpacing: '.06em' }}>VS</Typography>
             )}
           </Box>
 
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1.5, flex: 1, minWidth: 0 }}>
-            <TeamBadge name={visitName} size={{ xs: 56, sm: 76 }} />
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 16, sm: 22 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1.25, minWidth: 0 }}>
+            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 13, sm: 15 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1.1, textAlign: 'right' }}>
               {visitName}
             </Typography>
+            <TeamBadge name={visitName} size={44} />
           </Box>
         </Box>
 
-        <Box sx={{ mt: 4, pt: 2.5, borderTop: `1px solid ${PUB.line}`, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: { xs: 2, sm: 8 }, fontSize: 12, color: PUB.fgDim }}>
-          <Box sx={{ flex: 1 }}>
-            {golesLocal.map((g, i) => (
-              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                <SportsSoccerIcon sx={{ fontSize: 10, color: PUB.cyan }} />
-                <Typography sx={{ fontSize: 12, color: PUB.fgDim }}>{g.jugador} {g.minuto}'</Typography>
-              </Box>
-            ))}
-            {golesLocal.length === 0 && <Typography sx={{ fontSize: 12, color: PUB.muted }}>{jugado || live ? 'Sin goles' : ''}</Typography>}
-          </Box>
-          <Box sx={{ flex: 1, textAlign: 'right' }}>
-            {golesVisit.map((g, i) => (
-              <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1, justifyContent: 'flex-end' }}>
-                <Typography sx={{ fontSize: 12, color: PUB.fgDim }}>{g.minuto}' {g.jugador}</Typography>
-                <SportsSoccerIcon sx={{ fontSize: 10, color: PUB.cyan }} />
-              </Box>
-            ))}
-            {golesVisit.length === 0 && <Typography sx={{ fontSize: 12, color: PUB.muted }}>{jugado || live ? 'Sin goles' : ''}</Typography>}
-          </Box>
+        <Box sx={{ mt: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, minHeight: 16 }}>
+          {live ? (
+            <>
+              <Box component="span" className={vivo?.running ? 'pl-blink' : ''} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: PUB.live }} />
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontSize: 11, fontWeight: 700, color: PUB.live, fontVariantNumeric: 'tabular-nums', letterSpacing: '.08em' }}>
+                {fmtTime(liveSeg)} · {livePeriodo}{!vivo?.running ? ' · Pausa' : ''}
+              </Typography>
+            </>
+          ) : (
+            <Typography sx={{ fontFamily: FONT_DISPLAY, fontSize: 11, fontWeight: 700, color: jugado ? PUB.muted : PUB.cyan, letterSpacing: '.06em' }}>
+              {jugado ? 'Finalizado' : horas || 'Por programar'}
+            </Typography>
+          )}
         </Box>
 
-        <Box sx={{ mt: 3.5, display: 'flex', justifyContent: 'center' }}>
-          <Box component="button" type="button" onClick={() => onFormacion(p)} sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, fontSize: 12, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 2.4, py: 1.1, borderRadius: 100, cursor: 'pointer', fontFamily: FONT_BODY, transition: 'all .2s', '&:hover': { bgcolor: 'rgba(0,240,255,.25)', color: PUB.fg } }}>
-            <GroupsIcon sx={{ fontSize: 15 }} />
+        {(golesLocal.length > 0 || golesVisit.length > 0) && (
+          <Box sx={{ mt: 1.5, pt: 1.5, borderTop: `1px solid ${PUB.line}`, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1 }}>
+            <Box>
+              {golesLocal.map((g, i) => (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.4 }}>
+                  <SportsSoccerIcon sx={{ fontSize: 10, color: PUB.cyan }} />
+                  <Typography noWrap sx={{ fontFamily: FONT_BODY, fontSize: 11, color: PUB.fgDim }}>{g.jugador} {g.minuto}'</Typography>
+                </Box>
+              ))}
+            </Box>
+            <Box>
+              {golesVisit.map((g, i) => (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 0.4, justifyContent: 'flex-end' }}>
+                  <Typography noWrap sx={{ fontFamily: FONT_BODY, fontSize: 11, color: PUB.fgDim }}>{g.jugador} {g.minuto}'</Typography>
+                  <SportsSoccerIcon sx={{ fontSize: 10, color: PUB.cyan }} />
+                </Box>
+              ))}
+            </Box>
+          </Box>
+        )}
+
+        <Box sx={{ mt: 1.75, display: 'flex', justifyContent: 'center' }}>
+          <Box component="button" type="button" onClick={() => onFormacion(p)} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.lineStrong}`, px: 2, py: 0.75, borderRadius: 100, cursor: 'pointer', transition: 'all .2s', '&:hover': { bgcolor: 'rgba(0,240,255,.25)', color: PUB.fg } }}>
+            <GroupsIcon sx={{ fontSize: 14 }} />
             Ver formación y cambios
           </Box>
         </Box>
@@ -336,7 +343,7 @@ const starBtn = (active) => ({
 function FixtureRow({ p, fav, onFav, onOpen, delay, last }) {
   const jugado = !NO_RESULTADO.includes(p.resultado)
   const postergado = p.resultado === 'POSTERGADO'
-  const enVivo = !!p.en_vivo?.iniciado
+  const enVivo = estaEnVivo(p)
 
   const d = p.fecha_programada ? new Date(p.fecha_programada) : null
   const hora = d && !Number.isNaN(d.getTime())
@@ -471,32 +478,100 @@ function FixtureGroup({ favKey, titulo, partidos, favs, onFav, onOpen, onClasifi
 }
 
 /* ============================================================
- * PANEL: RESULTADOS (fixture agrupado por jornada)
+ * PANEL: RESULTADOS (pestañas por jornada)
  * ============================================================ */
 function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, torneoNombre }) {
   const [favs, toggleFav] = useFavoritos()
   const sorted = useMemo(() => [...(jornadas || [])].sort((a, b) => (a.jornada || 0) - (b.jornada || 0)), [jornadas])
 
+  // Jornada por defecto: la que tiene un partido en vivo; si no, la primera pendiente; si no, la última.
+  const defaultIdx = useMemo(() => {
+    if (!sorted.length) return 0
+    const vivo = sorted.findIndex((j) => (j.partidos || []).some(estaEnVivo))
+    if (vivo >= 0) return vivo
+    const pend = sorted.findIndex((j) => (j.partidos || []).some((p) => NO_RESULTADO.includes(p.resultado)))
+    if (pend >= 0) return pend
+    return sorted.length - 1
+  }, [sorted])
+
+  const [tab, setTab] = useState(defaultIdx)
+  const [prevLen, setPrevLen] = useState(sorted.length)
+  if (sorted.length !== prevLen) {
+    setPrevLen(sorted.length)
+    setTab(defaultIdx)
+  }
+
   if (loading) return <PendingOrBar />
   if (!sorted.length) return <Empty text="No hay partidos cargados todavía." />
 
-  // Grupos fijados (estrella) primero.
-  const grupos = [...sorted].sort((a, b) => Number(favs.has(`gj${b.jornada}`)) - Number(favs.has(`gj${a.jornada}`)))
+  const activo = Math.min(tab, sorted.length - 1)
+  const activa = sorted[activo]
+  const partidos = activa.partidos || []
 
   return (
-    <Box>
-      {grupos.map((j) => (
-        <FixtureGroup
-          key={`j${j.jornada}`}
-          favKey={`gj${j.jornada}`}
-          titulo={`${torneoNombre ? `${torneoNombre} · ` : ''}Jornada ${j.jornada}`}
-          partidos={j.partidos}
-          favs={favs}
-          onFav={toggleFav}
-          onOpen={onOpenPartido}
-          onClasificacion={onClasificacion}
-        />
-      ))}
+    <Box className="pl-fade-up">
+      {/* Pestañas por jornada */}
+      <Box sx={{
+        display: 'flex', gap: 1, mb: 2, overflowX: 'auto', pb: 0.75,
+        '&::-webkit-scrollbar': { height: 6 },
+        '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,.15)', borderRadius: 3 },
+      }}>
+        {sorted.map((j, i) => {
+          const isActive = i === activo
+          const enVivo = (j.partidos || []).some(estaEnVivo)
+          return (
+            <Box
+              key={`j${j.jornada}`}
+              component="button"
+              type="button"
+              onClick={() => setTab(i)}
+              sx={{
+                flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.75,
+                fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 700, letterSpacing: '.04em',
+                textTransform: 'uppercase', whiteSpace: 'nowrap', cursor: 'pointer',
+                px: 1.75, py: 0.9, borderRadius: 100,
+                color: isActive ? '#020621' : PUB.fgDim,
+                bgcolor: isActive ? PUB.cyan : 'rgba(255,255,255,.04)',
+                border: `1px solid ${isActive ? PUB.cyan : PUB.line}`,
+                transition: 'all .2s',
+                '&:hover': { color: isActive ? '#020621' : PUB.fg, borderColor: PUB.lineStrong },
+              }}
+            >
+              {enVivo && <Box component="span" className="pl-blink" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: isActive ? '#020621' : PUB.live }} />}
+              Jornada {j.jornada}
+            </Box>
+          )
+        })}
+      </Box>
+
+      {/* Partidos de la jornada activa */}
+      <Box sx={{ overflow: 'hidden', borderRadius: 1.5, border: `1px solid ${PUB.line}`, bgcolor: 'rgba(5,12,30,.75)', boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.25, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
+          <Typography noWrap sx={{ flex: 1, fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.fg }}>
+            {torneoNombre ? `${torneoNombre} · ` : ''}Jornada {activa.jornada}
+          </Typography>
+          <Typography sx={{ fontFamily: FONT_BODY, fontSize: 11, color: PUB.muted, whiteSpace: 'nowrap' }}>
+            {partidos.length} {partidos.length === 1 ? 'partido' : 'partidos'}
+          </Typography>
+          {onClasificacion && (
+            <Box
+              component="button"
+              type="button"
+              onClick={onClasificacion}
+              sx={{
+                fontSize: 12, fontWeight: 600, color: PUB.fg, background: 'none', border: 'none', cursor: 'pointer',
+                textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap',
+                '&:hover': { color: PUB.cyan },
+              }}
+            >
+              Clasificación
+            </Box>
+          )}
+        </Box>
+        {partidos.map((p, i) => (
+          <FixtureRow key={p.id} p={p} delay={i} last={i === partidos.length - 1} fav={favs.has(`m${p.id}`)} onFav={toggleFav} onOpen={onOpenPartido} />
+        ))}
+      </Box>
     </Box>
   )
 }
@@ -708,13 +783,24 @@ function CalendarioPanel({ partidos, loading, onOpenPartido, onClasificacion }) 
  * MODAL DE PARTIDO
  * ============================================================ */
 function MatchModal({ partido, onClose, onFormacion }) {
+  const qc = useQueryClient()
   const { data } = useQuery({
     queryKey: ['pl-eventos', partido.id],
     queryFn: () => apiGet(`/landing/partido/${partido.id}/eventos`),
   })
   const eventos = data?.eventos || []
   const jugado = !NO_RESULTADO.includes(partido.resultado)
+  const enVivo = estaEnVivo(partido)
   const horas = FORMAT_FECHA(partido.fecha_programada, true)
+
+  const handleStream = useCallback((data) => {
+    if (data.eventos) {
+      qc.invalidateQueries({ queryKey: ['pl-eventos', partido.id] })
+      qc.invalidateQueries({ queryKey: ['pl-alineaciones', partido.id] })
+      qc.invalidateQueries({ queryKey: ['pl-partidos'] })
+    }
+  }, [qc, partido.id])
+  usePartidoStream(partido.id, enVivo, handleStream)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -726,9 +812,13 @@ function MatchModal({ partido, onClose, onFormacion }) {
     }
   }, [onClose])
 
-  const goles = eventos.filter((e) => e.tipo === 'GOL').length
   const amarillas = eventos.filter((e) => e.tipo === 'TARJETA_AMARILLA').length
   const rojas = eventos.filter((e) => e.tipo === 'TARJETA_ROJA').length
+  const marcador = marcadorDesdeEventos(eventos, partido.equipo_local, partido.equipo_visitante)
+  const goles = marcador.golesLocal + marcador.golesVisit
+  const mostrarMarcador = jugado || enVivo
+  const scoreLocal = enVivo ? marcador.golesLocal : partido.goles_local
+  const scoreVisit = enVivo ? marcador.golesVisit : partido.goles_visitante
 
   return createPortal(
     <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300 }}>
@@ -763,11 +853,11 @@ function MatchModal({ partido, onClose, onFormacion }) {
             <TeamBadge name={partido.equipo_local} size={52} />
             <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg }}>{partido.equipo_local}</Typography>
           </Box>
-          {jugado ? (
+          {mostrarMarcador ? (
             <ScoreBox>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{partido.goles_local}</Typography>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreLocal}</Typography>
               <Typography sx={{ color: PUB.fgDim, fontSize: 18 }}>-</Typography>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{partido.goles_visitante}</Typography>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreVisit}</Typography>
             </ScoreBox>
           ) : (
             <ScoreBox sx={{ flexDirection: 'column', gap: 0.4 }}>
@@ -849,11 +939,17 @@ function MatchModal({ partido, onClose, onFormacion }) {
  * FORMACIÓN Y CAMBIOS (estilo TV)
  * ============================================================ */
 function FormationDialog({ partido, onClose }) {
+  const qc = useQueryClient()
   const { data, isError } = useQuery({
     queryKey: ['pl-alineaciones', partido.id],
     queryFn: () => apiGet(`/landing/partido/${partido.id}/alineaciones`),
     retry: 0,
   })
+
+  const handleStream = useCallback((data) => {
+    if (data.eventos) qc.invalidateQueries({ queryKey: ['pl-alineaciones', partido.id] })
+  }, [qc, partido.id])
+  usePartidoStream(partido.id, estaEnVivo(partido), handleStream)
 
   useEffect(() => {
     document.body.style.overflow = 'hidden'
@@ -867,10 +963,21 @@ function FormationDialog({ partido, onClose }) {
   const sinFormacion = !equipos.some((t) => (t.jugadores || []).length)
 
   const POS_ORDER = ['POR', 'DEF', 'MED', 'DEL', 'OTROS']
+  const FORMACION_DEFECTO = ['POR', ...Array(4).fill('DEF'), ...Array(3).fill('MED'), ...Array(3).fill('DEL')]
+
+  // Si el equipo no tiene posiciones cargadas (todo OTROS), se reparte en un
+  // 4-3-3 por defecto para que la vista sea homogénea.
+  const posicionesEfectivas = (team) => {
+    const titulares = team.jugadores.filter((j) => j.titular)
+    const tienePos = titulares.some((j) => j.posicion && j.posicion !== 'OTROS')
+    if (tienePos) return titulares.map((j) => ({ ...j, posicion: j.posicion || 'OTROS' }))
+    return titulares.map((j, i) => ({ ...j, posicion: FORMACION_DEFECTO[i] || 'OTROS' }))
+  }
 
   const tactic = (team) => {
-    const titulares = team.jugadores.filter((j) => j.titular)
+    const titulares = posicionesEfectivas(team)
     const nums = POS_ORDER.slice(1, 4).map((p) => titulares.filter((j) => j.posicion === p).length)
+    if (nums.every((n) => n === 0)) return '4-3-3'
     return nums.join('-')
   }
 
@@ -915,7 +1022,7 @@ function FormationDialog({ partido, onClose }) {
               </Box>
             ) : (
               equipos.map((team) => {
-                const titulares = team.jugadores.filter((j) => j.titular)
+                const titulares = posicionesEfectivas(team)
                 const suplentes = team.jugadores.filter((j) => !j.titular)
                 return (
                   <Box key={team.equipo_id} sx={{ mb: 4, pb: 3, borderBottom: `1px solid ${PUB.line}` }}>

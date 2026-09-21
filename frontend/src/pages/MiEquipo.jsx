@@ -166,7 +166,7 @@ export default function MiEquipo({ user, selectedTorneoId }) {
       )}
 
       <Alert severity="info" sx={{ mt: 2 }}>
-        Cargás la <b>alineación</b> (convocatoria de jugadores y titulares) de tus partidos pendientes. Las anotaciones y la homologación final las hace el árbitro.
+        Cargás la <b>alineación</b> (convocatoria de jugadores y titulares) de tus partidos pendientes. Las anotaciones y el cierre final los hace el árbitro.
       </Alert>
 
       <Dialog open={!!partidoSel} onClose={() => setPartidoSel(null)} fullWidth maxWidth="sm">

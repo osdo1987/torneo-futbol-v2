@@ -22,6 +22,9 @@ class Partido(db.Model):
     equipo_visitante_id = db.Column(db.Integer, db.ForeignKey('equipos.id'), nullable=False)
     jornada = db.Column(db.Integer, nullable=False, default=1)
     fecha_programada = db.Column(db.DateTime, nullable=True)
+    locacion_id = db.Column(db.Integer,
+                            db.ForeignKey('locaciones.id', ondelete='SET NULL'),
+                            nullable=True)
     goles_local = db.Column(db.Integer, nullable=False, default=0)
     goles_visitante = db.Column(db.Integer, nullable=False, default=0)
     resultado = db.Column(db.String(20), nullable=False, default='PENDIENTE')
@@ -29,6 +32,7 @@ class Partido(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+    locacion = db.relationship('Locacion', backref=db.backref('partidos', lazy=True))
     eventos = db.relationship('EventoPartido', backref='partido', lazy=True,
                               cascade='all, delete-orphan')
 

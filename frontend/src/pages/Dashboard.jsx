@@ -709,7 +709,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
                 {/* Stream de partidos */}
                 {partidosFiltrados.length === 0 ? (
                   <Alert severity="info" sx={{ borderRadius: 2 }}>
-                    No hay partidos para mostrar. Genera un fixture en <b>Torneos</b> o crea partidos manualmente.
+                    No hay partidos para mostrar. Genera un fixture automático en <b>Partidos</b> o crea partidos manualmente.
                   </Alert>
                 ) : (
                   <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>

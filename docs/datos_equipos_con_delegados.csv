@@ -1,0 +1,11 @@
+id_equipo,nombre_equipo,delegado_nombre,delegado_email,delegado_documento
+1,Los Leones FC,Juan Carlos Pérez,juancarlos.perez@email.com,DL-10011990-01
+2,Rayo de Luna,Maria Fernanda Gómez,mfernanda.gomez@email.com,DL-10011991-02
+3,Estrella Braves,Carlos Andrés Ruiz,carlos.ruiz@email.com,DL-10011988-03
+4,Águilas Doradas,Sandra Milena López,sandra.lopez@email.com,DL-10011992-04
+5,Cloud 9 FC,Pedro Antonio Martinez, pedro.martinez@email.com,DL-10011987-05
+6,Atlético Sur,Felipe Eduardo Diaz,felipe.diaz@email.com,DL-10011993-06
+7,Thunder FC,Valentina Mejia,valentina.mejia@email.com,DL-10011994-07
+8,Elite FC,Diego Fernando Torres,diego.torres@email.com,DL-10011989-08
+9,Norte Sur CA,Marta Elena Uribe, marta.uribe@email.com,DL-10011995-09
+10,CD Monarcas,Roberto Ignacio Velasquez,roberto.velasquez@email.com,DL-10011996-10

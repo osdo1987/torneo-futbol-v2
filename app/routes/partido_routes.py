@@ -5,6 +5,7 @@ from app.services.torneo_service import TorneoService
 from app.schemas.partido_schema import PartidoSchema
 from app.models.partido_alineacion import PartidoAlineacion
 from app.models.jugador import Jugador
+from app.models.partido_en_vivo import PartidoEnVivo
 from app.extensions import db
 from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role, ensure_delegado_equipo
 
@@ -312,7 +313,85 @@ def guardar_en_vivo(partido_id):
     )
     if error:
         return jsonify({'error': error}), 400
-    return jsonify({'partido_id': vivo.partido_id, 'seg': vivo.seg, 'running': vivo.running, 'iniciado': vivo.iniciado}), 200
+    return jsonify({'partido_id': vivo.partido_id, 'seg': vivo.seg_actual(), 'running': vivo.running, 'iniciado': vivo.iniciado}), 200
+
+
+@partido_bp.route('/<int:partido_id>/stream')
+def stream_en_vivo(partido_id):
+    """Server-Sent Events para cronómetro y eventos en tiempo real (público)."""
+    from flask import Response, stream_with_context
+    import json
+    import time
+
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        def not_found():
+            yield f"data: {json.dumps({'error': 'Partido no encontrado'})}\n\n"
+        return Response(not_found(), mimetype='text/event-stream', status=404)
+
+    # Liberar la conexión usada en la verificación inicial: el stream dura
+    # indefinidamente y no debe retener una conexión del pool.
+    db.session.remove()
+
+    @stream_with_context
+    def gen():
+        last_seg = -1
+        last_event_count = -1
+        last_marcador = (-1, -1)
+        while True:
+            try:
+                vivo = PartidoEnVivo.query.get(partido_id)
+                partido_actual = PartidoService.get_by_id(partido_id)
+                eventos = PartidoService.get_eventos(partido_id)
+                current_seg = vivo.seg_actual() if vivo else 0
+                current_event_count = len(eventos)
+                current_marcador = (
+                    partido_actual.goles_local if partido_actual else 0,
+                    partido_actual.goles_visitante if partido_actual else 0,
+                )
+
+                payload = {}
+                if current_seg != last_seg:
+                    payload['seg'] = current_seg
+                    payload['running'] = vivo.running if vivo else False
+                    payload['iniciado'] = vivo.iniciado if vivo else False
+                    last_seg = current_seg
+
+                if current_event_count != last_event_count:
+                    payload['eventos'] = [
+                        {
+                            'id': e.id,
+                            'tipo': e.tipo,
+                            'minuto': e.minuto,
+                            'jugador_id': e.jugador_id,
+                            'jugador_sale_id': e.jugador_sale_id,
+                            'equipo_id': e.equipo_id,
+                            'descripcion': e.descripcion,
+                        }
+                        for e in eventos
+                    ]
+                    last_event_count = current_event_count
+
+                if current_marcador != last_marcador:
+                    payload['marcador'] = {'local': current_marcador[0], 'visitante': current_marcador[1]}
+                    last_marcador = current_marcador
+
+                if payload:
+                    payload['ts'] = time.time()
+                    yield f"data: {json.dumps(payload)}\n\n"
+
+            except GeneratorExit:
+                break
+            except Exception:
+                # Silenciar errores transitorios, seguir stream
+                pass
+            finally:
+                # Devolver la conexión al pool entre iteraciones.
+                db.session.remove()
+            time.sleep(1)
+
+    return Response(gen(), mimetype='text/event-stream',
+                    headers={'Cache-Control': 'no-cache', 'Connection': 'keep-alive'})
 
 
 @partido_bp.route('/<int:partido_id>/w', methods=['POST'])

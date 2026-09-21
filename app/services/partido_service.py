@@ -2,7 +2,7 @@ from datetime import datetime
 from marshmallow import ValidationError
 from app.extensions import db
 from app.models.partido import Partido, RESULTADO_PARTIDO
-from app.models.partido_en_vivo import PartidoEnVivo
+from app.models.partido_en_vivo import PartidoEnVivo, MAX_SEG
 from app.models.torneo import Torneo
 from app.models.evento_partido import EventoPartido
 from app.models.jugador import Jugador
@@ -124,25 +124,49 @@ class PartidoService:
         vivo = PartidoEnVivo.query.get(partido_id)
         if not vivo:
             return {'partido_id': partido_id, 'seg': 0, 'running': False, 'iniciado': False}
-        return {'partido_id': vivo.partido_id, 'seg': vivo.seg, 'running': vivo.running, 'iniciado': vivo.iniciado}
+        return {'partido_id': vivo.partido_id, 'seg': vivo.seg_actual(), 'running': vivo.running, 'iniciado': vivo.iniciado}
 
     @staticmethod
     def guardar_en_vivo(partido, seg, running, iniciado):
-        """Persiste el cronómetro del partido en vivo (solo si sigue pendiente)."""
+        """Persiste el cronómetro del partido en vivo (solo si sigue pendiente).
+
+        Reglas del cronómetro autoritativo:
+        - Iniciar/reanudar (running True desde detenido): se fija `seg` como base
+          y `updated_at` como ancla del segmento.
+        - Corriendo (running True y ya corría): latido; no se toca base ni ancla.
+        - Pausa: se congela el tiempo calculado por el servidor.
+        - Reinicio (iniciado False): vuelve a 0.
+        """
         if partido.resultado != 'PENDIENTE':
             return None, 'El partido ya no está pendiente'
         try:
-            seg = max(0, min(5400, int(seg)))
+            seg = max(0, min(MAX_SEG, int(seg)))
         except (TypeError, ValueError):
             return None, 'seg inválido'
         running = bool(running)
         iniciado = bool(iniciado)
+        now = datetime.utcnow()
         vivo = PartidoEnVivo.query.get(partido.id)
         if not vivo:
-            vivo = PartidoEnVivo(partido_id=partido.id)
+            vivo = PartidoEnVivo(partido_id=partido.id, seg=seg, running=running, iniciado=iniciado, updated_at=now)
             db.session.add(vivo)
-        vivo.seg = seg
-        vivo.running = running
-        vivo.iniciado = iniciado
+        else:
+            if running and not vivo.running:
+                # Iniciar / reanudar: base + ancla de inicio
+                vivo.seg = seg
+                vivo.running = True
+                vivo.iniciado = True
+                vivo.updated_at = now
+            elif not running:
+                if iniciado and vivo.running:
+                    # Pausa: congela el tiempo calculado por el servidor
+                    vivo.seg = vivo.seg_actual()
+                else:
+                    # Reinicio o partido ya pausado
+                    vivo.seg = seg
+                vivo.running = False
+                vivo.iniciado = iniciado
+                vivo.updated_at = now
+            # running y ya corriendo: latido; se mantienen base y ancla intactas.
         db.session.commit()
         return vivo, None

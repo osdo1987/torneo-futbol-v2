@@ -39,6 +39,24 @@ export default function App({ setDarkMode }) {
     setAuthErrorCallback(handleLogout)
   }, [handleLogout])
 
+  // Sesiones previas (antes de exponer organizadorSlug): refrescamos el usuario
+  // desde /auth/me para que la página pública esté siempre disponible.
+  useEffect(() => {
+    if (!user || user.organizadorSlug || user.role === 'SUPERADMIN') return
+    let active = true
+    apiGet('/auth/me')
+      .then((me) => {
+        if (!active || !me || me.role !== user.role) return
+        setUser((u) => {
+          const updated = { ...(u || {}), ...me }
+          try { localStorage.setItem('tf_user', JSON.stringify(updated)) } catch { /* noop */ }
+          return updated
+        })
+      })
+      .catch(() => { /* noop */ })
+    return () => { active = false }
+  }, [user])
+
   const handleLogin = (userData, token) => {
     localStorage.setItem('tf_user', JSON.stringify(userData))
     localStorage.setItem('tf_token', token)

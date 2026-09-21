@@ -49,7 +49,7 @@ El sistema de **autenticación y roles** define **quién eres** y **qué puedes 
 | **ADMIN** | Su propio tenant (co-gestor) | Igual manejo de datos que ORGANIZADOR, más la gestión de usuarios **STAFF / Árbitro / Delegado** desde **Configuración → Usuarios**. No puede crear ni tocar cuentas ORGANIZADOR, otros ADMIN ni SUPERADMIN |
 | **STAFF** | Su propio tenant | Colaborador con gestión completa de datos (sin gestión de usuarios) |
 | **REFEREE** | Su propio tenant (solo planilla) | Árbitro: opera únicamente en la **planilla de juego** (anotaciones de goles, tarjetas, cambios, cronómetro y finalización del partido) |
-| **DELEGADO** | Su propio equipo | Mesero: carga la **alineación** (convocatoria, titulares, números) de los partidos de su equipo. Ve sus partidos, posiciones y estadísticas. No anota ni homologuea |
+| **DELEGADO** | Su propio equipo | Mesero: carga la **alineación** (convocatoria, titulares, números) de los partidos de su equipo. Ve sus partidos, posiciones y estadísticas. No anota ni cierra el partido |
 
 ### 2.3. Cómo se aplica en la práctica
 

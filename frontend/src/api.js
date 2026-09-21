@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL || '/api'
+export const API = import.meta.env.VITE_API_URL || '/api'
 
 // Clave única donde vive el JWT de esta app (ver App.jsx)
 const TOKEN_KEY = 'tf_token'

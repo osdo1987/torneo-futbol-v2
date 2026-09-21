@@ -39,14 +39,12 @@ import {
   HowToReg as HowToRegIcon,
   Leaderboard as LeaderboardIcon,
   Lock as LockIcon,
-  MenuBook as MenuBookIcon,
   MilitaryTech as MilitaryTechIcon,
   PlayArrow as PlayArrowIcon,
   PlayCircle as PlayCircleIcon,
   Search as SearchIcon,
   Shuffle as ShuffleIcon,
   SportsSoccer as SportsSoccerIcon,
-  VerifiedUser as VerifiedUserIcon,
 } from '@mui/icons-material'
 import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
@@ -154,7 +152,7 @@ function ReglasDialog({ torneo, onClose }) {
     const arr = [...form.desempates]
     const j = i + dir
     if (j < 0 || j >= arr.length) return
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
     setForm({ ...form, desempates: arr })
   }
 
@@ -452,10 +450,6 @@ function TorneoCard({ t, resumen, equipos, selected, onSelect, onOpenReglas, mut
                   sx={{ color: 'text.secondary', bgcolor: 'background.paper', boxShadow: '0 1px 2px rgba(0,0,0,0.08)', '&:hover': { color: 'primary.main' } }}>
                   <GavelIcon sx={{ fontSize: 18 }} />
                 </IconButton>
-                <IconButton size="small" title="Homologación" onClick={(e) => { e.stopPropagation(); }}
-                  sx={{ color: 'text.secondary', bgcolor: 'background.paper', boxShadow: '0 1px 2px rgba(0,0,0,0.08)', '&:hover': { color: 'primary.main' } }}>
-                  <MenuBookIcon sx={{ fontSize: 18 }} />
-                </IconButton>
               </Box>
             )}
           </Box>
@@ -703,14 +697,6 @@ export default function Torneos({ user, selectedTorneoId, onSelectTorneo }) {
             sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, flex: { xs: '1 1 auto', lg: '0 0 auto' } }}
           >
             Editar Reglamentos Base
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<VerifiedUserIcon sx={{ fontSize: 18 }} />}
-            onClick={() => toast.show('Homologación AFA disponible próximamente', 'info')}
-            sx={{ textTransform: 'none', fontWeight: 700, borderRadius: 1.5, flex: { xs: '1 1 auto', lg: '0 0 auto' } }}
-          >
-            Homologación AFA
           </Button>
         </Box>
       </Card>

@@ -54,6 +54,7 @@ docker ps | grep torneo                    # torneo_api_prod + torneo_frontend_p
 - Desplegado en la VM App desde `origin/main` en `ff1ca66` (Dashboard, Equipos c/grilla+drawer, Torneos, Partidos, Planilla, tema). Gateway responde 200 en `torneos.osdosoft.com` y `/apidocs`.
 - `frontend/Dockerfile` fija `NODE_OPTIONS=--max-old-space-size=2048` (build de Vite moría en la VM por RAM); no quitar.
 - Credenciales del SUPERADMIN de producción en la VM: `~/torneo-futbol-v2/.superadmin_credentials.txt` (no confiar valor; siempre leer desde la VM, no copiar a `/hipocrita`). No commitear nunca este archivo (¡está sin trackear en la VM!).
+- **Fixture automático** (sep-2026): `POST /api/torneos/<id>/fixture` acepta además `programacion: {fecha_inicio: 'YYYY-MM-DD', hora_inicio: 'HH:MM', dias_entre_jornadas, horas_entre_partidos}` para crear los partidos ya programados (jornada +N días, partido +M horas). Body `{}` conserva el comportamiento sin fechas (lo usan `Torneos.jsx` y los seeds). La UI vive en **Partidos → «Generar Fixture»** (diálogo con resumen de equipos/jornadas y previsualización del rango de fechas).
 
 ## Comandos útiles
 
