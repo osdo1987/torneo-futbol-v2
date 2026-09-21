@@ -42,6 +42,24 @@ def get_partido(partido_id):
     return jsonify(partido_schema.dump(partido)), 200
 
 
+@partido_bp.route('/<int:partido_id>', methods=['PUT'])
+@jwt_required()
+def update_partido(partido_id):
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    partido, error = PartidoService.actualizar(partido, data)
+    if error:
+        return jsonify({'error': error}), 400
+    return jsonify(partido_schema.dump(partido)), 200
+
+
 @partido_bp.route('', methods=['POST'])
 @jwt_required()
 def create_partido():

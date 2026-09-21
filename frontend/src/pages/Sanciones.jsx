@@ -2,31 +2,30 @@ import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
-import Chip from '@mui/material/Chip'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
-import Accordion from '@mui/material/Accordion'
-import AccordionSummary from '@mui/material/AccordionSummary'
-import AccordionDetails from '@mui/material/AccordionDetails'
-import List from '@mui/material/List'
-import ListItem from '@mui/material/ListItem'
-import ListItemText from '@mui/material/ListItemText'
 import Button from '@mui/material/Button'
-import Divider from '@mui/material/Divider'
 import CircularProgress from '@mui/material/CircularProgress'
 import Alert from '@mui/material/Alert'
 import PageHeader from '../components/PageHeader'
 import Grid from '@mui/material/Grid'
-import { ExpandMore as ExpandMoreIcon, ExpandLess as ExpandLessIcon } from '@mui/icons-material'
 import { apiGet } from '../api'
 
+const BARRA_COLS = 'minmax(0,1fr) 3.1rem 3.1rem minmax(9rem,auto)'
+
 export default function Sanciones({ selectedTorneoId }) {
-  const [abiertos, setAbiertos] = useState({})
+  const [equipoSel, setEquipoSel] = useState('')
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sanciones', selectedTorneoId],
     queryFn: () => apiGet(`/panel/${selectedTorneoId}/sanciones`),
     enabled: !!selectedTorneoId,
   })
+
+  const [prevTorneo, setPrevTorneo] = useState(selectedTorneoId)
+  if (selectedTorneoId !== prevTorneo) {
+    setPrevTorneo(selectedTorneoId)
+    setEquipoSel('')
+  }
 
   if (!selectedTorneoId) return <Alert severity="info">Selecciona un torneo para ver las sanciones.</Alert>
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', p: 8 }}><CircularProgress /></Box>
@@ -52,14 +51,15 @@ export default function Sanciones({ selectedTorneoId }) {
     }))
     .sort((a, b) => (b.suspendidos - a.suspendidos) || ((b.rojas + b.amarillas) - (a.rojas + a.amarillas)))
 
-  const todosAbiertos = equipos.every((e) => abiertos[e.nombre])
+  const activo = equipos.find((e) => e.nombre === equipoSel) || equipos[0]
 
-  const toggleEquipo = (nombre) => setAbiertos((prev) => ({ ...prev, [nombre]: !prev[nombre] }))
-  const toggleTodos = () => setAbiertos(todosAbiertos ? {} : Object.fromEntries(equipos.map((e) => [e.nombre, true])))
+  const celdasHeader = (label, justify = 'flex-start') => (
+    <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'text.secondary', justifyContent: justify, display: 'flex', alignItems: 'center' }}>{label}</Typography>
+  )
 
   return (
     <Box>
-      <PageHeader title="Sanciones" subtitle={`${data?.torneo} — acumulado por jugador y equipo según el reglamento.`} actions={equipos.length > 0 && (<Button size="small" startIcon={todosAbiertos ? <ExpandLessIcon /> : <ExpandMoreIcon />} onClick={toggleTodos}>{todosAbiertos ? 'Colapsar todos' : 'Expandir todos'}</Button>)} />
+      <PageHeader title="Sanciones" subtitle={`${data?.torneo} — acumulado por jugador y equipo según el reglamento.`} />
 
       <Grid container spacing={2} mb={3}>
         {[
@@ -83,41 +83,65 @@ export default function Sanciones({ selectedTorneoId }) {
         <Alert severity="info">No hay sanciones registradas en este torneo.</Alert>
       ) : (
         <Box>
-          {equipos.map((equipo) => (
-            <Accordion key={equipo.nombre} expanded={!!abiertos[equipo.nombre]}
-              onChange={() => toggleEquipo(equipo.nombre)}
-              elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)', '&:not(:last-child)': { mb: 1 } }}>
-              <AccordionSummary expandIcon={<ExpandMoreIcon />} sx={{ '& .MuiAccordionSummary-content': { alignItems: 'center', gap: 1.5 } }}>
-                <Typography variant="subtitle1" fontWeight={700} sx={{ flex: 1 }}>{equipo.nombre}</Typography>
-                <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
-                  <Chip label={`${equipo.jugadores.length} jugadores`} size="small" color="info" variant="outlined" />
-                  <Chip label={`🟨 ${equipo.amarillas}`} size="small" color="warning" variant="outlined" />
-                  <Chip label={`🟥 ${equipo.rojas}`} size="small" color="error" variant={equipo.rojas > 0 ? 'filled' : 'outlined'} />
+          {/* Pestañas por equipo */}
+          <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 2 }}>
+            {equipos.map((equipo) => {
+              const active = equipo.nombre === activo.nombre
+              return (
+                <Button
+                  key={equipo.nombre}
+                  size="small"
+                  onClick={() => setEquipoSel(equipo.nombre)}
+                  sx={{
+                    textTransform: 'none', fontWeight: 700, borderRadius: 99, px: 1.5, minHeight: 36, gap: 0.6,
+                    bgcolor: active ? 'primary.main' : 'background.default',
+                    color: active ? 'primary.contrastText' : 'text.primary',
+                    border: '1px solid', borderColor: active ? 'primary.main' : 'divider',
+                    '&:hover': { bgcolor: active ? 'primary.dark' : 'action.hover' },
+                  }}
+                >
+                  {equipo.nombre}
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(255,193,7,0.15)', color: active ? '#fff' : 'warning.dark' }}>
+                    <span aria-hidden>🟨</span>{equipo.amarillas}
+                  </Box>
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(211,47,47,0.12)', color: active ? '#fff' : 'error.main' }}>
+                    <span aria-hidden>🟥</span>{equipo.rojas}
+                  </Box>
                   {equipo.suspendidos > 0 && (
-                    <Chip label={`${equipo.suspendidos} suspendido${equipo.suspendidos > 1 ? 's' : ''}`} size="small" color="error" />
-                  )}
-                </Box>
-              </AccordionSummary>
-              <AccordionDetails sx={{ p: 0 }}>
-                <List dense disablePadding>
-                  {equipo.jugadores.map((s, i) => (
-                    <Box key={s.jugador_id}>
-                      {i > 0 && <Divider component="li" />}
-                      <ListItem sx={{ px: 2, py: 0.75, bgcolor: s.suspendido ? 'error.light' : 'inherit' }}>
-                        <ListItemText
-                          primary={s.jugador}
-                          secondary={s.suspendido ? `Suspendido hasta la jornada ${s.suspendido_hasta_jornada}` : 'Disponible'}
-                          primaryTypographyProps={{ fontWeight: 600, variant: 'body2' }}
-                        />
-                        <Chip label={`🟨 ${s.amarillas}`} size="small" color="warning" variant="outlined" />
-                        <Chip label={`🟥 ${s.rojas}`} size="small" color="error" variant={s.rojas > 0 ? 'filled' : 'outlined'} />
-                      </ListItem>
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(211,47,47,0.14)', color: active ? '#fff' : 'error.dark' }}>
+                      <span aria-hidden>⛔</span>{equipo.suspendidos}
                     </Box>
-                  ))}
-                </List>
-              </AccordionDetails>
-            </Accordion>
-          ))}
+                  )}
+                </Button>
+              )
+            })}
+          </Box>
+
+          {/* Tabla compacta de amonestados */}
+          <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+            <Box sx={{ display: 'grid', gridTemplateColumns: BARRA_COLS, alignItems: 'center', gap: 1, px: 2, py: 1.25, bgcolor: 'rgba(0,0,0,0.045)', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+              {celdasHeader('Jugador')}
+              {celdasHeader('Amarillas', 'center')}
+              {celdasHeader('Rojas', 'center')}
+              {celdasHeader('Estado')}
+            </Box>
+            {activo.jugadores.map((s, i) => (
+              <Box key={s.jugador_id} sx={{
+                display: 'grid', gridTemplateColumns: BARRA_COLS, alignItems: 'center', gap: 1,
+                px: 2, py: 0.55,
+                borderBottom: i === activo.jugadores.length - 1 ? 'none' : '1px solid rgba(0,0,0,0.05)',
+                bgcolor: i % 2 ? 'rgba(0,0,0,0.02)' : 'transparent',
+                '&:hover': { bgcolor: 'rgba(0,0,0,0.045)' },
+              }}>
+                <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: s.suspendido ? 'text.secondary' : 'text.primary' }}>{s.jugador}</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 800, textAlign: 'center', color: s.amarillas > 0 ? 'warning.main' : 'text.disabled' }}>🟨 {s.amarillas}</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 800, textAlign: 'center', color: s.rojas > 0 ? 'error.main' : 'text.disabled' }}>🟥 {s.rojas}</Typography>
+                <Typography sx={{ fontSize: 12, fontWeight: 600, color: s.suspendido ? 'error.main' : 'success.main' }}>
+                  {s.suspendido ? `Suspendido hasta J. ${s.suspendido_hasta_jornada}` : 'Disponible'}
+                </Typography>
+              </Box>
+            ))}
+          </Card>
         </Box>
       )}
     </Box>

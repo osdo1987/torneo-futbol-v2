@@ -143,6 +143,8 @@ class LandingService:
             vivo = vivos.get(p.id)
             por_jornada.setdefault(p.jornada or 0, []).append({
                 'id': p.id,
+                'equipo_local_id': p.equipo_local_id,
+                'equipo_visitante_id': p.equipo_visitante_id,
                 'equipo_local': equipos.get(p.equipo_local_id, 'Equipo local'),
                 'equipo_visitante': equipos.get(p.equipo_visitante_id, 'Equipo visitante'),
                 'goles_local': p.goles_local,

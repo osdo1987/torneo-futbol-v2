@@ -7,6 +7,7 @@ from app.models.torneo import Torneo
 from app.models.evento_partido import EventoPartido
 from app.models.jugador import Jugador
 from app.models.equipo import Equipo
+from app.models.locacion import Locacion
 from app.schemas.partido_schema import PartidoSchema
 
 
@@ -41,6 +42,55 @@ class PartidoService:
         except Exception as e:
             db.session.rollback()
             return None, str(e)
+
+    @staticmethod
+    def actualizar(partido, data):
+        """Edita datos básicos de un partido aún no jugado (PENDIENTE/POSTERGADO).
+
+        Permite cambiar equipos, jornada, fecha y/o sede. Si viene el campo
+        `fecha_programada` como null se limpia la fecha programada.
+        """
+        if partido.resultado not in ('PENDIENTE', 'POSTERGADO'):
+            return None, 'Solo se pueden modificar partidos pendientes o postergados'
+        try:
+            local_id = int(data.get('equipo_local_id', partido.equipo_local_id))
+            visit_id = int(data.get('equipo_visitante_id', partido.equipo_visitante_id))
+        except (TypeError, ValueError):
+            return None, 'Equipos inválidos'
+        if not local_id or not visit_id:
+            return None, 'Los equipos son obligatorios'
+        if local_id == visit_id:
+            return None, 'El equipo local no puede ser igual al visitante'
+        for eq_id in (local_id, visit_id):
+            eq = Equipo.query.get(eq_id)
+            if not eq or eq.torneo_id != partido.torneo_id:
+                return None, 'Los equipos deben pertenecer al torneo del partido'
+        try:
+            jornada = int(data.get('jornada', partido.jornada) or 1)
+        except (TypeError, ValueError):
+            return None, 'Jornada inválida'
+
+        fecha = data.get('fecha_programada', partido.fecha_programada)
+        if isinstance(fecha, str):
+            try:
+                fecha = datetime.fromisoformat(fecha.replace('Z', '+00:00'))
+            except ValueError:
+                return None, 'Formato de fecha inválido'
+
+        locacion_id = data.get('locacion_id', partido.locacion_id)
+        if locacion_id:
+            if not Locacion.query.get(locacion_id):
+                return None, 'Locación no encontrada'
+
+        partido.equipo_local_id = local_id
+        partido.equipo_visitante_id = visit_id
+        partido.jornada = jornada
+        partido.fecha_programada = fecha
+        partido.locacion_id = locacion_id or None
+        if partido.resultado == 'POSTERGADO':
+            partido.resultado = 'PENDIENTE'
+        db.session.commit()
+        return partido, None
 
     @staticmethod
     def schedule(partido, fecha_programada):

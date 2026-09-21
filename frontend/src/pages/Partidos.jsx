@@ -24,7 +24,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Chip from '@mui/material/Chip'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
-import { apiGet, apiPost } from '../api'
+import { apiGet, apiPost, apiPut } from '../api'
 import { useToast } from '../components/Toast'
 import {
   Add as AddIcon,
@@ -37,8 +37,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   EditNote as EditNoteIcon,
-  FileDownload as FileDownloadIcon,
-  Print as PrintIcon,
+  Edit as EditIcon,
   Place as PlaceIcon,
   Schedule as ScheduleIcon,
   Sports as SportsIcon,
@@ -88,6 +87,15 @@ const hoyISO = () => {
   const d = new Date()
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+// ISO (UTC) → valor para <input type="datetime-local"> (zona local).
+const toLocalInput = (iso) => {
+  if (!iso) return ''
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return ''
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // Combina 'YYYY-MM-DD' + 'HH:MM' en un Date local (naive, igual que la API).
@@ -178,6 +186,8 @@ export default function Partidos({ selectedTorneoId, user }) {
   const [progOpen, setProgOpen] = useState(null)
   const [progForm, setProgForm] = useState({ fecha_programada: '' })
   const [eventosOpen, setEventosOpen] = useState(null)
+  const [editOpen, setEditOpen] = useState(null)
+  const [editForm, setEditForm] = useState({ equipo_local_id: '', equipo_visitante_id: '', jornada: 1, fecha_programada: '', locacion_id: '' })
   const [jornadaSel, setJornadaSel] = useState('')
   const [filtro, setFiltro] = useState('TODOS')
   const [page, setPage] = useState(0)
@@ -271,6 +281,15 @@ export default function Partidos({ selectedTorneoId, user }) {
     onError: (e) => toast.show(e.message, 'error'),
   })
 
+  const editMut = useMutation({
+    mutationFn: ({ id, body }) => apiPut(`/partidos/${id}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries(['partidos', selectedTorneoId]); qc.invalidateQueries(['tabla', selectedTorneoId]); qc.invalidateQueries(['resumen']); qc.invalidateQueries(['equipos', selectedTorneoId])
+      toast.show('Partido actualizado', 'success'); setEditOpen(null)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
   const wMut = useMutation({
     mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/w`, body),
     onSuccess: () => {
@@ -332,6 +351,29 @@ export default function Partidos({ selectedTorneoId, user }) {
   const handleResult = (e) => {
     e.preventDefault()
     resultMut.mutate({ id: resultOpen.id, body: resultForm })
+  }
+
+  const handleAbrirEdicion = (p) => {
+    setEditForm({
+      equipo_local_id: p.equipo_local_id,
+      equipo_visitante_id: p.equipo_visitante_id,
+      jornada: p.jornada,
+      fecha_programada: toLocalInput(p.fecha_programada),
+      locacion_id: p.locacion_id || '',
+    })
+    setEditOpen(p)
+  }
+
+  const handleEditSubmit = (e) => {
+    e.preventDefault()
+    const body = {
+      equipo_local_id: Number(editForm.equipo_local_id),
+      equipo_visitante_id: Number(editForm.equipo_visitante_id),
+      jornada: Number(editForm.jornada || 1),
+    }
+    body.fecha_programada = editForm.fecha_programada ? new Date(editForm.fecha_programada).toISOString() : null
+    if (editForm.locacion_id) body.locacion_id = Number(editForm.locacion_id)
+    editMut.mutate({ id: editOpen.id, body })
   }
 
   const eqName = useCallback((id) => equipos.find((x) => String(x.id) === String(id))?.nombre || `Equipo #${id}`, [equipos])
@@ -602,6 +644,16 @@ export default function Partidos({ selectedTorneoId, user }) {
               </IconButton>
             </Tooltip>
           )}
+          {!isReferee && ['PENDIENTE', 'POSTERGADO'].includes(p.resultado) && (
+            <Tooltip title="Editar partido">
+              <IconButton
+                size="small" onClick={() => handleAbrirEdicion(p)}
+                sx={{ color: 'text.secondary', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', '&:hover': { color: 'primary.main', bgcolor: 'action.hover' } }}
+              >
+                <EditIcon sx={{ fontSize: 19 }} />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </Card>
     )
@@ -664,46 +716,6 @@ export default function Partidos({ selectedTorneoId, user }) {
                 </Button>
               </>
             )}
-          </Box>
-        </Box>
-      </Box>
-
-      {/* Banner */}
-      <Box sx={{ mb: 2, position: 'relative', overflow: 'hidden', borderRadius: 2.5, boxShadow: '0 4px 16px -6px rgba(33,49,69,0.5)' }}>
-        <Box sx={{
-          position: 'absolute', inset: 0,
-          background: 'linear-gradient(90deg, #213145 0%, #24394f 55%, #1d2c3e 100%)',
-        }} />
-        <Box sx={{ position: 'absolute', right: -40, top: -60, width: 300, height: 260, borderRadius: '50%', background: 'radial-gradient(circle, rgba(12,86,208,0.45), transparent 70%)', opacity: 0.6 }} />
-        <Box sx={{ position: 'relative', zIndex: 1, px: { xs: 2, md: 3 }, py: 2, display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 1.5 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-            <Box sx={{ width: 48, height: 48, borderRadius: 1.5, bgcolor: 'rgba(12,86,208,0.40)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#c4d2ff', flexShrink: 0 }}>
-              <SportsSoccerIcon sx={{ fontSize: 26 }} />
-            </Box>
-            <Box>
-              <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
-                <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: '#4edea3', animation: 'torneoPulse 1.6s ease-in-out infinite' }} />
-                <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.12em', fontWeight: 800, color: '#5debaf' }}>Feed Oficial de Competencia</Typography>
-              </Box>
-              <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#eaf1ff', letterSpacing: '-0.01em' }}>Panel de Arbitraje y Programación</Typography>
-              <Typography variant="body2" sx={{ color: 'rgba(220,233,255,0.75)' }}>Control en directo de actas de juego y programación de partidos.</Typography>
-            </Box>
-          </Box>
-          <Box sx={{ display: 'flex', gap: 0.75, flexShrink: 0, width: { xs: '100%', md: 'auto' } }}>
-            <Button
-              size="small" startIcon={<PrintIcon sx={{ fontSize: 16 }} />}
-              onClick={() => toast.show('Planillas del día próximamente', 'info')}
-              sx={{ flex: { xs: 1, md: '0 0 auto' }, color: '#eaf1ff', bgcolor: 'rgba(255,255,255,0.12)', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' }, textTransform: 'none', fontWeight: 700, borderRadius: 1.25 }}
-            >
-              Planillas del Día
-            </Button>
-            <Button
-              size="small" startIcon={<FileDownloadIcon sx={{ fontSize: 16 }} />}
-              onClick={() => toast.show('Exportar calendario próximamente', 'info')}
-              sx={{ flex: { xs: 1, md: '0 0 auto' }, color: '#eaf1ff', bgcolor: 'rgba(255,255,255,0.12)', '&:hover': { bgcolor: 'rgba(255,255,255,0.22)' }, textTransform: 'none', fontWeight: 700, borderRadius: 1.25 }}
-            >
-              Exportar Calendario
-            </Button>
           </Box>
         </Box>
       </Box>
@@ -883,6 +895,53 @@ export default function Partidos({ selectedTorneoId, user }) {
             <Button onClick={() => setProgOpen(null)}>Cancelar</Button>
             <Button type="submit" variant="contained" disabled={programarMut.isPending}>
               {programarMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Programar'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
+
+      {/* Editar (solo partidos pendientes/postergados) */}
+      <Dialog open={!!editOpen} onClose={() => setEditOpen(null)} fullWidth maxWidth="xs">
+        <form onSubmit={handleEditSubmit}>
+          <DialogTitle>Editar partido</DialogTitle>
+          <DialogContent>
+            {editOpen && (
+              <Typography variant="subtitle1" sx={{ mb: 1 }}>
+                {eqName(editOpen.equipo_local_id)} vs {eqName(editOpen.equipo_visitante_id)} · Jornada {editOpen.jornada}
+              </Typography>
+            )}
+            <TextField select label="Equipo local" fullWidth required margin="normal" value={editForm.equipo_local_id}
+              onChange={(e) => {
+                const v = e.target.value
+                setEditForm({ ...editForm, equipo_local_id: v, equipo_visitante_id: editForm.equipo_visitante_id === v ? '' : editForm.equipo_visitante_id })
+              }}>
+              {equipos.map((eq) => <MenuItem key={eq.id} value={eq.id}>{eq.nombre}</MenuItem>)}
+            </TextField>
+            <TextField select label="Equipo visitante" fullWidth required margin="normal" value={editForm.equipo_visitante_id}
+              onChange={(e) => {
+                const v = e.target.value
+                setEditForm({ ...editForm, equipo_visitante_id: v, equipo_local_id: editForm.equipo_local_id === v ? '' : editForm.equipo_local_id })
+              }}>
+              {equipos.map((eq) => <MenuItem key={eq.id} value={eq.id}>{eq.nombre}</MenuItem>)}
+            </TextField>
+            <TextField label="Jornada" type="number" fullWidth margin="normal" value={editForm.jornada}
+              onChange={(e) => setEditForm({ ...editForm, jornada: Number(e.target.value) })} />
+            <TextField label="Fecha y hora" type="datetime-local" fullWidth margin="normal"
+              value={editForm.fecha_programada}
+              onChange={(e) => setEditForm({ ...editForm, fecha_programada: e.target.value })}
+              InputProps={{ startAdornment: <InputAdornment position="start"><ScheduleIcon fontSize="small" /></InputAdornment> }} />
+            <TextField select label="Locación (sede)" fullWidth margin="normal" value={editForm.locacion_id}
+              onChange={(e) => setEditForm({ ...editForm, locacion_id: e.target.value })}>
+              <MenuItem value="">Sin sede asignada</MenuItem>
+              {locacionesActivas.map((l) => (
+                <MenuItem key={l.id} value={l.id}>{l.nombre}{l.direccion ? ` · ${l.direccion}` : ''}</MenuItem>
+              ))}
+            </TextField>
+          </DialogContent>
+          <DialogActions sx={{ px: 3, pb: 2 }}>
+            <Button onClick={() => setEditOpen(null)}>Cancelar</Button>
+            <Button type="submit" variant="contained" disabled={editMut.isPending}>
+              {editMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar'}
             </Button>
           </DialogActions>
         </form>
