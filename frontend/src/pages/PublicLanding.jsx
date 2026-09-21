@@ -10,7 +10,6 @@ import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import StarIcon from '@mui/icons-material/Star'
 import StarBorderIcon from '@mui/icons-material/StarBorder'
 import PushPinIcon from '@mui/icons-material/PushPin'
-import LiveTvIcon from '@mui/icons-material/LiveTv'
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import ShieldIcon from '@mui/icons-material/Shield'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
@@ -340,6 +339,75 @@ const starBtn = (active) => ({
   '&:hover': { color: active ? PUB.cyan : PUB.fgDim },
 })
 
+function RowTeam({ nombre, win, align }) {
+  const badge = <TeamBadge name={nombre} size={20} />
+  return (
+    <Box sx={{
+      display: 'flex', alignItems: 'center', gap: 1, minWidth: 0,
+      justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
+    }}>
+      {align !== 'right' && badge}
+      <Typography noWrap sx={{ fontSize: 13, fontWeight: win ? 800 : 500, color: win ? PUB.fg : PUB.fgDim }}>
+        {nombre}
+      </Typography>
+      {align === 'right' && badge}
+    </Box>
+  )
+}
+
+const ROLE_COLORS = { POR: '#f39c12', DEF: '#4aa3ff', MED: '#2ecc71', DEL: '#ff5b5b', OTROS: '#90a4ae' }
+
+function PlayerToken({ j, rol }) {
+  return (
+    <Box title={`${j.nombre} · camiseta ${j.numero}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 0.3 }}>
+      <Box sx={{
+        width: 30, height: 30, borderRadius: '50%', bgcolor: ROLE_COLORS[rol] || ROLE_COLORS.OTROS, color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11,
+        fontVariantNumeric: 'tabular-nums', border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,.35)',
+      }}>
+        {j.numero}
+      </Box>
+      <Typography sx={{
+        fontSize: 8.5, lineHeight: 1.15, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.7)',
+        maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.15,
+      }}>
+        {j.nombre}
+      </Typography>
+    </Box>
+  )
+}
+
+function SuplentesTable({ titulo, jugadores }) {
+  return (
+    <Box>
+      <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: PUB.muted, textTransform: 'uppercase', mb: 0.75 }}>{titulo}</Typography>
+      <Box sx={{ border: `1px solid ${PUB.line}`, borderRadius: 1.5, overflow: 'hidden' }}>
+        <Box sx={{
+          display: 'grid', gridTemplateColumns: '32px minmax(0,1fr)', px: 1.25, py: 0.6,
+          bgcolor: 'rgba(0,0,0,.28)', borderBottom: `1px solid ${PUB.line}`,
+        }}>
+          <Typography sx={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: PUB.muted }}>N°</Typography>
+          <Typography sx={{ fontSize: 9.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: PUB.muted }}>Jugador</Typography>
+        </Box>
+        {jugadores.length ? jugadores.map((j, i) => (
+          <Box key={j.jugador_id} sx={{
+            display: 'grid', gridTemplateColumns: '32px minmax(0,1fr)', px: 1.25, py: 0.55, alignItems: 'center',
+            borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,.04)',
+            bgcolor: i % 2 ? 'rgba(255,255,255,.015)' : 'transparent',
+          }}>
+            <Typography sx={{ fontSize: 11, fontWeight: 700, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{j.numero}</Typography>
+            <Typography noWrap sx={{ fontSize: 11.5, fontWeight: 500, color: PUB.fgDim }}>{j.nombre}</Typography>
+          </Box>
+        )) : (
+          <Box sx={{ px: 1.25, py: 0.9 }}>
+            <Typography sx={{ fontSize: 11, color: PUB.muted, opacity: 0.7 }}>Sin suplentes.</Typography>
+          </Box>
+        )}
+      </Box>
+    </Box>
+  )
+}
+
 function FixtureRow({ p, fav, onFav, onOpen, delay, last }) {
   const jugado = !NO_RESULTADO.includes(p.resultado)
   const postergado = p.resultado === 'POSTERGADO'
@@ -353,33 +421,29 @@ function FixtureRow({ p, fav, onFav, onOpen, delay, last }) {
   const localWin = jugado && (p.resultado === 'LOCAL_GANO' || p.resultado === 'W_LOCAL')
   const visWin = jugado && (p.resultado === 'VISITANTE_GANO' || p.resultado === 'W_VISITANTE')
 
-  const chipSx = jugado
-    ? { color: PUB.fg, fontWeight: 800, fontSize: { xs: 14, sm: 16 }, fontFamily: FONT_DISPLAY, fontVariantNumeric: 'tabular-nums', border: 'none', bgcolor: 'transparent' }
-    : postergado
-      ? { color: PUB.yellow, border: '1px solid rgba(255,170,0,.45)', bgcolor: 'rgba(255,170,0,.08)' }
-      : enVivo
-        ? { color: PUB.live, border: `1px solid ${PUB.live}`, bgcolor: PUB.liveSoft }
-        : { color: PUB.fgDim, border: '1px solid rgba(255,255,255,.28)', bgcolor: 'transparent' }
+  const tieneMarcador = jugado || (enVivo && p.goles_local != null && p.goles_visitante != null)
+  const centro = tieneMarcador
+    ? `${p.goles_local ?? 0} - ${p.goles_visitante ?? 0}`
+    : postergado ? 'Postergado' : enVivo ? '● En vivo' : hora
 
-  const TeamLine = ({ nombre, win }) => (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
-      <TeamBadge name={nombre} size={22} />
-      <Typography noWrap sx={{ fontSize: 13.5, fontWeight: win ? 800 : 500, color: win ? PUB.fg : PUB.fgDim }}>
-        {nombre}
-      </Typography>
-    </Box>
-  )
+  const centroSx = tieneMarcador
+    ? { color: PUB.fg, fontWeight: 800, fontSize: { xs: 13.5, sm: 15 } }
+    : postergado
+      ? { color: PUB.yellow, fontWeight: 700, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase' }
+      : enVivo
+        ? { color: PUB.live, fontWeight: 800, fontSize: 10.5, letterSpacing: '.06em', textTransform: 'uppercase' }
+        : { color: PUB.fgDim, fontWeight: 700, fontSize: 12.5 }
 
   return (
     <Box
       className="pl-slide-in"
       onClick={() => onOpen(p)}
       sx={{
-        animationDelay: `${0.1 + delay * 0.05}s`,
+        animationDelay: `${0.1 + delay * 0.04}s`,
         display: 'grid',
-        gridTemplateColumns: { xs: '30px 44px minmax(0,1fr) auto', sm: '34px 56px minmax(0,1fr) 104px 1px 40px' },
-        alignItems: 'center', gap: 1.2,
-        px: { xs: 1.5, sm: 2 }, py: 1.4,
+        gridTemplateColumns: '30px minmax(0,1fr) auto minmax(0,1fr)',
+        alignItems: 'center', gap: { xs: 0.8, sm: 1.2 },
+        px: { xs: 1.25, sm: 2 }, py: 1,
         borderBottom: last ? 'none' : '1px solid rgba(255,255,255,.05)',
         bgcolor: enVivo ? 'rgba(255,51,68,.05)' : 'transparent',
         cursor: 'pointer', transition: 'background .2s',
@@ -395,28 +459,16 @@ function FixtureRow({ p, fav, onFav, onOpen, delay, last }) {
         {fav ? <StarIcon /> : <StarBorderIcon />}
       </Box>
 
-      <Typography sx={{ fontSize: 12.5, color: PUB.fgDim, fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-        {hora}
+      <RowTeam nombre={p.equipo_local} win={localWin} align="right" />
+
+      <Typography sx={{
+        fontFamily: FONT_DISPLAY, fontVariantNumeric: 'tabular-nums', textAlign: 'center',
+        minWidth: 54, px: 0.5, whiteSpace: 'nowrap', ...centroSx,
+      }}>
+        {centro}
       </Typography>
 
-      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.7, minWidth: 0 }}>
-        <TeamLine nombre={p.equipo_local} win={localWin} />
-        <TeamLine nombre={p.equipo_visitante} win={visWin} />
-      </Box>
-
-      <Box sx={{ display: 'flex', justifyContent: 'center' }}>
-        <Typography sx={{
-          fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
-          px: 1.2, py: 0.4, borderRadius: 1, whiteSpace: 'nowrap', ...chipSx,
-        }}>
-          {jugado ? `${p.goles_local ?? 0} - ${p.goles_visitante ?? 0}` : postergado ? 'Postergado' : enVivo ? '● En vivo' : 'Próximo'}
-        </Typography>
-      </Box>
-
-      <Box sx={{ display: { xs: 'none', sm: 'block' }, width: 1, alignSelf: 'stretch', my: 0.5, bgcolor: 'rgba(255,255,255,.08)' }} />
-      <Box sx={{ display: { xs: 'none', sm: 'flex' }, justifyContent: 'center' }}>
-        <LiveTvIcon sx={{ fontSize: 20, color: enVivo ? PUB.live : PUB.muted }} />
-      </Box>
+      <RowTeam nombre={p.equipo_visitante} win={visWin} align="left" />
     </Box>
   )
 }
@@ -981,12 +1033,22 @@ function FormationDialog({ partido, onClose }) {
     return nums.join('-')
   }
 
+  const gruposPorRol = (titulares) => {
+    const grupos = { POR: [], DEF: [], MED: [], DEL: [], OTROS: [] }
+    titulares.forEach((j) => {
+      const rol = POS_ORDER.includes(j.posicion) ? j.posicion : 'OTROS'
+      grupos[rol].push(j)
+    })
+    Object.keys(grupos).forEach((k) => grupos[k].sort((a, b) => (a.orden || 0) - (b.orden || 0)))
+    return grupos
+  }
+
   return createPortal(
     <Box sx={{ position: 'fixed', inset: 0, zIndex: 1300 }}>
       <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(3,8,18,.75)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
       <Box sx={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        '@media (min-width:900px)': { bottom: 'auto', top: '50%', left: '50%', right: 'auto', transform: 'translate(-50%,-50%)', maxWidth: 680, width: '100%', maxHeight: '85vh' },
+        '@media (min-width:900px)': { bottom: 'auto', top: '50%', left: '50%', right: 'auto', transform: 'translate(-50%,-50%)', maxWidth: 720, width: '100%', maxHeight: '85vh' },
         bgcolor: '#020621', color: PUB.fg,
         border: `1px solid ${PUB.lineStrong}`,
         borderTopLeftRadius: { xs: 24, md: 18 },
@@ -1021,88 +1083,80 @@ function FormationDialog({ partido, onClose }) {
                 </Typography>
               </Box>
             ) : (
-              equipos.map((team) => {
-                const titulares = posicionesEfectivas(team)
-                const suplentes = team.jugadores.filter((j) => !j.titular)
+              (() => {
+                const local = equipos.find((t) => t.nombre === partido.equipo_local) || equipos[0]
+                const visitante = equipos.find((t) => t.nombre === partido.equipo_visitante) || equipos[1] || equipos[0]
+                const suplentesDe = (team) => (team.jugadores || []).filter((j) => !j.titular)
+
+                const encabezado = (team, side) => (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, justifyContent: side === 'bottom' ? 'flex-end' : 'flex-start' }}>
+                    {side === 'top' && <TeamBadge name={team.nombre} size={26} />}
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
+                      <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', color: PUB.fg }}>{team.nombre}</Typography>
+                      {posicionesEfectivas(team).length > 0 && (
+                        <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 1, py: 0.3, borderRadius: 100 }}>{tactic(team)}</Typography>
+                      )}
+                    </Box>
+                    {side === 'bottom' && <TeamBadge name={team.nombre} size={26} />}
+                  </Box>
+                )
+
+                const mitad = (team, orden) => {
+                  const grupos = gruposPorRol(posicionesEfectivas(team))
+                  return orden.map((rol) => {
+                    const jugadores = grupos[rol]
+                    if (!jugadores.length) return null
+                    return (
+                      <Box key={rol} sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', gap: 0.5 }}>
+                        <Typography sx={{ width: { xs: 24, sm: 32 }, fontSize: 9.5, fontWeight: 800, color: 'rgba(255,255,255,.85)' }}>{rol === 'OTROS' ? '⚑' : rol}</Typography>
+                        {jugadores.map((j) => <PlayerToken key={j.jugador_id} j={j} rol={rol} />)}
+                      </Box>
+                    )
+                  })
+                }
+
                 return (
-                  <Box key={team.equipo_id} sx={{ mb: 4, pb: 3, borderBottom: `1px solid ${PUB.line}` }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2.5 }}>
-                      <TeamBadge name={team.nombre} size={28} />
-                      <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
-                        <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 15, textTransform: 'uppercase', color: PUB.fg }}>{team.nombre}</Typography>
-                        {titulares.length > 0 && <Typography sx={{ fontSize: 11, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 1.2, py: 0.4, borderRadius: 100 }}>{tactic(team)}</Typography>}
+                  <Box>
+                    {encabezado(visitante, 'top')}
+
+                    <Box sx={{ mt: 1.25, mb: 1.25, background: 'linear-gradient(180deg,#3a8f44,#2c6e31 50%,#1b5e20)', borderRadius: 1.5, p: 1.25, position: 'relative', overflow: 'hidden' }}>
+                      <Box sx={{ position: 'absolute', top: '50%', left: 8, right: 8, borderTop: '1.5px dashed rgba(255,255,255,.4)' }} />
+                      <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 52, height: 52, borderRadius: '50%', border: '1.5px dashed rgba(255,255,255,.3)' }} />
+                      <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 430 }}>
+                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
+                          {mitad(visitante, ['POR', 'DEF', 'MED', 'DEL', 'OTROS'])}
+                        </Box>
+                        <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
+                          {mitad(local, ['OTROS', 'DEL', 'MED', 'DEF', 'POR'])}
+                        </Box>
                       </Box>
                     </Box>
 
-                    {(() => {
-                      const colorRol = { POR: '#f39c12', DEF: '#4aa3ff', MED: '#2ecc71', DEL: '#ff5b5b', OTROS: '#90a4ae' }
-                      const grupos = { POR: [], DEF: [], MED: [], DEL: [], OTROS: [] }
-                      titulares.forEach((j) => {
-                        const rol = (j.posicion === 'POR' || j.posicion === 'DEF' || j.posicion === 'MED' || j.posicion === 'DEL' || j.posicion === 'OTROS') ? j.posicion : 'OTROS'
-                        grupos[rol].push(j)
-                      })
-                      Object.keys(grupos).forEach((k) => grupos[k].sort((a, b) => (a.orden || 0) - (b.orden || 0)))
-                      const renderFila = (rol, etiqueta) => {
-                        const jugadores = grupos[rol]
-                        if (!jugadores.length) return null
-                        return (
-                          <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', minHeight: 52, gap: 0.5, py: 0.4 }}>
-                            <Typography sx={{ width: { xs: 26, sm: 34 }, fontSize: 10, fontWeight: 800, color: 'rgba(255,255,255,.9)' }}>{etiqueta}</Typography>
-                            {jugadores.map((j) => (
-                              <Box key={j.jugador_id} title={`${j.nombre} · camiseta ${j.numero}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 0.4 }}>
-                                <Box sx={{ width: 42, height: 42, borderRadius: '50%', bgcolor: colorRol[rol], color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 14, border: '2px solid #fff', boxShadow: '0 1px 4px rgba(0,0,0,.35)' }}>{j.numero}</Box>
-                                <Typography sx={{ fontSize: 10, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.7)', maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>{j.nombre}</Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        )
-                      }
-                      return (
-                        <Box sx={{ mt: 1.5, background: 'linear-gradient(160deg,#1b5e20,#2c6e31 55%,#3a8f44)', borderRadius: 2, p: 1.5, position: 'relative', overflow: 'hidden' }}>
-                          <Box sx={{ position: 'absolute', top: '50%', left: 10, right: 10, borderTop: '2px dashed rgba(255,255,255,.35)' }} />
-                          <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 240, pt: 1 }}>
-                            {renderFila('OTROS', '⚑')}
-                            {renderFila('DEL', 'DEL')}
-                            {renderFila('MED', 'MED')}
-                            {renderFila('DEF', 'DEF')}
-                            {renderFila('POR', 'POR')}
-                          </Box>
-                        </Box>
-                      )
-                    })()}
+                    {encabezado(local, 'bottom')}
 
-                    {suplentes.length > 0 && (
-                      <Box sx={{ mt: 2, pt: 2, borderTop: `1px dashed ${PUB.line}` }}>
-                        <Typography sx={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', color: PUB.muted, textTransform: 'uppercase', mb: 1.2 }}>Suplentes</Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                          {suplentes.map((j) => (
-                            <Box key={j.jugador_id} sx={{ display: 'flex', alignItems: 'center', gap: 0.8, bgcolor: 'rgba(255,255,255,.03)', border: `1px solid ${PUB.line}`, borderRadius: 2, px: 1.2, py: 0.7 }}>
-                              <Box sx={{ width: 20, height: 20, borderRadius: '50%', bgcolor: PUB.muted, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 800, fontVariantNumeric: 'tabular-nums' }}>{j.numero}</Box>
-                              <Typography sx={{ fontSize: 11, fontWeight: 600, color: PUB.fgDim }}>{j.nombre}</Typography>
-                            </Box>
-                          ))}
-                        </Box>
-                      </Box>
-                    )}
+                    <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2, mt: 2.5, pt: 1.5, borderTop: `1px dashed ${PUB.line}` }}>
+                      <SuplentesTable titulo={local.nombre} jugadores={suplentesDe(local)} />
+                      <SuplentesTable titulo={visitante.nombre} jugadores={suplentesDe(visitante)} />
+                    </Box>
                   </Box>
                 )
-              })
+              })()
             )}
 
             {cambios.length > 0 && (
-              <Box sx={{ mt: sinFormacion ? 2 : 4 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
-                  <SwapHorizIcon sx={{ fontSize: 16, color: PUB.cyan }} />
-                  <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: PUB.fg }}>Cambios</Typography>
+              <Box sx={{ mt: sinFormacion ? 2 : 3, pt: 2, borderTop: `1px solid ${PUB.line}` }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mb: 1.25 }}>
+                  <SwapHorizIcon sx={{ fontSize: 15, color: PUB.cyan }} />
+                  <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase', color: PUB.fg }}>Cambios</Typography>
                 </Box>
-                <Box sx={{ display: 'grid', gap: 1.5 }}>
+                <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 0.75 }}>
                   {cambios.map((c, i) => (
-                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, bgcolor: 'rgba(255,255,255,.04)', border: `1px solid ${PUB.line}`, borderRadius: 1.5, px: 2, py: 1.5, fontSize: 12 }}>
-                      <Typography sx={{ width: 28, fontWeight: 800, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{c.minuto}'</Typography>
-                      <Typography sx={{ color: PUB.red, fontWeight: 600, textDecoration: 'line-through', opacity: .8 }}>{c.sale}</Typography>
-                      <SwapHorizIcon sx={{ fontSize: 14, color: PUB.muted }} />
-                      <Typography sx={{ color: PUB.green, fontWeight: 700 }}>{c.entra}</Typography>
-                      {c.equipo && <Typography sx={{ marginLeft: 'auto', fontSize: 10, color: PUB.muted, letterSpacing: '.06em' }}>{c.equipo}</Typography>}
+                    <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.9, bgcolor: 'rgba(255,255,255,.04)', border: `1px solid ${PUB.line}`, borderRadius: 1, px: 1.25, py: 0.8 }}>
+                      <Typography sx={{ flexShrink: 0, width: 24, fontSize: 11, fontWeight: 800, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{c.minuto}'</Typography>
+                      <Typography noWrap sx={{ minWidth: 0, flex: 1, fontSize: 11, color: PUB.red, fontWeight: 600, textDecoration: 'line-through', opacity: .85 }}>{c.sale}</Typography>
+                      <SwapHorizIcon sx={{ flexShrink: 0, fontSize: 13, color: PUB.muted }} />
+                      <Typography noWrap sx={{ minWidth: 0, flex: 1, fontSize: 11, color: PUB.green, fontWeight: 700 }}>{c.entra}</Typography>
+                      {c.equipo && <Typography sx={{ flexShrink: 0, fontSize: 9.5, color: PUB.muted, letterSpacing: '.04em', textTransform: 'uppercase' }}>{c.equipo}</Typography>}
                     </Box>
                   ))}
                 </Box>
