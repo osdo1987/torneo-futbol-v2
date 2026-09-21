@@ -356,6 +356,7 @@ def stream_en_vivo(partido_id):
         last_seg = -1
         last_event_count = -1
         last_marcador = (-1, -1)
+        idle_ticks = 0
         while True:
             try:
                 vivo = PartidoEnVivo.query.get(partido_id)
@@ -397,6 +398,15 @@ def stream_en_vivo(partido_id):
                 if payload:
                     payload['ts'] = time.time()
                     yield f"data: {json.dumps(payload)}\n\n"
+                    idle_ticks = 0
+                else:
+                    # Sin cambios: enviar un comentario SSE cada ~15s para que
+                    # nginx (proxy_read_timeout) no corte la conexión y el
+                    # EventSource no tenga que reconectarse cada 60s.
+                    idle_ticks += 1
+                    if idle_ticks >= 15:
+                        yield ": keepalive\n\n"
+                        idle_ticks = 0
 
             except GeneratorExit:
                 break
