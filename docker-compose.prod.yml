@@ -7,6 +7,7 @@ services:
       dockerfile: Dockerfile.prod
     container_name: torneo_api_prod
     restart: always
+    command: gunicorn --bind 0.0.0.0:5000 --worker-class gthread --workers 4 --threads 16 --timeout 120 --graceful-timeout 30 --worker-tmp-dir /dev/shm run:app
     environment:
       DATABASE_URL: ${DATABASE_URL}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}

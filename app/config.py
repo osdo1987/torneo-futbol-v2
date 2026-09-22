@@ -12,6 +12,6 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'jwt-secret-key-change-me')
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
-    DEBUG = True
+    DEBUG = False
 
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')

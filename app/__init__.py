@@ -35,8 +35,10 @@ def create_app(config_class=Config):
     from app.routes.landing_routes import landing_bp
     from app.routes.inscripcion_routes import inscripcion_bp
     from app.routes.locacion_routes import locacion_bp
+    from app.routes.jornada_routes import jornada_bp
 
     app.register_blueprint(inscripcion_bp, url_prefix='/api/inscripcion')
+    app.register_blueprint(jornada_bp, url_prefix='/api/jornadas')
 
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(organizador_bp, url_prefix='/api/organizadores')
