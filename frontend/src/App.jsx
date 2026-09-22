@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { setAuthErrorCallback, apiGet } from './api'
 import AdminLayout from './components/AdminLayout'
@@ -74,9 +74,17 @@ export default function App({ setDarkMode }) {
     enabled: !!user && !isSuperadmin,
   })
 
-  // Torneo activo: la selección del usuario o, por defecto, el primero disponible
-  const activeTorneoId =
-    selectedTorneoId || (torneos.length > 0 ? String(torneos[0].id) : '')
+  // Torneo activo: la selección del usuario SOLO si sigue en su lista de accesibles.
+  // Si quedó guardado en localStorage un torneo de otro organizador (p. ej. de una
+  // sesión anterior de SUPERADMIN), se cae al primero disponible para no disparar
+  // 403 en todos los endpoints.
+  const activeTorneoId = useMemo(() => {
+    if (!torneos.length) return selectedTorneoId || ''
+    if (selectedTorneoId && torneos.some((t) => String(t.id) === String(selectedTorneoId))) {
+      return String(selectedTorneoId)
+    }
+    return String(torneos[0].id)
+  }, [selectedTorneoId, torneos])
 
   const onSelectTorneo = (id) => {
     setSelectedTorneoId(id)
