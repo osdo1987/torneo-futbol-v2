@@ -15,6 +15,7 @@ import Sanciones from './pages/Sanciones'
 import Planilla from './pages/Planilla'
 import Tabla from './pages/Tabla'
 import Estadisticas from './pages/Estadisticas'
+import Tesoreria from './pages/Tesoreria'
 import SuperAdmin from './pages/SuperAdmin'
 import Config from './pages/Config'
 import MiEquipo from './pages/MiEquipo'
@@ -143,6 +144,7 @@ export default function App({ setDarkMode }) {
       <Route path="/equipos" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Equipos user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/partidos" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Partidos user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/sanciones" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Sanciones user={user} selectedTorneoId={activeTorneoId} />)} />
+      <Route path="/tesoreria" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Tesoreria selectedTorneoId={activeTorneoId} />)} />
       <Route path="/planilla" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Planilla selectedTorneoId={activeTorneoId} />)} />
       <Route path="/tabla" element={layoutPages(<Tabla user={user} selectedTorneoId={activeTorneoId} />)} />
       <Route path="/estadisticas" element={layoutPages(<Estadisticas user={user} selectedTorneoId={activeTorneoId} />)} />

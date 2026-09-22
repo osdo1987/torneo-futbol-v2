@@ -11,6 +11,7 @@ from app.models.partido import Partido
 from app.models.partido_en_vivo import PartidoEnVivo
 from app.models.evento_partido import EventoPartido
 from app.models.landing import OrganizadorLanding
+from app.models.pago import Pago
 
 __all__ = [
     'Organizador',
@@ -24,4 +25,5 @@ __all__ = [
     'PartidoEnVivo',
     'EventoPartido',
     'OrganizadorLanding',
+    'Pago',
 ]

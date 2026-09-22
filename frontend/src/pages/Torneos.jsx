@@ -117,6 +117,12 @@ const toForm = (r) => {
     marcador_w: x.marcador_w ?? 3,
     fechas_doble_amarilla: x.fechas_doble_amarilla ?? 1,
     fechas_roja_directa: x.fechas_roja_directa ?? 2,
+    valor_tarjeta_amarilla: x.valor_tarjeta_amarilla ?? 0,
+    valor_tarjeta_roja: x.valor_tarjeta_roja ?? 0,
+    modalidad_pago: x.modalidad_pago ?? 'INDIVIDUAL',
+    valor_inscripcion: x.valor_inscripcion ?? 0,
+    bloquear_por_inscripcion_pendiente: x.bloquear_por_inscripcion_pendiente ?? false,
+    bloquear_por_tarjetas_no_pagadas: x.bloquear_por_tarjetas_no_pagadas ?? false,
   }
 }
 
@@ -173,6 +179,12 @@ function ReglasDialog({ torneo, onClose }) {
       marcador_w: Number(form.marcador_w),
       fechas_doble_amarilla: Number(form.fechas_doble_amarilla),
       fechas_roja_directa: Number(form.fechas_roja_directa),
+      valor_tarjeta_amarilla: Number(form.valor_tarjeta_amarilla),
+      valor_tarjeta_roja: Number(form.valor_tarjeta_roja),
+      modalidad_pago: form.modalidad_pago,
+      valor_inscripcion: Number(form.valor_inscripcion),
+      bloquear_por_inscripcion_pendiente: !!form.bloquear_por_inscripcion_pendiente,
+      bloquear_por_tarjetas_no_pagadas: !!form.bloquear_por_tarjetas_no_pagadas,
     })
   }
 
@@ -246,6 +258,34 @@ function ReglasDialog({ torneo, onClose }) {
             <TextField label="Fechas sanción roja directa" type="number" fullWidth
               value={form.fechas_roja_directa} onChange={(e) => setForm({ ...form, fechas_roja_directa: Number(e.target.value) })} />
           </Box>
+
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>Configuración Financiera</Typography>
+          <Box sx={{ display: 'flex', gap: 2 }}>
+            <TextField label="Valor tarjeta amarilla ($)" type="number" fullWidth
+              value={form.valor_tarjeta_amarilla} onChange={(e) => setForm({ ...form, valor_tarjeta_amarilla: Number(e.target.value) })} />
+            <TextField label="Valor tarjeta roja ($)" type="number" fullWidth
+              value={form.valor_tarjeta_roja} onChange={(e) => setForm({ ...form, valor_tarjeta_roja: Number(e.target.value) })} />
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Modalidad de inscripción</InputLabel>
+              <Select value={form.modalidad_pago} label="Modalidad de inscripción" onChange={set('modalidad_pago')}>
+                <MenuItem value="INDIVIDUAL">Pago individual (por jugador)</MenuItem>
+                <MenuItem value="GRUPAL">Pago grupal (por equipo)</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField label="Valor inscripción ($)" type="number" fullWidth
+              value={form.valor_inscripcion} onChange={(e) => setForm({ ...form, valor_inscripcion: Number(e.target.value) })} />
+          </Box>
+          <FormControlLabel
+            control={<Checkbox checked={!!form.bloquear_por_inscripcion_pendiente} onChange={(e) => setForm({ ...form, bloquear_por_inscripcion_pendiente: e.target.checked })} />}
+            label="Bloquear jugador por inscripción pendiente"
+            sx={{ mt: 1 }}
+          />
+          <FormControlLabel
+            control={<Checkbox checked={!!form.bloquear_por_tarjetas_no_pagadas} onChange={(e) => setForm({ ...form, bloquear_por_tarjetas_no_pagadas: e.target.checked })} />}
+            label="Bloquear jugador por tarjetas no pagadas"
+          />
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={onClose}>Cancelar</Button>

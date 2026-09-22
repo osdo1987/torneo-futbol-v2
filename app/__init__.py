@@ -36,6 +36,7 @@ def create_app(config_class=Config):
     from app.routes.inscripcion_routes import inscripcion_bp
     from app.routes.locacion_routes import locacion_bp
     from app.routes.jornada_routes import jornada_bp
+    from app.routes.finanza_routes import finanza_bp
 
     app.register_blueprint(inscripcion_bp, url_prefix='/api/inscripcion')
     app.register_blueprint(jornada_bp, url_prefix='/api/jornadas')
@@ -51,6 +52,7 @@ def create_app(config_class=Config):
     app.register_blueprint(panel_bp, url_prefix='/api/panel')
     app.register_blueprint(landing_bp, url_prefix='/api/landing')
     app.register_blueprint(locacion_bp, url_prefix='/api/locaciones')
+    app.register_blueprint(finanza_bp, url_prefix='/api')
 
     # Global Error Handler
     @app.errorhandler(Exception)

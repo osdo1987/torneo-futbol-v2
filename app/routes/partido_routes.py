@@ -201,6 +201,10 @@ def upsert_alineacion(partido_id):
         return jsonify({'error': 'El jugador no pertenece a ninguno de los equipos del partido'}), 400
     if not jugador.activo:
         return jsonify({'error': 'El jugador está inactivo (liberado)'}), 400
+    from app.services.finanza_service import FinanzaService
+    motivo_bloqueo = FinanzaService.bloqueo_jugador(partido.torneo, jugador)
+    if motivo_bloqueo:
+        return jsonify({'error': f'Jugador bloqueado: {motivo_bloqueo}'}), 400
     titular = bool(data.get('titular', False))
     numero_camiseta = data.get('numero_camiseta')
     if numero_camiseta is not None:
@@ -287,6 +291,12 @@ def guardar_orden_alineacion(partido_id):
         fila = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
         if not fila:
             return jsonify({'error': f'El jugador {jugador_id} no está en la alineación'}), 400
+        jj = Jugador.query.get(jugador_id)
+        if jj:
+            from app.services.finanza_service import FinanzaService
+            motivo_bloqueo = FinanzaService.bloqueo_jugador(partido.torneo, jj)
+            if motivo_bloqueo:
+                return jsonify({'error': f'Jugador bloqueado: {motivo_bloqueo}'}), 400
         pos = it.get('posicion')
         if pos not in posiciones:
             return jsonify({'error': 'Posición inválida'}), 400

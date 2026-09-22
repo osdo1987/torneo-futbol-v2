@@ -38,6 +38,7 @@ import {
   ExpandMore as ExpandMoreIcon,
   EditCalendar as EditCalendarIcon,
   Stadium as StadiumIcon,
+  AccountBalanceWallet as PaymentsIcon,
 } from '@mui/icons-material'
 
 // Layout del design system "Torneo Pro · Athletic Suite" (layout-test/dashboard.html)
@@ -137,6 +138,7 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
       { path: '/equipos', label: 'Equipos', icon: <GroupIcon /> },
       { path: '/partidos', label: 'Partidos', icon: <SportsSoccerIcon /> },
       { path: '/sanciones', label: 'Sanciones', icon: <GavelIcon /> },
+      { path: '/tesoreria', label: 'Tesorería', icon: <PaymentsIcon /> },
       { path: '/planilla', label: 'Planilla', icon: <EditNoteIcon /> },
       { path: '/tabla', label: 'Posiciones', icon: <TableChartIcon /> },
       { path: '/estadisticas', label: 'Estadísticas', icon: <LeaderboardIcon /> },
