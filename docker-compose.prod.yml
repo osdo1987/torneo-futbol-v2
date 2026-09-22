@@ -16,6 +16,7 @@ services:
       SEED_DEMO: ${SEED_DEMO:-0}
     networks:
       - torneo_network
+      - osdosoft_public
 
   frontend:
     build:
