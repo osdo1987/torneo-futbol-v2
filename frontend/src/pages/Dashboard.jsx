@@ -29,7 +29,7 @@ import {
   PriorityHigh as PriorityHighIcon,
   Badge as BadgeIcon,
   CalendarMonth as CalendarMonthIcon,
-  WbSunny as WbSunnyIcon,
+  Stadium as StadiumIcon,
   EmojiEvents as EmojiEventsIcon,
 } from '@mui/icons-material'
 import { alpha, keyframes } from '@mui/material'
@@ -341,7 +341,7 @@ const TAREAS_DEMO = [
     title: '2 planillas por firmar',
     tag: 'Urgente',
     tagColor: 'error.main',
-    desc: 'Validación del juez en Cancha 3 y Cancha 1.',
+    desc: '2 planillas esperan la firma del árbitro.',
     cta: 'Ir a Planillas',
     to: '/planilla',
   },
@@ -415,27 +415,49 @@ function PendientesCard() {
   )
 }
 
-// Widget de estado del predio (placeholder visual: clima y canchas estaticos)
-function PredioWidget({ user }) {
+// Widget de estado del predio (canchas reales del organizador)
+function PredioWidget({ user, locaciones = [] }) {
+  const activas = locaciones.filter((l) => l.activa !== false)
   return (
     <Card sx={{ p: 2.5, bgcolor: 'primary.main', color: 'primary.contrastText', border: 0 }}>
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1.5 }}>
         <Box sx={{ minWidth: 0 }}>
           <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700, opacity: 0.75 }}>
             Estado del Predio
           </Typography>
           <Typography sx={{ fontWeight: 800, fontSize: '1.1rem', mt: 0.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {user?.organizadorName || 'Sede principal'}
+            {locaciones[0]?.nombre || user?.organizadorName || 'Sede principal'}
           </Typography>
           <Typography variant="body2" sx={{ opacity: 0.8, mt: 0.25 }}>
-            Canchas habilitadas • Iluminación LED OK
+            {locaciones.length === 0
+              ? 'Sin canchas configuradas'
+              : `${activas.length} habilitada(s)${locaciones.length > activas.length ? ` de ${locaciones.length} canchas` : ' cancha(s)'}`}
           </Typography>
         </Box>
-        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
-          <WbSunnyIcon sx={{ fontSize: 30, color: 'secondary.main' }} />
-          <Typography sx={{ fontWeight: 800, fontSize: '1.15rem' }}>22°C</Typography>
-        </Box>
+        <StadiumIcon sx={{ fontSize: 30, color: 'secondary.main' }} />
       </Box>
+      {locaciones.length > 0 && (
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75, mt: 1 }}>
+          {locaciones.map((l) => (
+            <Box key={l.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, bgcolor: 'rgba(255,255,255,0.10)', borderRadius: 1.5, px: 1.25, py: 0.75 }}>
+              <StadiumIcon sx={{ fontSize: 16, opacity: 0.9, flexShrink: 0 }} />
+              <Box sx={{ minWidth: 0, flex: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {l.nombre}
+                </Typography>
+                {l.direccion && (
+                  <Typography variant="caption" sx={{ opacity: 0.75, display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {l.direccion}
+                  </Typography>
+                )}
+              </Box>
+              <Typography variant="caption" sx={{ fontWeight: 800, opacity: l.activa === false ? 0.6 : 1 }}>
+                {l.activa === false ? 'Inactiva' : 'Habilitada'}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      )}
     </Card>
   )
 }
@@ -473,6 +495,11 @@ export default function Dashboard({ user, selectedTorneoId }) {
     queryKey: ['goleadores', torneoId, 3],
     queryFn: () => apiGet(`/panel/${torneoId}/goleadores?top=3`),
     enabled: !!torneoId,
+  })
+
+  const { data: locaciones = [] } = useQuery({
+    queryKey: ['locaciones'],
+    queryFn: () => apiGet('/locaciones'),
   })
 
   const { data: tablaData } = useQuery({
@@ -650,7 +677,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
                     <Box sx={{ minWidth: 0 }}>
                       <Typography variant="body2" sx={{ fontWeight: 700 }}>Atención: 2 planillas de juego sin asentar</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                        Los partidos de Cancha 1 y 3 terminaron hace más de 45 min y esperan la firma del árbitro.
+                        Los partidos de {locaciones.slice(0, 2).map((l) => l.nombre).join(' y ') || 'la jornada'} terminaron hace más de 45 min y esperan la firma del árbitro.
                       </Typography>
                     </Box>
                   </Box>
@@ -817,7 +844,7 @@ export default function Dashboard({ user, selectedTorneoId }) {
                 )}
 
                 <PendientesCard />
-                <PredioWidget user={user} />
+                <PredioWidget user={user} locaciones={locaciones} />
               </Box>
             </Grid>
           </Grid>

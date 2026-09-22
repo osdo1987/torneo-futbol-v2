@@ -242,3 +242,98 @@ class LandingService:
             'equipos': equipos_data,
             'cambios': cambios,
         }
+
+    @staticmethod
+    def acta_partido(partido_id):
+        """ACTA oficial de un partido: datos generales, árbitros, goles, tarjetas
+        (jugadores y técnicos), sustituciones, alineaciones y observaciones."""
+        from app.models.evento_partido import EventoPartido
+        from app.models.jugador import Jugador
+        from app.models.equipo import Equipo
+
+        partido = Partido.query.get(partido_id)
+        if not partido:
+            return None
+
+        local_id = partido.equipo_local_id
+        visitante_id = partido.equipo_visitante_id
+        equipos = {e.id: e for e in Equipo.query.filter(Equipo.id.in_([local_id, visitante_id])).all()}
+
+        eventos = (EventoPartido.query.filter_by(partido_id=partido_id)
+                   .order_by(EventoPartido.minuto, EventoPartido.id).all())
+        jug_ids = {e.jugador_id for e in eventos if e.jugador_id}
+        jug_ids |= {e.jugador_sale_id for e in eventos if e.jugador_sale_id}
+        jugadores = {j.id: j for j in Jugador.query.filter(Jugador.id.in_(jug_ids)).all()}
+
+        goles, tarjetas, cambios = [], [], []
+        local_equipo = equipos.get(local_id)
+        visitante_equipo = equipos.get(visitante_id)
+        nombre_equipo = {eq.id: eq.nombre for eq in equipos.values()}
+
+        for ev in eventos:
+            eq_nombre = nombre_equipo.get(ev.equipo_id)
+            if ev.tipo in ('GOL', 'AUTOGOL'):
+                j = jugadores.get(ev.jugador_id)
+                goles.append({
+                    'jugador_id': ev.jugador_id,
+                    'jugador': j.nombre if j else None,
+                    'dorsal': j.numero_camiseta if j else None,
+                    'equipo': eq_nombre, 'equipo_id': ev.equipo_id,
+                    'minuto': ev.minuto, 'tipo': ev.tipo, 'descripcion': ev.descripcion,
+                })
+            elif ev.tipo in ('TARJETA_AMARILLA', 'TARJETA_ROJA'):
+                es_tecnico = ev.tipo_sancionado == 'TECNICO'
+                j = jugadores.get(ev.jugador_id)
+                tarjetas.append({
+                    'jugador_id': None if es_tecnico else ev.jugador_id,
+                    'sancionado': (ev.nombre_sancionado if es_tecnico
+                                   else (j.nombre if j else None)),
+                    'cargo': 'TÉCNICO' if es_tecnico else 'JUGADOR',
+                    'dorsal': None if es_tecnico else (j.numero_camiseta if j else None),
+                    'equipo': eq_nombre, 'equipo_id': ev.equipo_id,
+                    'minuto': ev.minuto, 'tipo': ev.tipo, 'descripcion': ev.descripcion,
+                })
+            elif ev.tipo == 'CAMBIO':
+                entra = jugadores.get(ev.jugador_id)
+                sale = jugadores.get(ev.jugador_sale_id)
+                cambios.append({
+                    'equipo': eq_nombre, 'equipo_id': ev.equipo_id, 'minuto': ev.minuto,
+                    'entra': entra.nombre if entra else None,
+                    'sale': sale.nombre if sale else None,
+                })
+
+        year = partido.fecha_programada.year if partido.fecha_programada else None
+        year = year or (partido.updated_at.year if partido.updated_at else None) or 2026
+
+        return {
+            'partido_id': partido_id,
+            'token': f'ACTA-{year}-{partido_id:04d}',
+            'torneo': partido.torneo.nombre if partido.torneo else None,
+            'organizador': (partido.torneo.organizador.name
+                            if partido.torneo and partido.torneo.organizador else None),
+            'jornada': partido.jornada,
+            'fecha_programada': partido.fecha_programada,
+            'locacion': ({'nombre': partido.locacion.nombre, 'direccion': partido.locacion.direccion}
+                         if partido.locacion else None),
+            'arbitro': {
+                'principal': partido.arbitro_nombre,
+                'asistente1': partido.arbitro_asistente1,
+                'asistente2': partido.arbitro_asistente2,
+            },
+            'equipos': [
+                {'equipo_id': local_id, 'nombre': local_equipo.nombre if local_equipo else None,
+                 'tecnico': local_equipo.tecnico_nombre if local_equipo else None,
+                 'delegado_email': local_equipo.delegado_email if local_equipo else None},
+                {'equipo_id': visitante_id, 'nombre': visitante_equipo.nombre if visitante_equipo else None,
+                 'tecnico': visitante_equipo.tecnico_nombre if visitante_equipo else None,
+                 'delegado_email': visitante_equipo.delegado_email if visitante_equipo else None},
+            ],
+            'marcador': {'local': partido.goles_local, 'visitante': partido.goles_visitante},
+            'resultado': partido.resultado,
+            'goles': goles,
+            'tarjetas': tarjetas,
+            'cambios': cambios,
+            'observaciones': partido.observaciones,
+            'emitido_at': partido.updated_at,
+            'alineaciones': LandingService.alineaciones_partido(partido_id),
+        }

@@ -1277,9 +1277,14 @@ export default function Partidos({ selectedTorneoId, user }) {
                     <Box sx={{ color: `${meta.color}.main`, display: 'flex' }}>{meta.icon}</Box>
                     <Box sx={{ px: 0.6, py: 0.2, borderRadius: 1, bgcolor: 'background.default', fontWeight: 800, fontSize: 11 }}>{ev.minuto}'</Box>
                     <ListItemText
-                      primary={ev.jugador || 'Jugador eliminado'}
+                      primary={(ev.jugador || ev.sancionado) || 'Jugador eliminado'}
                       secondary={ev.tipo === 'TARJETA_AMARILLA' ? 'Tarjeta amarilla' : ev.tipo === 'TARJETA_ROJA' ? 'Tarjeta roja' : ev.equipo}
                     />
+                    {ev.tipo_sancionado === 'TECNICO' && (
+                      <Box component="span" sx={{ flexShrink: 0, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 10, fontWeight: 800, bgcolor: 'rgba(29,78,216,0.10)', color: 'primary.main' }}>
+                        TÉCNICO
+                      </Box>
+                    )}
                   </ListItem>
                 )
               })}

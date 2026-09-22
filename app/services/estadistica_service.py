@@ -128,7 +128,8 @@ class EstadisticaService:
                    .join(Partido, EventoPartido.partido_id == Partido.id)
                    .filter(Partido.torneo_id == torneo_id,
                            EventoPartido.tipo.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']),
-                           EventoPartido.jugador_id.isnot(None))
+                           or_(EventoPartido.jugador_id.isnot(None),
+                               EventoPartido.tipo_sancionado == 'TECNICO'))
                    .all())
 
         por_jugador = {}
@@ -171,6 +172,55 @@ class EstadisticaService:
                 'jugador': j.nombre,
                 'equipo_id': j.equipo_id,
                 'equipo': j.equipo.nombre if j.equipo else 'Sin equipo',
+                'amarillas': amarillas,
+                'rojas': rojas,
+                'suspendido_hasta_jornada': bloqueado_hasta or None,
+                'suspendido': suspendido,
+            })
+
+        # Técnicos amonestados/expulsados (eventos sin jugador_id, tipo_sancionado=TECNICO)
+        tecnicos = {}
+        for ev in eventos:
+            if ev.tipo_sancionado != 'TECNICO' or not ev.nombre_sancionado or not ev.equipo_id:
+                continue
+            tecnicos.setdefault((ev.equipo_id, ev.nombre_sancionado), []).append(ev)
+
+        for (eq_id, nombre_tecnico), evs in tecnicos.items():
+            equipo = Equipo.query.get(eq_id)
+            if not equipo:
+                continue
+            evs = sorted(evs, key=lambda e: (e.partido.jornada or 0, e.id))
+            amarillas = sum(1 for e in evs if e.tipo == 'TARJETA_AMARILLA')
+            rojas = sum(1 for e in evs if e.tipo == 'TARJETA_ROJA')
+
+            bloqueado_hasta = 0
+            acumuladas = 0
+            for e in evs:
+                jr = e.partido.jornada or 0
+                if e.tipo == 'TARJETA_ROJA':
+                    if f_roja > 0:
+                        bloqueado_hasta = max(bloqueado_hasta, jr + f_roja)
+                else:
+                    acumuladas += 1
+                    if f_doble > 0 and acumuladas % 2 == 0:
+                        bloqueado_hasta = max(bloqueado_hasta, jr + f_doble)
+
+            prox = (Partido.query
+                    .filter(Partido.torneo_id == torneo_id,
+                            Partido.resultado == 'PENDIENTE',
+                            or_(Partido.equipo_local_id == eq_id,
+                                Partido.equipo_visitante_id == eq_id))
+                    .order_by(Partido.jornada)
+                    .first())
+            prox_jornada = prox.jornada if prox else None
+            suspendido = bool(prox_jornada is not None and bloqueado_hasta >= prox_jornada)
+
+            filas.append({
+                'jugador_id': None,
+                'jugador': nombre_tecnico,
+                'tipo_sancionado': 'TECNICO',
+                'equipo_id': eq_id,
+                'equipo': equipo.nombre,
                 'amarillas': amarillas,
                 'rojas': rojas,
                 'suspendido_hasta_jornada': bloqueado_hasta or None,

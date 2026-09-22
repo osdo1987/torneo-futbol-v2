@@ -28,6 +28,11 @@ class Partido(db.Model):
     goles_local = db.Column(db.Integer, nullable=False, default=0)
     goles_visitante = db.Column(db.Integer, nullable=False, default=0)
     resultado = db.Column(db.String(20), nullable=False, default='PENDIENTE')
+    # Datos del acta oficial
+    arbitro_nombre = db.Column(db.String(120), nullable=True)
+    arbitro_asistente1 = db.Column(db.String(120), nullable=True)
+    arbitro_asistente2 = db.Column(db.String(120), nullable=True)
+    observaciones = db.Column(db.Text, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

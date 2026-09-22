@@ -51,6 +51,29 @@ def create_evento():
         if jugador:
             data['equipo_id'] = jugador.equipo_id
 
+    # Tarjetas a técnicos: sin jugador_id, requieren equipo + nombre del sancionado.
+    tipo_sancionado = str(data.get('tipo_sancionado') or 'JUGADOR').upper()
+    if tipo_sancionado not in ('JUGADOR', 'TECNICO'):
+        return jsonify({'error': 'tipo_sancionado inválido (JUGADOR o TECNICO)'}), 400
+    if tipo_sancionado == 'TECNICO':
+        if data.get('tipo') not in ('TARJETA_AMARILLA', 'TARJETA_ROJA'):
+            return jsonify({'error': 'Un técnico solo puede recibir tarjeta amarilla o roja'}), 400
+        if not data.get('equipo_id'):
+            return jsonify({'error': 'equipo_id es requerido para sancionar a un técnico'}), 400
+        if not (data.get('nombre_sancionado') or '').strip():
+            return jsonify({'error': 'nombre_sancionado es requerido para sancionar a un técnico'}), 400
+        if int(data['equipo_id']) not in (partido.equipo_local_id, partido.equipo_visitante_id):
+            return jsonify({'error': 'El equipo no participa en este partido'}), 400
+        data['jugador_id'] = None
+        data['jugador_sale_id'] = None
+    else:
+        data['tipo_sancionado'] = 'JUGADOR'
+        data['nombre_sancionado'] = None
+        if data.get('tipo') in ('TARJETA_AMARILLA', 'TARJETA_ROJA') and not data.get('jugador_id'):
+            return jsonify({'error': 'Tarjeta inválida: indica jugador_id o tipo_sancionado=TECNICO'}), 400
+        if data.get('jugador_id') and not data.get('equipo_id'):
+            return jsonify({'error': 'No se pudo determinar el equipo del jugador'}), 400
+
     if data.get('tipo') == 'CAMBIO':
         if not data.get('jugador_id') or not data.get('jugador_sale_id'):
             return jsonify({'error': 'Un cambio requiere jugador_id (entra) y jugador_sale_id (sale)'}), 400

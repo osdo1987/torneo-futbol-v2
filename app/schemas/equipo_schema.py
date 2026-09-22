@@ -14,5 +14,6 @@ class EquipoSchema(ma.SQLAlchemyAutoSchema):
     nombre = fields.String(required=True, validate=validate.Length(min=1, max=200))
     delegado_email = fields.String(allow_none=True, validate=validate.Length(max=120))
     delegado_documento = fields.String(allow_none=True, validate=validate.Length(max=50))
+    tecnico_nombre = fields.String(allow_none=True, validate=validate.Length(max=120))
     created_at = fields.DateTime(dump_only=True)
     updated_at = fields.DateTime(dump_only=True)

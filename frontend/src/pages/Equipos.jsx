@@ -65,7 +65,7 @@ const POSICION_LABEL = {
 }
 const PIERNAS = ['DERECHA', 'IZQUIERDA', 'AMBIDESTRO']
 const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-const emptyEquipo = { nombre: '', delegado_email: '', delegado_documento: '' }
+const emptyEquipo = { nombre: '', delegado_email: '', delegado_documento: '', tecnico_nombre: '' }
 const emptyJugador = {
   nombre: '', numero_camiseta: 10, documento_identidad: '',
   posicion: '', fecha_nacimiento: '', telefono: '', pierna_habil: '', altura_cm: '', foto_url: '',
@@ -526,6 +526,7 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
                 </Box>
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   Delegado: {equipo.delegado_email || 'sin registrar'}
+                  {equipo.tecnico_nombre && <Box component="span"> · DT: {equipo.tecnico_nombre}</Box>}
                   {cupoPct >= 100 ? ' · Plantilla completa' : cupoPct >= 70 ? ' · Cerca del cupo' : ''}
                 </Typography>
               </Box>
@@ -923,6 +924,11 @@ export default function Equipos({ user, selectedTorneoId }) {
                           <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', lineHeight: 1.4 }}>
                             {eq.delegado_email || 'Sin delegado'}
                           </Typography>
+                          {eq.tecnico_nombre && (
+                            <Typography variant="caption" sx={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', lineHeight: 1.4, fontWeight: 700, color: 'text.secondary' }}>
+                              DT: {eq.tecnico_nombre}
+                            </Typography>
+                          )}
                         </Box>
                       </Box>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75, mt: 1 }}>
@@ -1026,6 +1032,8 @@ export default function Equipos({ user, selectedTorneoId }) {
               value={form.delegado_email} onChange={(e) => setForm({ ...form, delegado_email: e.target.value })} />
             <TextField label="Documento del delegado" fullWidth margin="normal"
               value={form.delegado_documento} onChange={(e) => setForm({ ...form, delegado_documento: e.target.value })} />
+            <TextField label="Director Técnico" fullWidth margin="normal" placeholder="Nombre del DT del equipo"
+              value={form.tecnico_nombre} onChange={(e) => setForm({ ...form, tecnico_nombre: e.target.value })} />
           </DialogContent>
           <DialogActions sx={{ px: 3, pb: 2 }}>
             <Button onClick={() => setOpen(false)}>Cancelar</Button>

@@ -1,0 +1,204 @@
+/* Acta de partido - hoja imprimible (A4) */
+
+.acta-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  max-width: 900px;
+  margin: 0 auto 18px;
+}
+
+.acta-sheet {
+  max-width: 900px;
+  margin: 0 auto;
+  background: #ffffff;
+  color: #111827;
+  padding: 40px 48px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  font-family: 'Times New Roman', Times, serif;
+  line-height: 1.5;
+}
+
+.acta-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+  border-bottom: 3px double #111827;
+  padding-bottom: 14px;
+  margin-bottom: 20px;
+}
+.acta-head h1 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.acta-org {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: #374151;
+}
+.acta-num {
+  text-align: right;
+  font-size: 12px;
+  color: #374151;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.acta-token {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.acta-sec {
+  margin: 22px 0;
+}
+.acta-sec h3 {
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #d1d5db;
+  padding-bottom: 4px;
+  margin: 0 0 10px;
+}
+.acta-sec h4 {
+  margin: 0 0 4px;
+  font-size: 14px;
+}
+
+table.acta-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.acta-tabla th,
+.acta-tabla td {
+  border: 1px solid #d1d5db;
+  padding: 5px 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.acta-tabla th {
+  background: #f3f4f6;
+  font-weight: 700;
+}
+
+.acta-marcador {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  justify-content: space-between;
+  text-align: center;
+}
+.acta-equipo {
+  flex: 1;
+}
+.acta-equipo h4 {
+  font-size: 16px;
+  text-transform: uppercase;
+}
+.acta-equipo p {
+  margin: 2px 0;
+  font-size: 13px;
+}
+.acta-score {
+  font-size: 42px !important;
+  font-weight: 900;
+  margin-top: 8px !important;
+}
+.acta-vs {
+  text-align: center;
+  font-size: 22px;
+  color: #6b7280;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.acta-res-tag {
+  font-size: 11px;
+  border: 1px solid #6b7280;
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+.acta-titular-tag {
+  font-weight: 700;
+  font-size: 12px;
+  margin: 10px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.acta-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+ul.acta-list {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  columns: 2;
+  column-gap: 18px;
+}
+.acta-empty {
+  font-style: italic;
+  color: #6b7280;
+  font-size: 13px;
+}
+.acta-obs {
+  white-space: pre-wrap;
+  font-size: 13px;
+}
+.acta-firmas {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  text-align: center;
+}
+.acta-firma-line {
+  border-bottom: 1px solid #111827;
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  min-height: 34px;
+  font-size: 13px;
+}
+.acta-firmas p {
+  font-size: 12px;
+  margin: 2px 0;
+}
+.acta-foot {
+  margin-top: 26px;
+  border-top: 1px solid #d1d5db;
+  padding-top: 8px;
+  font-size: 11px;
+  color: #6b7280;
+  text-align: center;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .acta-sheet,
+  .acta-sheet * {
+    visibility: visible;
+  }
+  .acta-sheet {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    max-width: none;
+    border: none;
+    border-radius: 0;
+    padding: 24px 32px;
+    box-shadow: none;
+  }
+  .acta-toolbar {
+    display: none !important;
+  }
+}

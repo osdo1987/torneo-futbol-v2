@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { apiGet } from '../api'
 import Box from '@mui/material/Box'
 import Drawer from '@mui/material/Drawer'
 import List from '@mui/material/List'
@@ -108,6 +110,14 @@ export default function AdminLayout({ title, children, user, torneos = [], selec
   const isDelegado = user?.role === 'DELEGADO'
   const initial = (user?.email || '?').charAt(0).toUpperCase()
   const torneoActivo = torneos.find((t) => String(t.id) === String(selectedTorneoId)) || torneos[0]
+
+  // Sede real del organizador (locaciones del tenant), no el nombre comercial.
+  const { data: locaciones = [] } = useQuery({
+    queryKey: ['locaciones'],
+    queryFn: () => apiGet('/locaciones'),
+    enabled: !isSuperadmin,
+  })
+  const sedeNombre = (locaciones.find((l) => l.activa !== false) || locaciones[0])?.nombre || 'Sin sede configurada'
 
   const navItems = useMemo(() => {
     if (isSuperadmin) {
@@ -440,7 +450,7 @@ const nav = (
                   }}
                 >
                   <StadiumIcon sx={{ fontSize: 18, flexShrink: 0 }} />
-                  <Typography variant="caption" noWrap>Sede: {user?.organizadorName || '—'}</Typography>
+                  <Typography variant="caption" noWrap>Sede: {sedeNombre}</Typography>
                 </Box>
               </>
             ) : (

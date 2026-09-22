@@ -137,6 +137,27 @@ def registrar_resultado(partido_id):
     return jsonify(partido_schema.dump(partido)), 200
 
 
+@partido_bp.route('/<int:partido_id>/acta', methods=['POST'])
+@jwt_required()
+def guardar_datos_acta(partido_id):
+    """Guarda los datos del ACTA OFICIAL: equipo arbitral y observaciones/incidencias."""
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_planilla_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
+    data = request.get_json() or {}
+    partido.arbitro_nombre = (data.get('arbitro_nombre') or '').strip() or None
+    partido.arbitro_asistente1 = (data.get('arbitro_asistente1') or '').strip() or None
+    partido.arbitro_asistente2 = (data.get('arbitro_asistente2') or '').strip() or None
+    partido.observaciones = (data.get('observaciones') or '').strip() or None
+    db.session.commit()
+    return jsonify(partido_schema.dump(partido)), 200
+
+
 @partido_bp.route('/<int:partido_id>/marcador', methods=['POST'])
 @jwt_required()
 def actualizar_marcador(partido_id):
@@ -396,6 +417,8 @@ def stream_en_vivo(partido_id):
                             'jugador_sale_id': e.jugador_sale_id,
                             'equipo_id': e.equipo_id,
                             'descripcion': e.descripcion,
+                            'tipo_sancionado': e.tipo_sancionado,
+                            'nombre_sancionado': e.nombre_sancionado,
                         }
                         for e in eventos
                     ]

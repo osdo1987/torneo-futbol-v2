@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
@@ -39,7 +39,7 @@ import {
   Undo as UndoIcon, PersonAdd as PersonAddIcon, PictureAsPdf as PdfIcon,
   Verified as VerifiedIcon, HistoryToggleOff as HistoryToggleOffIcon,
   PublishedWithChanges as PublishedWithChangesIcon, VerifiedUser as VerifiedUserIcon,
-  Stadium as StadiumIcon,
+  Stadium as StadiumIcon, EmojiPeople as EmojiPeopleIcon, Tune as TuneIcon,
 } from '@mui/icons-material'
 
 const RESULTADOS = {
@@ -156,6 +156,9 @@ export default function Planilla({ selectedTorneoId }) {
   const [hoverKey, setHoverKey] = useState('')
   const [finalizarOpen, setFinalizarOpen] = useState(false)
   const [adicion, setAdicion] = useState(0)
+  const [actaOpen, setActaOpen] = useState(false)
+  const [actaForm, setActaForm] = useState({ arbitro_nombre: '', arbitro_asistente1: '', arbitro_asistente2: '', observaciones: '' })
+  const navigate = useNavigate()
   const dragJugador = useRef({ eqId: null, jugadorId: null, rol: '' })
   const lastLiveRef = useRef(null)
   const liveReadyRef = useRef(false)
@@ -310,6 +313,26 @@ export default function Planilla({ selectedTorneoId }) {
     onError: (e) => toast.show(e.message, 'error'),
   })
 
+  const actaMut = useMutation({
+    mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/acta`, body),
+    onSuccess: () => {
+      qc.invalidateQueries(['partidos', selectedTorneoId])
+      toast.show('Datos del acta guardados', 'success')
+      setActaOpen(false)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const abrirActa = () => {
+    setActaForm({
+      arbitro_nombre: partido?.arbitro_nombre || '',
+      arbitro_asistente1: partido?.arbitro_asistente1 || '',
+      arbitro_asistente2: partido?.arbitro_asistente2 || '',
+      observaciones: partido?.observaciones || '',
+    })
+    setActaOpen(true)
+  }
+
   const finalizarMut = useMutation({
     mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/resultado`, body),
     onSuccess: () => {
@@ -351,6 +374,7 @@ export default function Planilla({ selectedTorneoId }) {
   })
 
   const eqName = (id) => equipos.find((x) => String(x.id) === String(id))?.nombre || `Equipo #${id}`
+  const tecnicoDe = (id) => equipos.find((x) => String(x.id) === String(id))?.tecnico_nombre || null
   const [label, color] = partido ? (RESULTADOS[partido.resultado] || [partido.resultado, 'default']) : ['', 'default']
   const editable = partido?.resultado === 'PENDIENTE'
   const plantelLocal = jugadoresLocalQ.data || []
@@ -486,6 +510,22 @@ export default function Planilla({ selectedTorneoId }) {
     })
   }
 
+  const registrarTecnico = (equipoId, tipo) => {
+    if (!iniciado) {
+      toast.show('El partido aún no ha iniciado. Pulsa Iniciar para registrar acciones.', 'info')
+      return
+    }
+    if (!window.confirm(`¿Tarjeta ${tipo === 'TARJETA_AMARILLA' ? 'AMARILLA' : 'ROJA'} al DT de ${eqName(equipoId)}?`)) return
+    eventoMut.mutate({
+      partido_id: Number(selId),
+      tipo,
+      equipo_id: Number(equipoId),
+      minuto: minutoCrono(),
+      tipo_sancionado: 'TECNICO',
+      nombre_sancionado: tecnicoDe(equipoId) === 'DT' ? null : tecnicoDe(equipoId),
+    })
+  }
+
   const confirmarCambio = () => {
     const sale = Number(accForm.jugador_sale_id)
     const entra = Number(accForm.jugador_id)
@@ -574,9 +614,14 @@ export default function Planilla({ selectedTorneoId }) {
               </FormControl>
             </Box>
             <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button variant="outlined" startIcon={<PdfIcon />} onClick={() => toast.show('Exportar PDF del acta próximamente', 'info')} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
-                PDF Acta
+              <Button variant="outlined" startIcon={<PdfIcon />} disabled={!partido} onClick={() => partido && navigate(`/acta/${partido.id}`)} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
+                Acta de Partido
               </Button>
+              {editable && partido && (
+                <Button variant="outlined" color="secondary" startIcon={<TuneIcon />} onClick={abrirActa} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
+                  Datos del acta
+                </Button>
+              )}
               {editable && !finalizarMut.isPending && (
                 <Button variant="contained" startIcon={<VerifiedIcon />} onClick={abrirFinalizar} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
                   Finalizar
@@ -609,7 +654,7 @@ export default function Planilla({ selectedTorneoId }) {
                   )}
                 </Box>
                 <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <Chip size="small" label="Árbitro por designar (AFA)" sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1' }} />
+                  <Chip size="small" label={partido.arbitro_nombre ? `Árbitro: ${partido.arbitro_nombre}` : 'Árbitro por designar (AFA)'} sx={{ bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1' }} />
                   <Chip size="small" label={iniciado ? '● SINCRONIZADO' : 'CONECTADO'}
                     sx={{ bgcolor: 'rgba(16,185,129,0.15)', color: '#34d399', fontFamily: 'JetBrains Mono, Menlo, monospace', letterSpacing: '0.05em', fontWeight: 700 }} />
                 </Box>
@@ -651,6 +696,29 @@ export default function Planilla({ selectedTorneoId }) {
                       </Tooltip>
                     </Box>
                   )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-start' }, flexWrap: 'wrap' }}>
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
+                      <EmojiPeopleIcon sx={{ fontSize: 13 }} /> DT: {tecnicoDe(partido.equipo_local_id) || 'Sin registrar'}
+                    </Box>
+                    {editable && (
+                      <>
+                        <Tooltip title={iniciado ? 'Amarilla al DT' : 'Inicia el partido para registrar acciones'}>
+                          <span>
+                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_local_id, 'TARJETA_AMARILLA')}>
+                              <YellowCardIcon sx={{ color: '#facc15', fontSize: 17 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={iniciado ? 'Roja al DT' : 'Inicia el partido para registrar acciones'}>
+                          <span>
+                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_local_id, 'TARJETA_ROJA')}>
+                              <RedCardIcon sx={{ color: '#f87171', fontSize: 17 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </>
+                    )}
+                  </Box>
                 </Box>
 
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', px: { xs: 2, sm: 4 }, py: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
@@ -726,6 +794,29 @@ export default function Planilla({ selectedTorneoId }) {
                       </Tooltip>
                     </Box>
                   )}
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-end' }, flexWrap: 'wrap' }}>
+                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
+                      <EmojiPeopleIcon sx={{ fontSize: 13 }} /> DT: {tecnicoDe(partido.equipo_visitante_id) || 'Sin registrar'}
+                    </Box>
+                    {editable && (
+                      <>
+                        <Tooltip title={iniciado ? 'Amarilla al DT' : 'Inicia el partido para registrar acciones'}>
+                          <span>
+                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_visitante_id, 'TARJETA_AMARILLA')}>
+                              <YellowCardIcon sx={{ color: '#facc15', fontSize: 17 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title={iniciado ? 'Roja al DT' : 'Inicia el partido para registrar acciones'}>
+                          <span>
+                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_visitante_id, 'TARJETA_ROJA')}>
+                              <RedCardIcon sx={{ color: '#f87171', fontSize: 17 }} />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                      </>
+                    )}
+                  </Box>
                 </Box>
               </Box>
 
@@ -1127,7 +1218,9 @@ export default function Planilla({ selectedTorneoId }) {
                         const esGol = ev.tipo === 'GOL' || ev.tipo === 'AUTOGOL'
                         const primary = ev.tipo === 'CAMBIO'
                           ? `${sala || '?'} ↔ ${entra || '?'}`
-                          : (ev.jugador_id ? entra : 'Sin jugador asociado')
+                          : (ev.tipo_sancionado === 'TECNICO'
+                              ? `${ev.nombre_sancionado || 'DT'} (técnico)`
+                              : (ev.jugador_id ? entra : 'Sin jugador asociado'))
                         return (
                           <Box key={ev.id} sx={{
                             display: 'flex', alignItems: 'center', gap: 1, py: 0.6, px: 0.75,
@@ -1449,7 +1542,7 @@ export default function Planilla({ selectedTorneoId }) {
                 </Box>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', color: 'text.secondary' }}>
                   <Box component="span">Árbitro principal:</Box>
-                  <Box component="span" fontWeight={700}>Por designar (AFA)</Box>
+                  <Box component="span" fontWeight={700}>{partido.arbitro_nombre || 'Por designar (AFA)'}</Box>
                 </Box>
               </Box>
             </DialogContent>
@@ -1466,6 +1559,36 @@ export default function Planilla({ selectedTorneoId }) {
             </DialogActions>
           </>
         )}
+      </Dialog>
+
+      <Dialog open={actaOpen} onClose={() => setActaOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          <TuneIcon sx={{ fontSize: 20, verticalAlign: 'middle', mr: 1, color: 'primary.main' }} />
+          Datos del acta de partido
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Árbitros designados y observaciones que figurarán en el acta oficial. Se guardan de forma permanente.
+          </Typography>
+          <TextField label="Árbitro principal" fullWidth margin="dense" placeholder="Nombre del árbitro"
+            value={actaForm.arbitro_nombre} onChange={(e) => setActaForm({ ...actaForm, arbitro_nombre: e.target.value })} />
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1 }}>
+            <TextField label="Asistente 1" fullWidth margin="dense"
+              value={actaForm.arbitro_asistente1} onChange={(e) => setActaForm({ ...actaForm, arbitro_asistente1: e.target.value })} />
+            <TextField label="Asistente 2" fullWidth margin="dense"
+              value={actaForm.arbitro_asistente2} onChange={(e) => setActaForm({ ...actaForm, arbitro_asistente2: e.target.value })} />
+          </Box>
+          <TextField label="Observaciones / incidencias" fullWidth margin="dense" multiline minRows={3}
+            placeholder="Incidencias del público, instalaciones, equipo arbitral, jugadores, técnicos…"
+            value={actaForm.observaciones} onChange={(e) => setActaForm({ ...actaForm, observaciones: e.target.value })} />
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setActaOpen(false)} disabled={actaMut.isPending}>Cancelar</Button>
+          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={actaMut.isPending}
+            onClick={() => actaMut.mutate({ id: partido.id, body: { ...actaForm } })}>
+            {actaMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar datos'}
+          </Button>
+        </DialogActions>
       </Dialog>
     </Box>
   )

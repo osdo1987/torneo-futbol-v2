@@ -19,6 +19,7 @@ import Tesoreria from './pages/Tesoreria'
 import SuperAdmin from './pages/SuperAdmin'
 import Config from './pages/Config'
 import MiEquipo from './pages/MiEquipo'
+import Acta from './pages/Acta'
 
 export default function App({ setDarkMode }) {
   const navigate = useNavigate()
@@ -151,6 +152,7 @@ export default function App({ setDarkMode }) {
       <Route path="/mi-equipo" element={layoutPages(isDelegado ? <MiEquipo user={user} selectedTorneoId={activeTorneoId} /> : <Navigate to="/" replace />)} />
       <Route path="/usuarios" element={<Navigate to="/config" replace />} />
       <Route path="/config" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Config user={user} selectedTorneoId={activeTorneoId} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />
+      <Route path="/acta/:id" element={<Acta />} />
       <Route path="/landing" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <LandingConfig user={user} />)} />
       <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
       <Route path="/r/:slug" element={<RegistroJugador />} />

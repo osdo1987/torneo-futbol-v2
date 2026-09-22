@@ -20,6 +20,10 @@ class EventoPartido(db.Model):
     # CAMBIO: jugador_id = el que entra, jugador_sale_id = el que sale
     jugador_sale_id = db.Column(db.Integer, db.ForeignKey('jugadores.id', ondelete='SET NULL'), nullable=True)
     equipo_id = db.Column(db.Integer, db.ForeignKey('equipos.id', ondelete='SET NULL'), nullable=True)
+    # Sancionado puede ser un jugador (tipo_sancionado=JUGADOR, usa jugador_id)
+    # o un técnico/sólo un oficial del cuerpo técnico (TECNICO, usa nombre_sancionado).
+    tipo_sancionado = db.Column(db.String(20), nullable=False, default='JUGADOR')
+    nombre_sancionado = db.Column(db.String(120), nullable=True)
     tipo = db.Column(db.String(30), nullable=False, default='GOL')
     minuto = db.Column(db.Integer, nullable=False, default=0)
     descripcion = db.Column(db.Text, nullable=True)

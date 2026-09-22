@@ -14,6 +14,8 @@ class EventoSchema(ma.SQLAlchemyAutoSchema):
     jugador_id = fields.Int(allow_none=True)
     jugador_sale_id = fields.Int(allow_none=True)
     equipo_id = fields.Int(allow_none=True)
+    tipo_sancionado = fields.String(load_default='JUGADOR', validate=validate.OneOf(['JUGADOR', 'TECNICO']))
+    nombre_sancionado = fields.String(allow_none=True, validate=validate.Length(max=120))
     tipo = fields.String(required=True, validate=validate.OneOf(TIPO_EVENTO_PARTIDO))
     minuto = fields.Int(load_default=0)
     descripcion = fields.String(allow_none=True)

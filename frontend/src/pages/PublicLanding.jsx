@@ -1003,7 +1003,12 @@ function MatchModal({ partido, onClose, onFormacion }) {
                         {e.jugador_sale && <Typography sx={{ color: PUB.muted, fontSize: 11 }}>Sale {e.jugador_sale}</Typography>}
                       </Box>
                     ) : (
-                      <Typography sx={{ color: PUB.fg, fontSize: 13 }}>{e.jugador}</Typography>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0, flexWrap: 'wrap', justifyContent: esLocal ? 'flex-start' : 'flex-end' }}>
+                        <Typography sx={{ color: PUB.fg, fontSize: 13 }}>{e.jugador || e.sancionado}</Typography>
+                        {e.tipo_sancionado === 'TECNICO' && (
+                          <span style={{ padding: '1px 6px', borderRadius: 99, fontSize: 9, fontWeight: 700, letterSpacing: '.04em', color: PUB.cyan, border: `1px solid ${PUB.line}` }}>TÉCNICO</span>
+                        )}
+                      </Box>
                     )}
                     {e.descripcion && <Typography sx={{ fontSize: 10, color: PUB.muted, bgcolor: 'rgba(255,255,255,.05)', px: 1.2, py: 0.5, borderRadius: 1 }}>{e.descripcion}</Typography>}
                   </Box>

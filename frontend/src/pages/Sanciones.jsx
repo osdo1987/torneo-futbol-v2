@@ -59,7 +59,7 @@ export default function Sanciones({ selectedTorneoId }) {
 
   return (
     <Box>
-      <PageHeader title="Sanciones" subtitle={`${data?.torneo} — acumulado por jugador y equipo según el reglamento.`} />
+      <PageHeader title="Sanciones" subtitle={`${data?.torneo} — acumulado por jugador (y técnicos) según el reglamento.`} />
 
       <Grid container spacing={2} mb={3}>
         {[
@@ -126,14 +126,21 @@ export default function Sanciones({ selectedTorneoId }) {
               {celdasHeader('Estado')}
             </Box>
             {activo.jugadores.map((s, i) => (
-              <Box key={s.jugador_id} sx={{
+              <Box key={`${s.jugador_id ?? 'tec'}-${s.jugador}-${s.equipo}`} sx={{
                 display: 'grid', gridTemplateColumns: BARRA_COLS, alignItems: 'center', gap: 1,
                 px: 2, py: 0.55,
                 borderBottom: i === activo.jugadores.length - 1 ? 'none' : '1px solid rgba(0,0,0,0.05)',
                 bgcolor: i % 2 ? 'rgba(0,0,0,0.02)' : 'transparent',
                 '&:hover': { bgcolor: 'rgba(0,0,0,0.045)' },
               }}>
-                <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: s.suspendido ? 'text.secondary' : 'text.primary' }}>{s.jugador}</Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0 }}>
+                  <Typography noWrap sx={{ fontSize: 13, fontWeight: 600, color: s.suspendido ? 'text.secondary' : 'text.primary' }}>{s.jugador}</Typography>
+                  {s.tipo_sancionado === 'TECNICO' && (
+                    <Box component="span" sx={{ flexShrink: 0, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 10, fontWeight: 800, bgcolor: 'rgba(29,78,216,0.10)', color: 'primary.main', letterSpacing: '0.04em' }}>
+                      TÉCNICO
+                    </Box>
+                  )}
+                </Box>
                 <Typography sx={{ fontSize: 12, fontWeight: 800, textAlign: 'center', color: s.amarillas > 0 ? 'warning.main' : 'text.disabled' }}>🟨 {s.amarillas}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 800, textAlign: 'center', color: s.rojas > 0 ? 'error.main' : 'text.disabled' }}>🟥 {s.rojas}</Typography>
                 <Typography sx={{ fontSize: 12, fontWeight: 600, color: s.suspendido ? 'error.main' : 'success.main' }}>

@@ -156,6 +156,11 @@ def public_eventos(partido_id):
                              if ev.jugador_sale_id and Jugador.query.get(ev.jugador_sale_id) else None),
             'equipo': equipo.nombre if equipo else None,
             'descripcion': ev.descripcion,
+            'tipo_sancionado': ev.tipo_sancionado,
+            'nombre_sancionado': ev.nombre_sancionado,
+            # Nombre legible del sancionado (jugador o técnico) para las UIs
+            'sancionado': (ev.nombre_sancionado if ev.tipo_sancionado == 'TECNICO'
+                           else (jugador.nombre if jugador else None)),
         })
     return jsonify({'partido_id': partido_id, 'eventos': data}), 200
 
@@ -178,6 +183,16 @@ def public_en_vivo(partido_id):
     if not partido:
         return jsonify({'error': 'Partido no encontrado'}), 404
     return jsonify(LandingService.en_vivo_partido(partido_id)), 200
+
+
+@landing_bp.route('/partido/<int:partido_id>/acta', methods=['GET'])
+def public_acta(partido_id):
+    """ACTA oficial de un partido: datos, árbitros, alineaciones, goles, tarjetas,
+    sustituciones y observaciones (público, listo para imprimir)."""
+    result = LandingService.acta_partido(partido_id)
+    if not result:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    return jsonify(result), 200
 
 
 @landing_bp.route('/manage', methods=['GET'])
