@@ -2,6 +2,7 @@ from datetime import datetime
 from marshmallow import ValidationError
 from app.extensions import db
 from app.models.partido import Partido, RESULTADO_PARTIDO
+from app.models.partido_alineacion import PartidoAlineacion
 from app.models.partido_en_vivo import PartidoEnVivo, MAX_SEG
 from app.models.torneo import Torneo
 from app.models.evento_partido import EventoPartido
@@ -48,7 +49,9 @@ class PartidoService:
         """Edita datos básicos de un partido aún no jugado (PENDIENTE/POSTERGADO).
 
         Permite cambiar equipos, jornada, fecha y/o sede. Si viene el campo
-        `fecha_programada` como null se limpia la fecha programada.
+        `fecha_programada` como null (o vacío) se limpia la fecha programada.
+        Si cambian los equipos se descartan alineaciones, eventos y marcador
+        acumulados, ya que quedan asociados a los equipos anteriores.
         """
         if partido.resultado not in ('PENDIENTE', 'POSTERGADO'):
             return None, 'Solo se pueden modificar partidos pendientes o postergados'
@@ -69,18 +72,40 @@ class PartidoService:
             jornada = int(data.get('jornada', partido.jornada) or 1)
         except (TypeError, ValueError):
             return None, 'Jornada inválida'
+        if jornada < 1:
+            return None, 'La jornada debe ser un número positivo'
 
         fecha = data.get('fecha_programada', partido.fecha_programada)
         if isinstance(fecha, str):
-            try:
-                fecha = datetime.fromisoformat(fecha.replace('Z', '+00:00'))
-            except ValueError:
-                return None, 'Formato de fecha inválido'
+            if not fecha.strip():
+                fecha = None
+            else:
+                try:
+                    fecha = datetime.fromisoformat(fecha.replace('Z', '+00:00'))
+                except ValueError:
+                    return None, 'Formato de fecha inválido'
 
         locacion_id = data.get('locacion_id', partido.locacion_id)
         if locacion_id:
-            if not Locacion.query.get(locacion_id):
+            locacion = Locacion.query.get(locacion_id)
+            if not locacion:
                 return None, 'Locación no encontrada'
+            if locacion.organizador_id != partido.torneo.organizador_id:
+                return None, 'La locación no pertenece al organizador del torneo'
+
+        error = PartidoService._validar_conflictos(
+            partido, local_id, visit_id, jornada, fecha, locacion_id)
+        if error:
+            return None, error
+
+        if {local_id, visit_id} != {partido.equipo_local_id, partido.equipo_visitante_id}:
+            PartidoAlineacion.query.filter_by(partido_id=partido.id).delete()
+            EventoPartido.query.filter_by(partido_id=partido.id).delete()
+            partido.goles_local = 0
+            partido.goles_visitante = 0
+            vivo = PartidoEnVivo.query.get(partido.id)
+            if vivo:
+                db.session.delete(vivo)
 
         partido.equipo_local_id = local_id
         partido.equipo_visitante_id = visit_id
@@ -91,6 +116,50 @@ class PartidoService:
             partido.resultado = 'PENDIENTE'
         db.session.commit()
         return partido, None
+
+    @staticmethod
+    def _validar_conflictos(partido, local_id, visit_id, jornada, fecha, locacion_id):
+        """Rechaza duplicados de jornada, cruces repetidos y doble reserva de sede."""
+        ids = {local_id, visit_id}
+
+        duplicado_jornada = Partido.query.filter(
+            Partido.id != partido.id,
+            Partido.torneo_id == partido.torneo_id,
+            Partido.jornada == jornada,
+            db.or_(
+                Partido.equipo_local_id.in_(ids),
+                Partido.equipo_visitante_id.in_(ids),
+            ),
+        ).first()
+        if duplicado_jornada:
+            return 'Conflicto de jornada: un equipo ya tiene partido en la jornada %d' % jornada
+
+        if partido.fase_id is not None:
+            fase_cond = Partido.fase_id == partido.fase_id
+        else:
+            fase_cond = Partido.fase_id.is_(None)
+        cruce_duplicado = Partido.query.filter(
+            Partido.id != partido.id,
+            Partido.torneo_id == partido.torneo_id,
+            Partido.equipo_local_id.in_(ids),
+            Partido.equipo_visitante_id.in_(ids),
+            Partido.equipo_local_id != Partido.equipo_visitante_id,
+            fase_cond,
+        ).first()
+        if cruce_duplicado:
+            return 'El enfrentamiento entre estos equipos ya existe en la fase actual'
+
+        if fecha is not None and locacion_id:
+            choque = Partido.query.filter(
+                Partido.id != partido.id,
+                Partido.torneo_id == partido.torneo_id,
+                Partido.locacion_id == locacion_id,
+                Partido.fecha_programada == fecha,
+            ).first()
+            if choque:
+                return 'La sede ya está reservada para otro partido en esa fecha y hora'
+
+        return None
 
     @staticmethod
     def schedule(partido, fecha_programada):

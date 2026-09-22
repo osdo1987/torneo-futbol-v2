@@ -371,8 +371,11 @@ export default function Partidos({ selectedTorneoId, user }) {
       equipo_visitante_id: Number(editForm.equipo_visitante_id),
       jornada: Number(editForm.jornada || 1),
     }
-    body.fecha_programada = editForm.fecha_programada ? new Date(editForm.fecha_programada).toISOString() : null
-    if (editForm.locacion_id) body.locacion_id = Number(editForm.locacion_id)
+    // Se envía el valor naive del <input type="datetime-local"> tal cual (como
+    // el diálogo Programar y el fixture); no se convierte a ISO/UTC para evitar
+    // desplazamientos de zona horaria en cada edición.
+    body.fecha_programada = editForm.fecha_programada ? editForm.fecha_programada : null
+    body.locacion_id = editForm.locacion_id ? Number(editForm.locacion_id) : null
     editMut.mutate({ id: editOpen.id, body })
   }
 
@@ -925,6 +928,7 @@ export default function Partidos({ selectedTorneoId, user }) {
               {equipos.map((eq) => <MenuItem key={eq.id} value={eq.id}>{eq.nombre}</MenuItem>)}
             </TextField>
             <TextField label="Jornada" type="number" fullWidth margin="normal" value={editForm.jornada}
+              inputProps={{ min: 1 }}
               onChange={(e) => setEditForm({ ...editForm, jornada: Number(e.target.value) })} />
             <TextField label="Fecha y hora" type="datetime-local" fullWidth margin="normal"
               value={editForm.fecha_programada}
