@@ -19,6 +19,7 @@ import NotificationsNoneIcon from '@mui/icons-material/NotificationsNone'
 import CloseIcon from '@mui/icons-material/Close'
 import SwapHorizIcon from '@mui/icons-material/SwapHoriz'
 import GroupsIcon from '@mui/icons-material/Groups'
+import DateRangeIcon from '@mui/icons-material/DateRange'
 import { apiGet } from '../api'
 import { usePartidoStream } from '../lib/sse'
 import { PUB, FONT_DISPLAY, FONT_BODY, ESTADO_META, teamStyle, teamAbbr, FORMAT_FECHA } from '../publicTheme'
@@ -95,11 +96,11 @@ const clampLambda = (x) => Math.min(4.5, Math.max(0.2, x))
 function buildStatsIndex(posiciones) {
   const m = {}
   let goles = 0; let pj = 0
-  ;(posiciones || []).forEach((r) => {
-    m[r.equipo_id] = r
-    goles += r.GF || 0
-    pj += r.PJ || 0
-  })
+    ; (posiciones || []).forEach((r) => {
+      m[r.equipo_id] = r
+      goles += r.GF || 0
+      pj += r.PJ || 0
+    })
   return { m, avg: pj > 0 ? goles / pj : 0 }
 }
 
@@ -555,10 +556,12 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
   }, [sorted])
 
   const [tab, setTab] = useState(defaultIdx)
+  const [verTodas, setVerTodas] = useState(true)
   const [prevLen, setPrevLen] = useState(sorted.length)
   if (sorted.length !== prevLen) {
     setPrevLen(sorted.length)
     setTab(defaultIdx)
+    setVerTodas(true)
   }
 
   if (loading) return <PendingOrBar />
@@ -566,25 +569,78 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
 
   const activo = Math.min(tab, sorted.length - 1)
   const activa = sorted[activo]
-  const partidos = activa.partidos || []
+
+  // Caja con los partidos de una jornada (encabezado + filas).
+  const renderJornada = (j) => {
+    const ps = j.partidos || []
+    return (
+      <Box key={`fj${j.jornada}`} sx={{ overflow: 'hidden', borderRadius: 1.5, border: `1px solid ${PUB.line}`, bgcolor: 'rgba(5,12,30,.75)', boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.25, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
+          <Typography noWrap sx={{ flex: 1, fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.fg }}>
+            {torneoNombre ? `${torneoNombre} · ` : ''}Jornada {j.jornada}
+          </Typography>
+          <Typography sx={{ fontFamily: FONT_BODY, fontSize: 11, color: PUB.muted, whiteSpace: 'nowrap' }}>
+            {ps.length} {ps.length === 1 ? 'partido' : 'partidos'}
+          </Typography>
+          {!verTodas && onClasificacion && (
+            <Box
+              component="button"
+              type="button"
+              onClick={onClasificacion}
+              sx={{
+                fontSize: 12, fontWeight: 600, color: PUB.fg, background: 'none', border: 'none', cursor: 'pointer',
+                textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap',
+                '&:hover': { color: PUB.cyan },
+              }}
+            >
+              Clasificación
+            </Box>
+          )}
+        </Box>
+        {ps.map((p, i) => (
+          <FixtureRow key={p.id} p={p} delay={i} last={i === ps.length - 1} fav={favs.has(`m${p.id}`)} onFav={toggleFav} onOpen={onOpenPartido} prob={matchProbabilities(p, statsIndex)} forma={forma} />
+        ))}
+      </Box>
+    )
+  }
 
   return (
     <Box className="pl-fade-up">
-      {/* Pestañas por jornada */}
+      {/* Pestañas por jornada + ver todas las fechas */}
       <Box sx={{
         display: 'flex', gap: 1, mb: 2, overflowX: 'auto', pb: 0.75,
         '&::-webkit-scrollbar': { height: 6 },
         '&::-webkit-scrollbar-thumb': { bgcolor: 'rgba(255,255,255,.15)', borderRadius: 3 },
       }}>
+        <Box
+          component="button"
+          type="button"
+          onClick={() => setVerTodas((v) => !v)}
+          sx={{
+            flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.75, mr: 0.5,
+            fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 700, letterSpacing: '.04em',
+            textTransform: 'uppercase', whiteSpace: 'nowrap', cursor: 'pointer',
+            px: 1.75, py: 0.9, borderRadius: 100,
+            color: verTodas ? '#020621' : PUB.fgDim,
+            bgcolor: verTodas ? PUB.cyan : 'rgba(255,255,255,.04)',
+            border: `1px solid ${verTodas ? PUB.cyan : PUB.line}`,
+            transition: 'all .2s',
+            '&:hover': { color: '#020621', borderColor: PUB.cyan, bgcolor: verTodas ? PUB.cyan : 'rgba(0,240,255,.14)' },
+          }}
+        >
+          <DateRangeIcon sx={{ fontSize: 14 }} />
+          Ver todas
+        </Box>
+
         {sorted.map((j, i) => {
-          const isActive = i === activo
+          const isActive = i === activo && !verTodas
           const enVivo = (j.partidos || []).some(estaEnVivo)
           return (
             <Box
               key={`j${j.jornada}`}
               component="button"
               type="button"
-              onClick={() => setTab(i)}
+              onClick={() => { setTab(i); setVerTodas(false) }}
               sx={{
                 flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.75,
                 fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 700, letterSpacing: '.04em',
@@ -604,34 +660,13 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
         })}
       </Box>
 
-      {/* Partidos de la jornada activa */}
-      <Box sx={{ overflow: 'hidden', borderRadius: 1.5, border: `1px solid ${PUB.line}`, bgcolor: 'rgba(5,12,30,.75)', boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, px: 2, py: 1.25, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
-          <Typography noWrap sx={{ flex: 1, fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.fg }}>
-            {torneoNombre ? `${torneoNombre} · ` : ''}Jornada {activa.jornada}
-          </Typography>
-          <Typography sx={{ fontFamily: FONT_BODY, fontSize: 11, color: PUB.muted, whiteSpace: 'nowrap' }}>
-            {partidos.length} {partidos.length === 1 ? 'partido' : 'partidos'}
-          </Typography>
-          {onClasificacion && (
-            <Box
-              component="button"
-              type="button"
-              onClick={onClasificacion}
-              sx={{
-                fontSize: 12, fontWeight: 600, color: PUB.fg, background: 'none', border: 'none', cursor: 'pointer',
-                textDecoration: 'underline', textUnderlineOffset: 3, whiteSpace: 'nowrap',
-                '&:hover': { color: PUB.cyan },
-              }}
-            >
-              Clasificación
-            </Box>
-          )}
+      {verTodas ? (
+        <Box sx={{ display: 'grid', gap: 2.5 }}>
+          {sorted.map((j) => renderJornada(j))}
         </Box>
-        {partidos.map((p, i) => (
-          <FixtureRow key={p.id} p={p} delay={i} last={i === partidos.length - 1} fav={favs.has(`m${p.id}`)} onFav={toggleFav} onOpen={onOpenPartido} prob={matchProbabilities(p, statsIndex)} forma={forma} />
-        ))}
-      </Box>
+      ) : (
+        renderJornada(activa)
+      )}
     </Box>
   )
 }
@@ -662,8 +697,8 @@ function useFormaPorEquipo(jornadas) {
       const res = p.resultado
       const lo = (res === 'LOCAL_GANO' || res === 'W_LOCAL') ? 'G' : (res === 'EMPATE' ? 'E' : 'P')
       const vo = (res === 'VISITANTE_GANO' || res === 'W_VISITANTE') ? 'G' : (res === 'EMPATE' ? 'E' : 'P')
-      ;(m[p.equipo_local_id] = m[p.equipo_local_id] || []).push({ o: lo, j: p.jornada })
-      ;(m[p.equipo_visitante_id] = m[p.equipo_visitante_id] || []).push({ o: vo, j: p.jornada })
+        ; (m[p.equipo_local_id] = m[p.equipo_local_id] || []).push({ o: lo, j: p.jornada })
+        ; (m[p.equipo_visitante_id] = m[p.equipo_visitante_id] || []).push({ o: vo, j: p.jornada })
     }
     Object.keys(m).forEach((k) => { m[k] = m[k].slice(-5).reverse() })
     return m
