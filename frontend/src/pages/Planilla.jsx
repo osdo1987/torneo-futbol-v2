@@ -22,12 +22,14 @@ import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
 import Divider from '@mui/material/Divider'
 import Alert from '@mui/material/Alert'
+import Autocomplete from '@mui/material/Autocomplete'
 import CircularProgress from '@mui/material/CircularProgress'
 import Tooltip from '@mui/material/Tooltip'
 import Grid from '@mui/material/Grid'
+import InputAdornment from '@mui/material/InputAdornment'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
-import { apiGet, apiPost, apiDelete } from '../api'
+import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
 import { usePartidoStream } from '../lib/sse'
 import {
@@ -40,6 +42,7 @@ import {
   Verified as VerifiedIcon, HistoryToggleOff as HistoryToggleOffIcon,
   PublishedWithChanges as PublishedWithChangesIcon, VerifiedUser as VerifiedUserIcon,
   Stadium as StadiumIcon, EmojiPeople as EmojiPeopleIcon, Tune as TuneIcon,
+  Search as SearchIcon, Edit as EditIcon,
 } from '@mui/icons-material'
 
 const RESULTADOS = {
@@ -99,6 +102,8 @@ const accIconBtnSx = {
   '&:hover': { bgcolor: 'rgba(255,255,255,0.14)' },
 }
 
+// Token de jugador para los diálogos de acción: el círculo lleva el número (o "DT")
+// y el nombre va FUERA del círculo, debajo, para que no se pise con nada.
 const JugadorBtn = ({ num, nombre, base, sel, seleccionado = false, onClick }) => {
   const colores = seleccionado ? sel : base
   return (
@@ -108,18 +113,36 @@ const JugadorBtn = ({ num, nombre, base, sel, seleccionado = false, onClick }) =
       onClick={onClick}
       title={`${num} · ${nombre}`}
       sx={{
-        width: 60, height: 60, borderRadius: '50%', mx: 'auto', padding: '4px',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-        fontWeight: 800, fontSize: 16, cursor: 'pointer',
-        border: `2px solid ${colores.border}`, bgcolor: colores.bg, color: colores.color,
+        width: '100%', maxWidth: 88, borderRadius: 1.5, px: 0.5, py: 0.5,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.4,
+        cursor: 'pointer', bgcolor: seleccionado ? 'action.selected' : 'transparent',
+        border: '1px solid', borderColor: seleccionado ? colores.border : 'transparent',
         transition: 'all .15s',
-        '&:hover': { transform: 'scale(1.08)', boxShadow: '0 4px 10px rgba(0,0,0,0.15)' },
+        '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      <span style={{ lineHeight: 1 }}>{num}</span>
-      <span style={{ fontSize: 8, fontWeight: 700, maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.85 }}>
+      <Box
+        sx={{
+          width: 54, height: 54, borderRadius: '50%', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontWeight: 800, fontSize: String(num).length > 2 ? 12 : 16, lineHeight: 1,
+          border: `2px solid ${colores.border}`, bgcolor: colores.bg, color: colores.color,
+          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+          transition: 'all .15s',
+          '&:hover': { transform: 'scale(1.06)' },
+        }}
+      >
+        <span>{num}</span>
+      </Box>
+      <Box
+        sx={{
+          fontSize: 10, fontWeight: 700, lineHeight: 1.2, width: '100%',
+          maxWidth: 86, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          textAlign: 'center', color: seleccionado ? 'text.primary' : 'text.secondary',
+        }}
+      >
         {nombre}
-      </span>
+      </Box>
     </Box>
   )
 }
@@ -131,6 +154,12 @@ const POSICION_LABEL = {
   DELANTERO: 'Delantero',
 }
 const POSICION_FILA = { ARQUERO: 0, DEFENSOR: 1, MEDIOCAMPISTA: 2, DELANTERO: 3 }
+
+const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
+const PIERNAS = [{ value: '', label: 'Sin definir' }, { value: 'DERECHA', label: 'Derecha' }, { value: 'IZQUIERDA', label: 'Izquierda' }, { value: 'AMBIDESTRO', label: 'Ambidestro' }]
+
+const sinAcentos = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+const textoNumero = (n) => (n === null || n === undefined || n === '' ? 'S/N' : `#${n}`)
 
 const fmtTiempo = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
@@ -363,6 +392,70 @@ export default function Planilla({ selectedTorneoId }) {
     onSuccess: () => { qc.invalidateQueries(['alineacion', selId]) },
     onError: (e) => toast.show(e.message, 'error'),
   })
+
+  const [editJug, setEditJug] = useState(null)
+  const [editForm, setEditForm] = useState({})
+
+  const abrirEditarJugador = (jugador, equipoId) => {
+    setEditJug({ jugador, equipo_id: Number(equipoId) })
+    setEditForm({
+      nombre: jugador.nombre || '',
+      numero_camiseta: jugador.numero_camiseta == null ? '' : String(jugador.numero_camiseta),
+      posicion: jugador.posicion || '',
+      fecha_nacimiento: jugador.fecha_nacimiento || '',
+      documento_identidad: jugador.documento_identidad || '',
+      telefono: jugador.telefono || '',
+      pierna_habil: jugador.pierna_habil || '',
+      altura_cm: jugador.altura_cm == null ? '' : String(jugador.altura_cm),
+      tipo_sangre: jugador.tipo_sangre || '',
+      eps: jugador.eps || '',
+      contacto_emergencia: jugador.contacto_emergencia || '',
+      alergias: jugador.alergias || '',
+    })
+  }
+
+  const editarJugadorMut = useMutation({
+    mutationFn: ({ id, body }) => apiPut(`/jugadores/${id}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries(['jugadores'])
+      qc.invalidateQueries(['alineacion', selId])
+      toast.show('Datos del jugador actualizados', 'success')
+      setEditJug(null)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const guardarEdicionJugador = () => {
+    if (!editJug) return
+    const nombre = editForm.nombre.trim()
+    if (!nombre) {
+      toast.show('El nombre del jugador es obligatorio', 'error')
+      return
+    }
+    const num = editForm.numero_camiseta.trim()
+    if (num !== '') {
+      const n = Number(num)
+      if (!Number.isInteger(n) || n < 0 || n > 999) {
+        toast.show('El número de camiseta debe ser un entero entre 0 y 999', 'error')
+        return
+      }
+    }
+    const body = {
+      nombre,
+      numero_camiseta: num === '' ? 0 : Number(num),
+      posicion: editForm.posicion || null,
+      fecha_nacimiento: editForm.fecha_nacimiento || null,
+      documento_identidad: editForm.documento_identidad.trim() || null,
+      telefono: editForm.telefono.trim() || null,
+      pierna_habil: editForm.pierna_habil || null,
+      altura_cm: editForm.altura_cm.trim() === '' ? null : Number(editForm.altura_cm),
+      tipo_sangre: editForm.tipo_sangre || null,
+      eps: editForm.eps.trim() || null,
+      contacto_emergencia: editForm.contacto_emergencia.trim() || null,
+      alergias: editForm.alergias.trim() || null,
+    }
+    editarJugadorMut.mutate({ id: editJug.jugador.id, body })
+  }
 
   const ordenMut = useMutation({
     mutationFn: ({ equipoId, items }) => apiPost(`/partidos/${selId}/alineacion/orden`, { equipo_id: equipoId, items }),
@@ -700,24 +793,9 @@ export default function Planilla({ selectedTorneoId }) {
                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
                       <EmojiPeopleIcon sx={{ fontSize: 13 }} /> DT: {tecnicoDe(partido.equipo_local_id) || 'Sin registrar'}
                     </Box>
-                    {editable && (
-                      <>
-                        <Tooltip title={iniciado ? 'Amarilla al DT' : 'Inicia el partido para registrar acciones'}>
-                          <span>
-                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_local_id, 'TARJETA_AMARILLA')}>
-                              <YellowCardIcon sx={{ color: '#facc15', fontSize: 17 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={iniciado ? 'Roja al DT' : 'Inicia el partido para registrar acciones'}>
-                          <span>
-                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_local_id, 'TARJETA_ROJA')}>
-                              <RedCardIcon sx={{ color: '#f87171', fontSize: 17 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </>
-                    )}
+                    <Typography component="span" sx={{ fontSize: 10.5, color: '#94a3b8' }}>
+                      Las tarjetas al DT se registran desde el botón de tarjeta, junto a los jugadores.
+                    </Typography>
                   </Box>
                 </Box>
 
@@ -798,24 +876,9 @@ export default function Planilla({ selectedTorneoId }) {
                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
                       <EmojiPeopleIcon sx={{ fontSize: 13 }} /> DT: {tecnicoDe(partido.equipo_visitante_id) || 'Sin registrar'}
                     </Box>
-                    {editable && (
-                      <>
-                        <Tooltip title={iniciado ? 'Amarilla al DT' : 'Inicia el partido para registrar acciones'}>
-                          <span>
-                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_visitante_id, 'TARJETA_AMARILLA')}>
-                              <YellowCardIcon sx={{ color: '#facc15', fontSize: 17 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={iniciado ? 'Roja al DT' : 'Inicia el partido para registrar acciones'}>
-                          <span>
-                            <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => registrarTecnico(partido.equipo_visitante_id, 'TARJETA_ROJA')}>
-                              <RedCardIcon sx={{ color: '#f87171', fontSize: 17 }} />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </>
-                    )}
+                    <Typography component="span" sx={{ fontSize: 10.5, color: '#94a3b8' }}>
+                      Las tarjetas al DT se registran desde el botón de tarjeta, junto a los jugadores.
+                    </Typography>
                   </Box>
                 </Box>
               </Box>
@@ -917,6 +980,7 @@ export default function Planilla({ selectedTorneoId }) {
                 const arrastrable = editable && alEquipo.some((j) => alineacionMap[j.id].titular)
                 const form = formEquipo[eq.id] || { jugador_id: '', numero: '' }
                 const setForm = (f) => setFormEquipo({ ...formEquipo, [eq.id]: f })
+                const selJugador = eq.plantel.find((x) => String(x.id) === String(form.jugador_id)) || null
                 return (
                   <Grid item xs={12} sm={6} key={eq.id}>
                     <Card elevation={0} variant="outlined" sx={{ height: '100%' }}>
@@ -942,26 +1006,69 @@ export default function Planilla({ selectedTorneoId }) {
                           <>
                             {editable && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5, mb: 1, flexWrap: 'wrap' }}>
-                                <FormControl size="small" sx={{ minWidth: 180, flex: 1 }}>
-                                  <InputLabel>Agregar jugador</InputLabel>
-                                  <Select label="Agregar jugador" value={form.jugador_id}
-                                    onChange={(e) => {
-                                      const j = eq.plantel.find((x) => String(x.id) === e.target.value)
-                                      setForm({ jugador_id: e.target.value, numero: j ? String(j.numero_camiseta ?? '') : '' })
-                                    }}>
-                                    {disponibles.length === 0 && <MenuItem value="" disabled><em>No quedan jugadores por agregar</em></MenuItem>}
-                                    {disponibles.map((j) => (
-                                      <MenuItem key={j.id} value={String(j.id)}>
-                                        <span style={{ display: 'flex', justifyContent: 'space-between', gap: 16, width: '100%' }}>
-                                          <span>{j.nombre}</span>
-                                          {j.posicion && (
-                                            <span style={{ opacity: 0.6, fontSize: 12, whiteSpace: 'nowrap' }}>{POSICION_LABEL[j.posicion] || j.posicion}</span>
-                                          )}
-                                        </span>
-                                      </MenuItem>
-                                    ))}
-                                  </Select>
-                                </FormControl>
+                                <Autocomplete
+                                  size="small"
+                                  sx={{ minWidth: 220, flex: 1 }}
+                                  options={disponibles}
+                                  value={selJugador}
+                                  isOptionEqualToValue={(o, v) => o?.id === v?.id}
+                                  getOptionLabel={(o) => (o ? `${textoNumero(o.numero_camiseta)} ${o.nombre}` : '')}
+                                  filterOptions={(opts, state) => {
+                                    const q = sinAcentos(state.inputValue)
+                                    if (!q) return opts
+                                    const nq = q.replace(/[^0-9]/g, '')
+                                    return opts.filter((o) => {
+                                      const num = String(o.numero_camiseta ?? '')
+                                      if (nq && num && (num === nq || num.endsWith(nq))) return true
+                                      if (sinAcentos(o.nombre).includes(q)) return true
+                                      return sinAcentos(POSICION_LABEL[o.posicion] || o.posicion).includes(q)
+                                    })
+                                  }}
+                                  onChange={(_, j) => {
+                                    setForm({
+                                      jugador_id: j ? String(j.id) : '',
+                                      numero: j && j.numero_camiseta != null ? String(j.numero_camiseta) : '',
+                                    })
+                                  }}
+                                  noOptionsText={disponibles.length === 0 ? 'No quedan jugadores por agregar' : 'Sin coincidencias'}
+                                  renderInput={(params) => (
+                                    <TextField
+                                      {...params}
+                                      label="Agregar jugador"
+                                      placeholder="Buscar por nombre, N° o posición"
+                                      InputProps={{
+                                        ...params.InputProps,
+                                        startAdornment: (
+                                          <>
+                                            <InputAdornment position="start">
+                                              <SearchIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                                            </InputAdornment>
+                                            {params.InputProps.startAdornment}
+                                          </>
+                                        ),
+                                      }}
+                                    />
+                                  )}
+                                  renderOption={(props, o) => (
+                                    <Box component="li" {...props} key={o.id} sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                                      <Box sx={{
+                                        width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        fontSize: 11, fontWeight: 800,
+                                        bgcolor: o.activo ? 'primary.main' : 'grey.400', color: '#fff',
+                                      }}>
+                                        {o.numero_camiseta ?? '–'}
+                                      </Box>
+                                      <Box sx={{ minWidth: 0, flex: 1 }}>
+                                        <Typography variant="body2" fontWeight={600} noWrap>{o.nombre}</Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap>
+                                          {POSICION_LABEL[o.posicion] || 'Sin posición'}
+                                          {o.activo ? '' : ' · INACTIVO'}
+                                        </Typography>
+                                      </Box>
+                                    </Box>
+                                  )}
+                                />
                                 <TextField label="N°" type="number" size="small"
                                   inputProps={{ min: 0, max: 999 }}
                                   value={form.numero}
@@ -1043,7 +1150,7 @@ export default function Planilla({ selectedTorneoId }) {
                                         setHoverKey('')
                                       }}
                                       sx={{
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 0.4,
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 0.75, my: 0.5, minWidth: 58,
                                         cursor: editable ? 'grab' : 'default',
                                         '.MuiBox': { pointerEvents: 'none' },
                                         ...(activo ? { boxShadow: '0 0 0 3px rgba(255,255,255,0.9)', borderRadius: 2 } : {}),
@@ -1127,18 +1234,36 @@ export default function Planilla({ selectedTorneoId }) {
                               <List dense sx={{ mt: 0.5 }}>
                                 {alOrdenada.map((j, i) => {
                                   const al = alineacionMap[j.id]
+                                  const amarilla = hasAmarilla(j.id)
+                                  const roja = hasRoja(j.id)
                                   return (
                                     <Box key={j.id}>
                                       {i > 0 && <Divider component="li" />}
-                                      <ListItem
-                                        disablePadding
-                                        secondaryAction={(editable || hasAmarilla(j.id) || hasRoja(j.id)) && (
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Tooltip title={hasAmarilla(j.id) ? 'Tiene tarjeta amarilla en este partido' : 'Sin tarjeta amarilla'}>
-                                              <YellowCardIcon sx={{ color: hasAmarilla(j.id) ? 'warning.main' : 'grey.300', fontSize: 18 }} />
+                                      {/* Fila en flujo normal: el nombre cede espacio con ellipsis y los
+                                          controles nunca se superponen (antes iban en secondaryAction,
+                                          que se posiciona encima del texto en pantallas angostas). */}
+                                      <ListItem disablePadding sx={{ minWidth: 0 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', minWidth: 0, py: 0.4 }}>
+                                          <Chip label={textoNumero(numCamiseta(j, al))} size="small" variant="filled"
+                                            color={al.titular ? 'primary' : 'info'}
+                                            sx={{ minWidth: 42, flexShrink: 0, fontWeight: 700, fontSize: 11 }} />
+                                          <ListItemText
+                                            primary={j.nombre}
+                                            secondary={al.titular ? 'Titular' : 'Suplente'}
+                                            primaryTypographyProps={{ variant: 'body2', fontWeight: 600, noWrap: true }}
+                                            secondaryTypographyProps={{ variant: 'caption', color: al.titular ? 'primary.main' : 'info.main', noWrap: true }}
+                                            sx={{ my: 0.5, minWidth: 0, flex: 1, overflow: 'hidden' }} />
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 }, flexShrink: 0 }}>
+                                            <Tooltip title={amarilla ? 'Tiene tarjeta amarilla en este partido' : 'Sin tarjeta amarilla'}>
+                                              <YellowCardIcon sx={{ color: amarilla ? 'warning.main' : 'grey.300', fontSize: 18, mx: 0.25 }} />
                                             </Tooltip>
-                                            <Tooltip title={hasRoja(j.id) ? 'Expulsado (roja) en este partido' : 'Sin tarjeta roja'}>
-                                              <RedCardIcon sx={{ color: hasRoja(j.id) ? 'error.main' : 'grey.300', fontSize: 18 }} />
+                                            <Tooltip title={roja ? 'Expulsado (roja) en este partido' : 'Sin tarjeta roja'}>
+                                              <RedCardIcon sx={{ color: roja ? 'error.main' : 'grey.300', fontSize: 18, mx: 0.25 }} />
+                                            </Tooltip>
+                                            <Tooltip title="Editar los datos de este jugador">
+                                              <IconButton size="small" onClick={() => abrirEditarJugador(j, eq.id)}>
+                                                <EditIcon sx={{ fontSize: 17 }} />
+                                              </IconButton>
                                             </Tooltip>
                                             {editable && (
                                               <>
@@ -1160,7 +1285,7 @@ export default function Planilla({ selectedTorneoId }) {
                                                   </ToggleButton>
                                                 </ToggleButtonGroup>
                                                 <Tooltip title="Quitar de la lista">
-                                                  <IconButton edge="end" size="small" color="error"
+                                                  <IconButton size="small" color="error"
                                                     onClick={() => { if (window.confirm(`¿Quitar a ${j.nombre} de la lista?`)) desalinearMut.mutate(j.id) }}>
                                                     <DeleteIcon fontSize="small" />
                                                   </IconButton>
@@ -1168,16 +1293,7 @@ export default function Planilla({ selectedTorneoId }) {
                                               </>
                                             )}
                                           </Box>
-                                        )}
-                                      >
-                                        <Chip label={`#${numCamiseta(j, al)}`} size="small" variant="filled"
-                                          color={al.titular ? 'primary' : 'info'} sx={{ mr: 1.5, minWidth: 44 }} />
-                                        <ListItemText
-                                          primary={j.nombre}
-                                          secondary={al.titular ? 'Titular' : 'Suplente'}
-                                          primaryTypographyProps={{ variant: 'body2', fontWeight: 600 }}
-                                          secondaryTypographyProps={{ variant: 'caption', color: al.titular ? 'primary.main' : 'info.main' }}
-                                        />
+                                        </Box>
                                       </ListItem>
                                     </Box>
                                   )
@@ -1441,61 +1557,66 @@ export default function Planilla({ selectedTorneoId }) {
                 </ToggleButtonGroup>
               )}
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1.5 }}>
-                Haz clic en el número del jugador para registrar la acción inmediatamente.
+                Tocá el círculo del jugador para registrar la acción al instante
+                {(accion === 'TARJETA_AMARILLA' || accion === 'TARJETA_ROJA') && ', o el del DT para sancionar al técnico'}.
               </Typography>
-              {convocadosDe(accForm.equipo_id).length === 0 ? (
-                <Alert severity="warning">Este equipo no tiene jugadores convocados en la alineación.</Alert>
-              ) : (
-                (() => {
-                  // Goles/autogoles: solo jugadores EN CANCHA (titulares activos, sin expulsar)
-                  const esGol = accion === 'GOL' || accion === 'AUTOGOL'
-                  const titulares = esGol
-                    ? enCanchaDe(accForm.equipo_id)
-                    : convocadosDe(accForm.equipo_id).filter((j) => alineacionMap[j.id]?.titular && !expulsados.has(j.id))
-                  const suplentes = esGol
-                    ? []
-                    : convocadosDe(accForm.equipo_id).filter((j) => !alineacionMap[j.id]?.titular && !expulsados.has(j.id))
-                  if (titulares.length === 0 && suplentes.length === 0) {
-                    return (
-                      <Alert severity={esGol ? 'info' : 'warning'} sx={{ mt: 1 }}>
-                        {esGol ? 'No hay jugadores en cancha para registrar el gol (verifica cambios y expulsiones).' : 'No hay jugadores habilitados para recibir tarjeta.'}
-                      </Alert>
-                    )
-                  }
-                  const pal = COLORES_ACCION[accion] || COLORES_ACCION.GOL
-                  const fila = (j) => (
-                    <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
-                      base={pal.base} sel={pal.sel} seleccionado={false}
-                      onClick={() => registrarRapido(j.id)} />
-                  )
+              {(() => {
+                // Goles/autogoles: solo jugadores EN CANCHA (titulares activos, sin expulsar).
+                // Tarjetas: titulares y suplentes habilitados + el DT (que no es jugador).
+                const esGol = accion === 'GOL' || accion === 'AUTOGOL'
+                const esTarjeta = accion === 'TARJETA_AMARILLA' || accion === 'TARJETA_ROJA'
+                const equipoId = accForm.equipo_id
+                const convocados = convocadosDe(equipoId)
+                const titulares = esGol
+                  ? enCanchaDe(equipoId)
+                  : convocados.filter((j) => alineacionMap[j.id]?.titular && !expulsados.has(j.id))
+                const suplentes = esGol
+                  ? []
+                  : convocados.filter((j) => !alineacionMap[j.id]?.titular && !expulsados.has(j.id))
+                const nombreDt = esTarjeta ? (tecnicoDe(equipoId) || 'DT del equipo') : null
+                if (titulares.length === 0 && suplentes.length === 0 && !nombreDt) {
                   return (
-                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 1, justifyContent: 'center' }}>
-                      {titulares.length > 0 && (
-                        <Typography variant="caption" sx={{
-                          gridColumn: '1 / -1', fontWeight: 800, textTransform: 'uppercase',
-                          letterSpacing: '0.08em', color: 'primary.main', display: 'flex', alignItems: 'center', gap: 1,
-                        }}>
-                          <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'primary.main' }} />
-                          Titulares
-                          <Divider sx={{ flex: 1 }} />
-                        </Typography>
-                      )}
-                      {titulares.map(fila)}
-                      {suplentes.length > 0 && (
-                        <Typography variant="caption" sx={{
-                          gridColumn: '1 / -1', fontWeight: 800, textTransform: 'uppercase',
-                          letterSpacing: '0.08em', color: 'text.secondary', display: 'flex', alignItems: 'center', gap: 1,
-                        }}>
-                          <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'text.disabled' }} />
-                          Suplentes
-                          <Divider sx={{ flex: 1 }} />
-                        </Typography>
-                      )}
-                      {suplentes.map(fila)}
-                    </Box>
+                    <Alert severity={esGol ? 'info' : 'warning'} sx={{ mt: 1 }}>
+                      {esGol ? 'No hay jugadores en cancha para registrar el gol (verifica cambios y expulsiones).' : 'No hay jugadores habilitados para recibir tarjeta.'}
+                    </Alert>
                   )
-                })()
-              )}
+                }
+                const pal = COLORES_ACCION[accion] || COLORES_ACCION.GOL
+                const fila = (j) => (
+                  <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
+                    base={pal.base} sel={pal.sel} seleccionado={false}
+                    onClick={() => registrarRapido(j.id)} />
+                )
+                const encabezado = (texto, color) => (
+                  <Typography variant="caption" sx={{
+                    gridColumn: '1 / -1', fontWeight: 800, textTransform: 'uppercase',
+                    letterSpacing: '0.08em', color, display: 'flex', alignItems: 'center', gap: 1,
+                  }}>
+                    <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: color }} />
+                    {texto}
+                    <Divider sx={{ flex: 1 }} />
+                  </Typography>
+                )
+                return (
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(88px, 1fr))', gap: 0.5, justifyContent: 'center' }}>
+                    {convocados.length === 0 && (
+                      <Alert severity="warning" sx={{ gridColumn: '1 / -1', mb: 1 }}>
+                        Este equipo no tiene jugadores convocados en la alineación.
+                      </Alert>
+                    )}
+                    {titulares.length > 0 && encabezado('Titulares', 'primary.main')}
+                    {titulares.map(fila)}
+                    {suplentes.length > 0 && encabezado('Suplentes', 'text.secondary')}
+                    {suplentes.map(fila)}
+                    {nombreDt && encabezado('Cuerpo técnico', 'warning.main')}
+                    {nombreDt && (
+                      <JugadorBtn num="DT" nombre={nombreDt}
+                        base={pal.base} sel={pal.sel} seleccionado={false}
+                        onClick={() => registrarTecnico(equipoId, accion)} />
+                    )}
+                  </Box>
+                )
+              })()}
               {(accion === 'GOL' || accion === 'AUTOGOL') && (
                 <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2 }}>
                   <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={anularGolModal}>
@@ -1587,6 +1708,86 @@ export default function Planilla({ selectedTorneoId }) {
           <Button variant="contained" startIcon={<VerifiedIcon />} disabled={actaMut.isPending}
             onClick={() => actaMut.mutate({ id: partido.id, body: { ...actaForm } })}>
             {actaMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar datos'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Editar datos del jugador */}
+      <Dialog open={!!editJug} onClose={() => setEditJug(null)} fullWidth maxWidth="sm">
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          <EditIcon sx={{ fontSize: 20, verticalAlign: 'middle', mr: 1, color: 'primary.main' }} />
+          Editar jugador
+          {editJug && (
+            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1, fontWeight: 600 }}>
+              {eqName(editJug.equipo_id)}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent dividers sx={{ pt: 2 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Los cambios se guardan en la ficha del jugador y quedan disponibles en todo el torneo.
+          </Typography>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+            <TextField label="Nombre completo *" required fullWidth value={editForm.nombre}
+              onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })} />
+            <TextField label="N° de camiseta" type="number" fullWidth
+              inputProps={{ min: 0, max: 999 }} value={editForm.numero_camiseta}
+              onChange={(e) => setEditForm({ ...editForm, numero_camiseta: e.target.value })} />
+            <FormControl fullWidth>
+              <InputLabel id="pl-pos-label">Posición</InputLabel>
+              <Select labelId="pl-pos-label" label="Posición" value={editForm.posicion}
+                onChange={(e) => setEditForm({ ...editForm, posicion: e.target.value })}>
+                <MenuItem value=""><em>Sin definir</em></MenuItem>
+                {Object.entries(POSICION_LABEL).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Fecha de nacimiento" type="date" fullWidth value={editForm.fecha_nacimiento}
+              onChange={(e) => setEditForm({ ...editForm, fecha_nacimiento: e.target.value })}
+              sx={{ colorScheme: 'light' }} />
+            <TextField label="Documento de identidad" fullWidth value={editForm.documento_identidad}
+              onChange={(e) => setEditForm({ ...editForm, documento_identidad: e.target.value })} />
+            <TextField label="Teléfono" fullWidth value={editForm.telefono}
+              onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })} />
+            <FormControl fullWidth>
+              <InputLabel id="pl-pierna-label">Pierna hábil</InputLabel>
+              <Select labelId="pl-pierna-label" label="Pierna hábil" value={editForm.pierna_habil}
+                onChange={(e) => setEditForm({ ...editForm, pierna_habil: e.target.value })}>
+                {PIERNAS.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="Altura (cm)" type="number" fullWidth
+              inputProps={{ min: 100, max: 250 }} value={editForm.altura_cm}
+              onChange={(e) => setEditForm({ ...editForm, altura_cm: e.target.value })} />
+            <FormControl fullWidth>
+              <InputLabel id="pl-sangre-label">Tipo de sangre</InputLabel>
+              <Select labelId="pl-sangre-label" label="Tipo de sangre" value={editForm.tipo_sangre}
+                onChange={(e) => setEditForm({ ...editForm, tipo_sangre: e.target.value })}>
+                <MenuItem value=""><em>Sin definir</em></MenuItem>
+                {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+              </Select>
+            </FormControl>
+            <TextField label="EPS / Entidad de salud" fullWidth value={editForm.eps}
+              onChange={(e) => setEditForm({ ...editForm, eps: e.target.value })} />
+          </Box>
+          <TextField label="Contacto de emergencia (nombre y teléfono)" fullWidth margin="dense"
+            value={editForm.contacto_emergencia}
+            onChange={(e) => setEditForm({ ...editForm, contacto_emergencia: e.target.value })} />
+          <TextField label="Alergias o condiciones médicas" fullWidth margin="dense"
+            value={editForm.alergias} onChange={(e) => setEditForm({ ...editForm, alergias: e.target.value })} />
+          {editJug && numCamiseta(editJug.jugador, alineacionMap[editJug.jugador.id]) != null
+            && Number(alineacionMap[editJug.jugador.id]?.numero_camiseta) > 0
+            && Number(alineacionMap[editJug.jugador.id]?.numero_camiseta) !== Number(editForm.numero_camiseta) && (
+            <Alert severity="info" sx={{ mt: 2 }}>
+              En este partido juega con la camiseta N° {alineacionMap[editJug.jugador.id].numero_camiseta}: el número de la
+              planilla no cambia, solo la ficha del jugador.
+            </Alert>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, py: 2 }}>
+          <Button onClick={() => setEditJug(null)} disabled={editarJugadorMut.isPending}>Cancelar</Button>
+          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={editarJugadorMut.isPending}
+            onClick={guardarEdicionJugador}>
+            {editarJugadorMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar cambios'}
           </Button>
         </DialogActions>
       </Dialog>
