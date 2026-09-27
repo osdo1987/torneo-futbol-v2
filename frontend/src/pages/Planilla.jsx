@@ -1,6 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useSearchParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useTheme } from '@mui/material/styles'
+import useMediaQuery from '@mui/material/useMediaQuery'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
+
 import Box from '@mui/material/Box'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -43,6 +48,8 @@ import {
   PublishedWithChanges as PublishedWithChangesIcon, VerifiedUser as VerifiedUserIcon,
   Stadium as StadiumIcon, EmojiPeople as EmojiPeopleIcon, Tune as TuneIcon,
   Search as SearchIcon, Edit as EditIcon,
+  Close as CloseIcon, Groups as GroupsIcon,
+
 } from '@mui/icons-material'
 
 const RESULTADOS = {
@@ -191,6 +198,15 @@ export default function Planilla({ selectedTorneoId }) {
   const dragJugador = useRef({ eqId: null, jugadorId: null, rol: '' })
   const lastLiveRef = useRef(null)
   const liveReadyRef = useRef(false)
+
+  const theme = useTheme()
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'))   // teléfonos
+  const isTablet = useMediaQuery(theme.breakpoints.down('md'))   // teléfonos + tablets
+  const [mobileTab, setMobileTab] = useState('equipos') // 'equipos' | 'resumen' | 'cambios'
+  const [equipoTab, setEquipoTab] = useState('local')   // 'local' | 'visitante'
+
+  // En móvil los botones de acción de la planilla deben medir ≥44px (targets táctiles).
+  const accIconSx = { ...accIconBtnSx, width: { xs: 44, sm: 38 }, height: { xs: 44, sm: 38 } }
 
   // SSE real-time para cronómetro + eventos (reemplaza polling)
   usePartidoStream(selId, !!selId)
@@ -686,7 +702,7 @@ export default function Planilla({ selectedTorneoId }) {
               )}
             </Box>
             <Typography variant="h4" sx={{ fontWeight: 800, letterSpacing: '-0.02em' }}>Planilla de Juego</Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, maxWidth: 620 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.25, maxWidth: 620, display: { xs: 'none', sm: 'block' } }}>
               Control reglamentario en tiempo real · Convocatorias, alineaciones, goles, tarjetas y cambios IFAB.
             </Typography>
           </Box>
@@ -706,17 +722,17 @@ export default function Planilla({ selectedTorneoId }) {
                 </Select>
               </FormControl>
             </Box>
-            <Box sx={{ display: 'flex', gap: 1 }}>
-              <Button variant="outlined" startIcon={<PdfIcon />} disabled={!partido} onClick={() => partido && navigate(`/acta/${partido.id}`)} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
-                Acta de Partido
+            <Box sx={{ display: { xs: 'grid', sm: 'flex' }, gridTemplateColumns: { xs: 'repeat(2, minmax(0, 1fr))' }, gap: 1, width: { xs: '100%', sm: 'auto' } }}>
+              <Button variant="outlined" startIcon={<PdfIcon />} disabled={!partido} onClick={() => partido && navigate(`/acta/${partido.id}`)} sx={{ textTransform: 'none', fontWeight: 700, height: { xs: 44, sm: 40 }, borderRadius: 1.5, minWidth: 0 }}>
+                Acta<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>&nbsp;de Partido</Box>
               </Button>
               {editable && partido && (
-                <Button variant="outlined" color="secondary" startIcon={<TuneIcon />} onClick={abrirActa} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
-                  Datos del acta
+                <Button variant="outlined" color="secondary" startIcon={<TuneIcon />} onClick={abrirActa} sx={{ textTransform: 'none', fontWeight: 700, height: { xs: 44, sm: 40 }, borderRadius: 1.5, minWidth: 0 }}>
+                  Datos<Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>&nbsp;del acta</Box>
                 </Button>
               )}
               {editable && !finalizarMut.isPending && (
-                <Button variant="contained" startIcon={<VerifiedIcon />} onClick={abrirFinalizar} sx={{ textTransform: 'none', fontWeight: 700, height: 40, borderRadius: 1.5 }}>
+                <Button variant="contained" startIcon={<VerifiedIcon />} onClick={abrirFinalizar} sx={{ textTransform: 'none', fontWeight: 700, height: { xs: 44, sm: 40 }, borderRadius: 1.5, minWidth: 0, gridColumn: { xs: '1 / -1', sm: 'auto' } }}>
                   Finalizar
                 </Button>
               )}
@@ -753,36 +769,56 @@ export default function Planilla({ selectedTorneoId }) {
                 </Box>
               </Box>
 
+              {/* En móvil se muestra un equipo por vez: primero el marcador y luego el bloque elegido */}
+              <Box sx={{ display: { xs: 'flex', sm: 'none' }, px: 2, pt: 2 }}>
+                <ToggleButtonGroup fullWidth size="small" exclusive value={equipoTab}
+                  onChange={(_, v) => { if (v) setEquipoTab(v) }}
+                  sx={{ bgcolor: 'rgba(255,255,255,0.08)', borderRadius: 2, p: 0.5 }}>
+                  <ToggleButton value="local"
+                    sx={{ color: '#e2e8f0', border: 0, py: 1.25, px: 1, textTransform: 'none', fontWeight: 800, fontSize: 12, minWidth: 0, '&.Mui-selected': { bgcolor: '#dc2626', color: '#fff', '&:hover': { bgcolor: '#b91c1c' } } }}>
+                    <Box component="span" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                      {eqName(partido.equipo_local_id)}
+                    </Box>
+                  </ToggleButton>
+                  <ToggleButton value="visitante"
+                    sx={{ color: '#e2e8f0', border: 0, py: 1.25, px: 1, textTransform: 'none', fontWeight: 800, fontSize: 12, minWidth: 0, '&.Mui-selected': { bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' } } }}>
+                    <Box component="span" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                      {eqName(partido.equipo_visitante_id)}
+                    </Box>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+
               <Box sx={{ px: { xs: 2, sm: 4 }, py: { xs: 3, sm: 4 }, display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, alignItems: 'center', justifyContent: 'space-between', gap: 3 }}>
-                <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'left' } }}>
+                <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'left' }, display: { xs: equipoTab === 'local' ? 'block' : 'none', sm: 'block' }, order: { xs: 1, sm: 0 } }}>
                   <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>Club Atlético</Typography>
                   <Typography variant="h5" fontWeight={900} color="#fff" sx={{ textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{eqName(partido.equipo_local_id)}</Typography>
                   {editable && (
                     <Box sx={{ display: 'flex', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-start' } }}>
                       <Tooltip title={iniciado ? 'Registrar gol' : 'Inicia el partido para registrar acciones'}>
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('GOL', partido.equipo_local_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('GOL', partido.equipo_local_id)}>
                             <GolIcon sx={{ color: '#4ade80', fontSize: 19 }} />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title={iniciado ? 'Registrar tarjeta' : 'Inicia el partido para registrar acciones'}>
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('TARJETA_AMARILLA', partido.equipo_local_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('TARJETA_AMARILLA', partido.equipo_local_id)}>
                             <YellowCardIcon sx={{ color: '#facc15', fontSize: 19 }} />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title={iniciado ? 'Registrar cambio' : 'Inicia el partido para registrar acciones'}>
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_local_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_local_id)}>
                             <SwapIcon sx={{ color: '#60a5fa', fontSize: 19 }} />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title="Anular último gol de este equipo">
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => anularGol(partido.equipo_local_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => anularGol(partido.equipo_local_id)}>
                             <UndoIcon sx={{ color: '#f87171', fontSize: 19 }} />
                           </IconButton>
                         </span>
@@ -793,17 +829,17 @@ export default function Planilla({ selectedTorneoId }) {
                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
                       <EmojiPeopleIcon sx={{ fontSize: 13 }} /> DT: {tecnicoDe(partido.equipo_local_id) || 'Sin registrar'}
                     </Box>
-                    <Typography component="span" sx={{ fontSize: 10.5, color: '#94a3b8' }}>
+                    <Typography component="span" sx={{ fontSize: 10.5, color: '#94a3b8', display: { xs: 'none', sm: 'block' } }}>
                       Las tarjetas al DT se registran desde el botón de tarjeta, junto a los jugadores.
                     </Typography>
                   </Box>
                 </Box>
 
-                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', px: { xs: 2, sm: 4 }, py: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', px: { xs: 2, sm: 4 }, py: 2, borderRadius: 3, bgcolor: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', order: { xs: 0, sm: 1 }, width: { xs: '100%', sm: 'auto' } }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 2, sm: 3 } }}>
-                    <Typography variant="h2" fontWeight={900} color="#fff">{marcadorMostrado.local}</Typography>
+                    <Typography variant="h2" fontWeight={900} color="#fff" sx={{ fontSize: { xs: 48, sm: 60 }, lineHeight: 1.05 }}>{marcadorMostrado.local}</Typography>
                     <Typography variant="h3" fontWeight={300} color="#4b5563">–</Typography>
-                    <Typography variant="h2" fontWeight={900} color="#fff">{marcadorMostrado.visitante}</Typography>
+                    <Typography variant="h2" fontWeight={900} color="#fff" sx={{ fontSize: { xs: 48, sm: 60 }, lineHeight: 1.05 }}>{marcadorMostrado.visitante}</Typography>
                   </Box>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5 }}>
                     <Chip size="small" icon={<AccessTimeIcon sx={{ fontSize: '0.9rem !important' }} />}
@@ -822,13 +858,13 @@ export default function Planilla({ selectedTorneoId }) {
                     {editable && (
                       <>
                         <Tooltip title={crono.running ? 'Pausar' : (iniciado ? 'Reanudar' : (planillaCompleta ? 'Iniciar partido' : 'Planilla incompleta: faltan titulares en algún equipo'))}>
-                          <IconButton size="small" sx={{ color: '#fff', '&:hover': { bgcolor: '#374151' } }}
+                          <IconButton size="small" sx={{ color: '#fff', '&:hover': { bgcolor: '#374151' }, width: { xs: 44, sm: 34 }, height: { xs: 44, sm: 34 } }}
                             onClick={toggleCrono}>
                             {crono.running ? <PauseIcon fontSize="small" /> : <PlayIcon fontSize="small" />}
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Reiniciar cronómetro">
-                          <IconButton size="small" color="error" onClick={resetCrono}>
+                          <IconButton size="small" color="error" sx={{ width: { xs: 44, sm: 34 }, height: { xs: 44, sm: 34 } }} onClick={resetCrono}>
                             <ReplayIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
@@ -837,35 +873,35 @@ export default function Planilla({ selectedTorneoId }) {
                   </Box>
                 </Box>
 
-                <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'right' } }}>
+                <Box sx={{ flex: 1, width: '100%', textAlign: { xs: 'center', sm: 'right' }, display: { xs: equipoTab === 'visitante' ? 'block' : 'none', sm: 'block' }, order: { xs: 1, sm: 2 } }}>
                   <Typography variant="caption" sx={{ display: 'block', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#94a3b8' }}>Club Deportivo</Typography>
                   <Typography variant="h5" fontWeight={900} color="#fff" sx={{ textTransform: 'uppercase', letterSpacing: '-0.01em' }}>{eqName(partido.equipo_visitante_id)}</Typography>
                   {editable && (
                     <Box sx={{ display: 'flex', gap: 0.75, mt: 1, justifyContent: { xs: 'center', sm: 'flex-end' } }}>
                       <Tooltip title={iniciado ? 'Registrar gol' : 'Inicia el partido para registrar acciones'}>
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('GOL', partido.equipo_visitante_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('GOL', partido.equipo_visitante_id)}>
                             <GolIcon sx={{ color: '#4ade80', fontSize: 19 }} />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title={iniciado ? 'Registrar tarjeta' : 'Inicia el partido para registrar acciones'}>
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('TARJETA_AMARILLA', partido.equipo_visitante_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('TARJETA_AMARILLA', partido.equipo_visitante_id)}>
                             <YellowCardIcon sx={{ color: '#facc15', fontSize: 19 }} />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title={iniciado ? 'Registrar cambio' : 'Inicia el partido para registrar acciones'}>
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_visitante_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_visitante_id)}>
                             <SwapIcon sx={{ color: '#60a5fa', fontSize: 19 }} />
                           </IconButton>
                         </span>
                       </Tooltip>
                       <Tooltip title="Anular último gol de este equipo">
                         <span>
-                          <IconButton size="small" sx={accIconBtnSx} disabled={!iniciado} onClick={() => anularGol(partido.equipo_visitante_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => anularGol(partido.equipo_visitante_id)}>
                             <UndoIcon sx={{ color: '#f87171', fontSize: 19 }} />
                           </IconButton>
                         </span>
@@ -876,7 +912,7 @@ export default function Planilla({ selectedTorneoId }) {
                     <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.4, borderRadius: 1, bgcolor: 'rgba(255,255,255,0.08)', color: '#cbd5e1', fontSize: 11, fontWeight: 700 }}>
                       <EmojiPeopleIcon sx={{ fontSize: 13 }} /> DT: {tecnicoDe(partido.equipo_visitante_id) || 'Sin registrar'}
                     </Box>
-                    <Typography component="span" sx={{ fontSize: 10.5, color: '#94a3b8' }}>
+                    <Typography component="span" sx={{ fontSize: 10.5, color: '#94a3b8', display: { xs: 'none', sm: 'block' } }}>
                       Las tarjetas al DT se registran desde el botón de tarjeta, junto a los jugadores.
                     </Typography>
                   </Box>
@@ -887,6 +923,7 @@ export default function Planilla({ selectedTorneoId }) {
                 <Box sx={{ px: { xs: 2, sm: 3 }, py: 1.5, bgcolor: '#0f172a', borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', justifyContent: 'flex-end' }}>
                   <Button variant="contained" color="error" startIcon={<CheckIcon />}
                     disabled={finalizarMut.isPending}
+                    sx={{ height: { xs: 44, sm: 36 }, flex: { xs: 1, sm: '0 0 auto' } }}
                     onClick={abrirFinalizar}>
                     {finalizarMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Finalizar partido'}
                   </Button>
@@ -899,7 +936,21 @@ export default function Planilla({ selectedTorneoId }) {
             </Box>
           </Card>
 
-          <Box>
+          {/* Pestañas móviles: en pantallas angostas se muestra una sección a la vez */}
+          {isTablet && (
+            <Tabs value={mobileTab} onChange={(_, v) => setMobileTab(v)} variant="fullWidth"
+              sx={{
+                bgcolor: 'background.paper', borderRadius: 2, minHeight: 48,
+                border: '1px solid', borderColor: 'divider', boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+                '& .MuiTab-root': { minHeight: 46, minWidth: 0, textTransform: 'none', fontWeight: 700, fontSize: 12.5 },
+              }}>
+              <Tab value="equipos" icon={<GroupsIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Equipos" />
+              <Tab value="resumen" icon={<HistoryToggleOffIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Resumen" />
+              <Tab value="cambios" icon={<PublishedWithChangesIcon sx={{ fontSize: 18 }} />} iconPosition="start" label="Cambios" />
+            </Tabs>
+          )}
+
+          <Box sx={{ display: { xs: mobileTab === 'equipos' ? 'block' : 'none', md: 'block' } }}>
             <Typography variant="h6" fontWeight={700} mb={1}>Jugadores que juegan</Typography>
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
               {editable ? 'Elige el jugador y el número con el que juega; se va agregando a la lista.' : 'Alineación registrada del partido.'}
@@ -995,6 +1046,7 @@ export default function Planilla({ selectedTorneoId }) {
                         <Box sx={{ mt: 1 }}>
                           <ToggleButtonGroup size="small" exclusive
                             value={vistaEquipo[eq.id] || 'lista'}
+                            sx={{ '& .MuiToggleButton-root': { minHeight: { xs: 44, sm: 32 }, px: 1.5 } }}
                             onChange={(_, v) => { if (v) setVistaEquipo({ ...vistaEquipo, [eq.id]: v }) }}>
                             <ToggleButton value="lista"><Box sx={{ fontSize: 11, fontWeight: 700 }}>Lista</Box></ToggleButton>
                             <ToggleButton value="cancha"><Box sx={{ fontSize: 11, fontWeight: 700 }}>Formación</Box></ToggleButton>
@@ -1008,7 +1060,7 @@ export default function Planilla({ selectedTorneoId }) {
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5, mb: 1, flexWrap: 'wrap' }}>
                                 <Autocomplete
                                   size="small"
-                                  sx={{ minWidth: 220, flex: 1 }}
+                                  sx={{ minWidth: { xs: 160, sm: 220 }, flex: 1 }}
                                   options={disponibles}
                                   value={selJugador}
                                   isOptionEqualToValue={(o, v) => o?.id === v?.id}
@@ -1078,6 +1130,7 @@ export default function Planilla({ selectedTorneoId }) {
                                   }}
                                   sx={{ width: 76 }} />
                                 <Button size="medium" variant="contained" color="success" startIcon={<PersonAddIcon sx={{ fontSize: 17 }} />}
+                                  sx={{ minHeight: { xs: 44, sm: 36 }, flex: { xs: '1 1 100%', sm: '0 0 auto' } }}
                                   disabled={!form.jugador_id || alinearMut.isPending}
                                   onClick={() => {
                                     const jugador = eq.plantel.find((x) => String(x.id) === form.jugador_id)
@@ -1150,7 +1203,7 @@ export default function Planilla({ selectedTorneoId }) {
                                         setHoverKey('')
                                       }}
                                       sx={{
-                                        display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 0.75, my: 0.5, minWidth: 58,
+                                        display: 'flex', flexDirection: 'column', alignItems: 'center', mx: { xs: 0.35, sm: 0.75 }, my: 0.5, minWidth: { xs: 48, sm: 58 },
                                         cursor: editable ? 'grab' : 'default',
                                         '.MuiBox': { pointerEvents: 'none' },
                                         ...(activo ? { boxShadow: '0 0 0 3px rgba(255,255,255,0.9)', borderRadius: 2 } : {}),
@@ -1170,7 +1223,7 @@ export default function Planilla({ selectedTorneoId }) {
                                           </Box>
                                         )}
                                       </Box>
-                                      <Box sx={{ fontSize: 10, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.7)', maxWidth: 76, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
+                                      <Box sx={{ fontSize: 10, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.7)', maxWidth: { xs: 60, sm: 76 }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.25 }}>
                                         {j.nombre}
                                       </Box>
                                     </Box>
@@ -1190,7 +1243,7 @@ export default function Planilla({ selectedTorneoId }) {
                                         ...(filaActiva ? { outline: '2px dashed rgba(255,255,255,0.8)' } : {}),
                                       }}
                                     >
-                                      <Typography variant="caption" sx={{ width: 34, color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{etiqueta}</Typography>
+                                      <Typography variant="caption" sx={{ width: { xs: 24, sm: 34 }, color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{etiqueta}</Typography>
                                       {jugadores.map((j) => <Token key={j.id} j={j} rol={rol} />)}
                                     </Box>
                                   )
@@ -1207,7 +1260,7 @@ export default function Planilla({ selectedTorneoId }) {
                                       p: 1.5, position: 'relative', overflow: 'hidden',
                                     }}>
                                       <Box sx={{ position: 'absolute', top: '50%', left: 10, right: 10, borderTop: '2px dashed rgba(255,255,255,0.35)' }} />
-                                      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: 260, pt: 1 }}>
+                                      <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: { xs: 300, sm: 260 }, pt: 1 }}>
                                         {renderFila('OTROS', '⚑')}
                                         {renderFila('DEL', 'DEL')}
                                         {renderFila('MED', 'MED')}
@@ -1243,7 +1296,7 @@ export default function Planilla({ selectedTorneoId }) {
                                           controles nunca se superponen (antes iban en secondaryAction,
                                           que se posiciona encima del texto en pantallas angostas). */}
                                       <ListItem disablePadding sx={{ minWidth: 0 }}>
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', minWidth: 0, py: 0.4 }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', minWidth: 0, py: 0.4, flexWrap: 'wrap' }}>
                                           <Chip label={textoNumero(numCamiseta(j, al))} size="small" variant="filled"
                                             color={al.titular ? 'primary' : 'info'}
                                             sx={{ minWidth: 42, flexShrink: 0, fontWeight: 700, fontSize: 11 }} />
@@ -1253,7 +1306,7 @@ export default function Planilla({ selectedTorneoId }) {
                                             primaryTypographyProps={{ variant: 'body2', fontWeight: 600, noWrap: true }}
                                             secondaryTypographyProps={{ variant: 'caption', color: al.titular ? 'primary.main' : 'info.main', noWrap: true }}
                                             sx={{ my: 0.5, minWidth: 0, flex: 1, overflow: 'hidden' }} />
-                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0, sm: 0.75 }, flexShrink: 0 }}>
+                                          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.25, sm: 0.75 }, flexShrink: 0, flexBasis: { xs: '100%', sm: 'auto' }, justifyContent: { xs: 'flex-end', sm: 'flex-start' }, '& .MuiIconButton-sizeSmall': { width: { xs: 44, sm: 34 }, height: { xs: 44, sm: 34 } } }}>
                                             <Tooltip title={amarilla ? 'Tiene tarjeta amarilla en este partido' : 'Sin tarjeta amarilla'}>
                                               <YellowCardIcon sx={{ color: amarilla ? 'warning.main' : 'grey.300', fontSize: 18, mx: 0.25 }} />
                                             </Tooltip>
@@ -1277,10 +1330,10 @@ export default function Planilla({ selectedTorneoId }) {
                                                     }
                                                     alinearMut.mutate({ jugadorId: j.id, titular: v === 'T' })
                                                   }}>
-                                                  <ToggleButton value="T" sx={{ px: 1.2, py: 0 }}>
+                                                  <ToggleButton value="T" sx={{ px: { xs: 1.5, sm: 1.2 }, py: { xs: 1, sm: 0 } }}>
                                                     <Tooltip title="Titular"><Box sx={{ fontSize: 11, fontWeight: 700 }}>T</Box></Tooltip>
                                                   </ToggleButton>
-                                                  <ToggleButton value="S" sx={{ px: 1.2, py: 0 }}>
+                                                  <ToggleButton value="S" sx={{ px: { xs: 1.5, sm: 1.2 }, py: { xs: 1, sm: 0 } }}>
                                                     <Tooltip title="Suplente"><Box sx={{ fontSize: 11, fontWeight: 700 }}>S</Box></Tooltip>
                                                   </ToggleButton>
                                                 </ToggleButtonGroup>
@@ -1311,7 +1364,7 @@ export default function Planilla({ selectedTorneoId }) {
           </Box>
 
           <Grid container spacing={3}>
-            <Grid item xs={12} lg={7}>
+            <Grid item xs={12} lg={7} sx={{ display: { xs: mobileTab === 'resumen' ? 'block' : 'none', md: 'block' } }}>
               <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', height: '100%' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -1319,7 +1372,7 @@ export default function Planilla({ selectedTorneoId }) {
                       <HistoryToggleOffIcon sx={{ color: 'primary.main' }} />
                       <Typography variant="h6" fontWeight={700}>Resumen del partido</Typography>
                     </Box>
-                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.06em' }}>Cronología minuto a minuto</Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontWeight: 800, letterSpacing: '0.06em', display: { xs: 'none', sm: 'block' } }}>Cronología minuto a minuto</Typography>
                   </Box>
                   {loadingEventos ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
@@ -1375,7 +1428,7 @@ export default function Planilla({ selectedTorneoId }) {
               </Card>
             </Grid>
 
-            <Grid item xs={12} lg={5}>
+            <Grid item xs={12} lg={5} sx={{ display: { xs: mobileTab === 'cambios' ? 'block' : 'none', md: 'block' } }}>
               <Card elevation={0} sx={{ borderRadius: 3, border: '1px solid rgba(0,0,0,0.08)', height: '100%' }}>
                 <CardContent>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -1469,19 +1522,22 @@ export default function Planilla({ selectedTorneoId }) {
         </Box>
       )}
 
-      <Dialog open={!!accion} onClose={() => setAccion(null)} fullWidth maxWidth="sm">
-        <DialogTitle>
+      <Dialog open={!!accion} onClose={() => setAccion(null)} fullWidth maxWidth="sm" fullScreen={isMobile}>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
           Registrar {accion ? TIPO_ACCION[accion]?.label : ''}
+          <IconButton onClick={() => setAccion(null)} size="small" aria-label="Cerrar" sx={{ width: 44, height: 44 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent>
           {accion === 'CAMBIO' ? (
             <>
               <Grid container spacing={2}>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', fontWeight: 700, color: 'error.main', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
                     Sale
                   </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: 320, overflowY: 'auto', p: 0.5 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: { xs: 220, sm: 320 }, overflowY: 'auto', p: 0.5 }}>
                     {enCanchaDe(accForm.equipo_id).map((j) => (
                       <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
                         base={PALETA_CAMBIO.sale.base} sel={PALETA_CAMBIO.sale.sel}
@@ -1499,11 +1555,11 @@ export default function Planilla({ selectedTorneoId }) {
                     </Typography>
                   )}
                 </Grid>
-                <Grid item xs={6}>
+                <Grid item xs={12} sm={6}>
                   <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', fontWeight: 700, color: 'success.main', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
                     Entra
                   </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: 320, overflowY: 'auto', p: 0.5 }}>
+                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: { xs: 220, sm: 320 }, overflowY: 'auto', p: 0.5 }}>
                     {alBancoDe(accForm.equipo_id).map((j) => (
                       <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
                         base={PALETA_CAMBIO.entra.base} sel={PALETA_CAMBIO.entra.sel}
@@ -1532,6 +1588,7 @@ export default function Planilla({ selectedTorneoId }) {
               )}
               <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
                 <Button variant="contained" startIcon={<CheckIcon />}
+                  sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}
                   disabled={!accForm.jugador_id || !accForm.jugador_sale_id || eventoMut.isPending}
                   onClick={confirmarCambio}>
                   {eventoMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Confirmar cambio'}
@@ -1627,8 +1684,8 @@ export default function Planilla({ selectedTorneoId }) {
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button onClick={() => setAccion(null)}>Cancelar</Button>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2 }}>
+          <Button fullWidth={isMobile} onClick={() => setAccion(null)} sx={{ minHeight: 44 }}>Cancelar</Button>
         </DialogActions>
       </Dialog>
 
@@ -1667,9 +1724,9 @@ export default function Planilla({ selectedTorneoId }) {
                 </Box>
               </Box>
             </DialogContent>
-            <DialogActions sx={{ px: 3, py: 2, justifyContent: 'space-between' }}>
-              <Button onClick={() => setFinalizarOpen(false)} disabled={finalizarMut.isPending}>Volver</Button>
-              <Button variant="contained" startIcon={<VerifiedIcon />} disabled={finalizarMut.isPending}
+            <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2, justifyContent: 'space-between' }}>
+              <Button onClick={() => setFinalizarOpen(false)} disabled={finalizarMut.isPending} sx={{ minHeight: 44 }}>Volver</Button>
+              <Button variant="contained" startIcon={<VerifiedIcon />} disabled={finalizarMut.isPending} sx={{ minHeight: 44 }}
                 onClick={() => {
                   finalizarMut.mutate({ id: partido.id, body: { goles_local: marcadorMostrado.local, goles_visitante: marcadorMostrado.visitante } }, {
                     onSettled: () => setFinalizarOpen(false),
@@ -1682,10 +1739,14 @@ export default function Planilla({ selectedTorneoId }) {
         )}
       </Dialog>
 
-      <Dialog open={actaOpen} onClose={() => setActaOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          <TuneIcon sx={{ fontSize: 20, verticalAlign: 'middle', mr: 1, color: 'primary.main' }} />
+      <Dialog open={actaOpen} onClose={() => setActaOpen(false)} maxWidth="sm" fullWidth fullScreen={isMobile}>
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <TuneIcon sx={{ fontSize: 20, color: 'primary.main' }} />
           Datos del acta de partido
+          <Box sx={{ flex: 1 }} />
+          <IconButton onClick={() => setActaOpen(false)} size="small" aria-label="Cerrar" sx={{ width: 44, height: 44 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ pt: 2 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -1703,9 +1764,9 @@ export default function Planilla({ selectedTorneoId }) {
             placeholder="Incidencias del público, instalaciones, equipo arbitral, jugadores, técnicos…"
             value={actaForm.observaciones} onChange={(e) => setActaForm({ ...actaForm, observaciones: e.target.value })} />
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setActaOpen(false)} disabled={actaMut.isPending}>Cancelar</Button>
-          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={actaMut.isPending}
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
+          <Button onClick={() => setActaOpen(false)} disabled={actaMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}>Cancelar</Button>
+          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={actaMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}
             onClick={() => actaMut.mutate({ id: partido.id, body: { ...actaForm } })}>
             {actaMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar datos'}
           </Button>
@@ -1713,15 +1774,19 @@ export default function Planilla({ selectedTorneoId }) {
       </Dialog>
 
       {/* Editar datos del jugador */}
-      <Dialog open={!!editJug} onClose={() => setEditJug(null)} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ fontWeight: 800 }}>
-          <EditIcon sx={{ fontSize: 20, verticalAlign: 'middle', mr: 1, color: 'primary.main' }} />
+      <Dialog open={!!editJug} onClose={() => setEditJug(null)} fullWidth maxWidth="sm" fullScreen={isMobile}>
+        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+          <EditIcon sx={{ fontSize: 20, color: 'primary.main' }} />
           Editar jugador
           {editJug && (
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1, fontWeight: 600 }}>
+            <Typography component="span" variant="body2" color="text.secondary" sx={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
               {eqName(editJug.equipo_id)}
             </Typography>
           )}
+          <Box sx={{ flex: 1 }} />
+          <IconButton onClick={() => setEditJug(null)} size="small" aria-label="Cerrar" sx={{ width: 44, height: 44 }}>
+            <CloseIcon />
+          </IconButton>
         </DialogTitle>
         <DialogContent dividers sx={{ pt: 2 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -1783,9 +1848,9 @@ export default function Planilla({ selectedTorneoId }) {
             </Alert>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: 3, py: 2 }}>
-          <Button onClick={() => setEditJug(null)} disabled={editarJugadorMut.isPending}>Cancelar</Button>
-          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={editarJugadorMut.isPending}
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
+          <Button onClick={() => setEditJug(null)} disabled={editarJugadorMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}>Cancelar</Button>
+          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={editarJugadorMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}
             onClick={guardarEdicionJugador}>
             {editarJugadorMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar cambios'}
           </Button>
