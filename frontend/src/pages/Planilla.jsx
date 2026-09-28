@@ -955,9 +955,27 @@ export default function Planilla({ selectedTorneoId }) {
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
               {editable ? 'Elige el jugador y el número con el que juega; se va agregando a la lista.' : 'Alineación registrada del partido.'}
             </Typography>
+            {/* Igual que el marcador: en móvil se ve la plantilla de un equipo por vez */}
+            <ToggleButtonGroup fullWidth size="small" exclusive value={equipoTab}
+              onChange={(_, v) => { if (v) setEquipoTab(v) }}
+              sx={{ display: { xs: 'flex', sm: 'none' }, bgcolor: 'action.hover', borderRadius: 2, p: 0.5, mb: 1.5 }}>
+              <ToggleButton value="local"
+                sx={{ color: 'text.secondary', border: 0, py: 1.25, px: 1, textTransform: 'none', fontWeight: 800, fontSize: 12, minWidth: 0, '&.Mui-selected': { bgcolor: '#dc2626', color: '#fff', '&:hover': { bgcolor: '#b91c1c' } } }}>
+                <Box component="span" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                  {eqName(partido.equipo_local_id)}
+                </Box>
+              </ToggleButton>
+              <ToggleButton value="visitante"
+                sx={{ color: 'text.secondary', border: 0, py: 1.25, px: 1, textTransform: 'none', fontWeight: 800, fontSize: 12, minWidth: 0, '&.Mui-selected': { bgcolor: '#2563eb', color: '#fff', '&:hover': { bgcolor: '#1d4ed8' } } }}>
+                <Box component="span" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '100%' }}>
+                  {eqName(partido.equipo_visitante_id)}
+                </Box>
+              </ToggleButton>
+            </ToggleButtonGroup>
             <Grid container spacing={2}>
               {[{ nombre: eqName(partido.equipo_local_id), plantel: plantelLocal, q: jugadoresLocalQ, id: partido.equipo_local_id },
                 { nombre: eqName(partido.equipo_visitante_id), plantel: plantelVisit, q: jugadoresVisitQ, id: partido.equipo_visitante_id }].map((eq) => {
+                const lado = Number(eq.id) === Number(partido.equipo_local_id) ? 'local' : 'visitante'
                 const alEquipo = eq.plantel.filter((j) => alineacionMap[j.id])
                 const disponibles = eq.plantel.filter((j) => j.activo && !alineacionMap[j.id])
                 const titulares = alEquipo.filter((j) => alineacionMap[j.id].titular).length
@@ -1033,7 +1051,7 @@ export default function Planilla({ selectedTorneoId }) {
                 const setForm = (f) => setFormEquipo({ ...formEquipo, [eq.id]: f })
                 const selJugador = eq.plantel.find((x) => String(x.id) === String(form.jugador_id)) || null
                 return (
-                  <Grid item xs={12} sm={6} key={eq.id}>
+                  <Grid item xs={12} sm={6} key={eq.id} sx={{ display: { xs: equipoTab === lado ? 'block' : 'none', sm: 'block' } }}>
                     <Card elevation={0} variant="outlined" sx={{ height: '100%' }}>
                       <CardContent sx={{ pt: 1.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>

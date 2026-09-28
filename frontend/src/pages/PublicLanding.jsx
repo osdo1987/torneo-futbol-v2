@@ -8,7 +8,6 @@ import CircularProgress from '@mui/material/CircularProgress'
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'
 import SportsSoccerIcon from '@mui/icons-material/SportsSoccer'
 import StarIcon from '@mui/icons-material/Star'
-import StarBorderIcon from '@mui/icons-material/StarBorder'
 import ShieldIcon from '@mui/icons-material/Shield'
 import TrendingUpIcon from '@mui/icons-material/TrendingUp'
 import PublicIcon from '@mui/icons-material/Public'
@@ -38,9 +37,9 @@ function zonesFor(rows) {
   return rows.map((r) => (r.pos <= direct ? 'direct' : r.pos <= direct + playoff ? 'playoff' : 'eliminated'))
 }
 
-function SectionTitle({ children, sx }) {
+function SectionTitle({ children, sx, className }) {
   return (
-    <Typography sx={{ fontSize: { xs: 15, sm: 19 }, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', borderLeft: '4px solid #00f0ff', pl: 1.5, color: PUB.fg, lineHeight: 1.2, ...sx }}>
+    <Typography className={className} sx={{ fontSize: { xs: 15, sm: 19 }, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '2px', borderLeft: '4px solid #00f0ff', pl: 1.5, color: PUB.fg, lineHeight: 1.2, ...sx }}>
       {children}
     </Typography>
   )
@@ -264,13 +263,13 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
     }}>
       <Box sx={{ px: { xs: 2, sm: 2.5 }, py: { xs: 1.75, sm: 2 } }}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, mb: 1.75 }}>
-          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}>
+          <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, flexShrink: 0 }}>
             <Box component="span" className={live ? 'pl-blink' : ''} sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: live ? PUB.live : PUB.cyan }} />
             <Typography sx={{ fontFamily: FONT_DISPLAY, fontSize: 10, fontWeight: 800, letterSpacing: '.16em', textTransform: 'uppercase', color: live ? PUB.live : PUB.cyan }}>
               {live ? 'En vivo' : jugado ? 'Último resultado' : 'Próximo partido'}
             </Typography>
           </Box>
-          <Typography noWrap sx={{ fontFamily: FONT_BODY, color: PUB.muted, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em' }}>
+          <Typography noWrap sx={{ fontFamily: FONT_BODY, color: PUB.muted, fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.08em', minWidth: 0 }}>
             Jornada {p.jornada} · {torneo.nombre}
           </Typography>
         </Box>
@@ -278,14 +277,14 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
         <Box sx={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.25, minWidth: 0 }}>
             <TeamBadge name={localName} size={44} />
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 13, sm: 15 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1.1 }}>
+            <Typography sx={{ ...clamp2, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 12.5, sm: 15 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1.15 }}>
               {localName}
             </Typography>
           </Box>
 
           <Box sx={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25,
-            minWidth: { xs: 84, sm: 104 }, px: 2, py: 0.75, borderRadius: 1.5,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: { xs: 1, sm: 1.25 },
+            minWidth: { xs: 76, sm: 104 }, px: { xs: 1.5, sm: 2 }, py: 0.75, borderRadius: 1.5,
             bgcolor: PUB.panelDeep, border: `1px solid ${conMarcador ? PUB.lineStrong : PUB.line}`,
           }}>
             {conMarcador ? (
@@ -300,7 +299,7 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
           </Box>
 
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 1.25, minWidth: 0 }}>
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 13, sm: 15 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1.1, textAlign: 'right' }}>
+            <Typography sx={{ ...clamp2, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 12.5, sm: 15 }, textTransform: 'uppercase', color: PUB.fg, lineHeight: 1.15, textAlign: 'right' }}>
               {visitName}
             </Typography>
             <TeamBadge name={visitName} size={44} />
@@ -344,7 +343,7 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
         )}
 
         <Box sx={{ mt: 1.75, display: 'flex', justifyContent: 'center' }}>
-          <Box component="button" type="button" onClick={() => onFormacion(p)} sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.lineStrong}`, px: 2, py: 0.75, borderRadius: 100, cursor: 'pointer', transition: 'all .2s', '&:hover': { bgcolor: 'rgba(0,240,255,.25)', color: PUB.fg } }}>
+          <Box component="button" type="button" onClick={() => onFormacion(p)} sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, fontFamily: FONT_BODY, fontSize: 11, fontWeight: 700, letterSpacing: '.04em', color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.lineStrong}`, px: 2, py: { xs: 1.25, sm: 0.75 }, minHeight: { xs: 44, sm: 'unset' }, borderRadius: 100, cursor: 'pointer', transition: 'all .2s', '&:hover': { bgcolor: 'rgba(0,240,255,.25)', color: PUB.fg } }}>
             <GroupsIcon sx={{ fontSize: 14 }} />
             Ver formación y cambios
           </Box>
@@ -357,30 +356,14 @@ function FeaturedMatch({ torneo, jornadas, onFormacion }) {
 /* ============================================================
  * LISTADO DE PARTIDOS (estilo fixture por competición)
  * ============================================================ */
-const FAV_KEY = 'pl-favoritos-v1'
 
-function useFavoritos() {
-  const [favs, setFavs] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem(FAV_KEY) || '[]')) } catch { return new Set() }
-  })
-  const toggle = (key) => setFavs((prev) => {
-    const next = new Set(prev)
-    if (next.has(key)) next.delete(key)
-    else next.add(key)
-    try { localStorage.setItem(FAV_KEY, JSON.stringify([...next])) } catch { /* ignore */ }
-    return next
-  })
-  return [favs, toggle]
+// Nombres de equipo/jugador: hasta 2 líneas en móvil (no se cortan), 1 línea en desktop.
+const clamp2 = {
+  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'normal',
+  display: { xs: '-webkit-box', sm: 'block' },
+  WebkitBoxOrient: { xs: 'vertical', sm: 'horizontal' },
+  WebkitLineClamp: { xs: 2, sm: 'unset' },
 }
-
-const starBtn = (active) => ({
-  width: 30, height: 30, p: 0, flexShrink: 0,
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  background: 'none', border: 'none', cursor: 'pointer',
-  color: active ? PUB.cyan : PUB.fgDim,
-  '& svg': { fontSize: 20 },
-  '&:hover': { color: active ? PUB.cyan : PUB.fg },
-})
 
 function RowTeam({ nombre, win, align }) {
   const badge = <TeamBadge name={nombre} size={20} />
@@ -390,7 +373,7 @@ function RowTeam({ nombre, win, align }) {
       justifyContent: align === 'right' ? 'flex-end' : 'flex-start',
     }}>
       {align !== 'right' && badge}
-      <Typography noWrap sx={{ fontSize: 13, fontWeight: win ? 800 : 500, color: win ? PUB.fg : PUB.fgDim }}>
+      <Typography noWrap sx={{ fontSize: { xs: 12, sm: 13 }, fontWeight: win ? 800 : 500, color: win ? PUB.fg : PUB.fgDim }}>
         {nombre}
       </Typography>
       {align === 'right' && badge}
@@ -402,17 +385,17 @@ const ROLE_COLORS = { POR: '#f39c12', DEF: '#4aa3ff', MED: '#2ecc71', DEL: '#ff5
 
 function PlayerToken({ j, rol }) {
   return (
-    <Box title={`${j.nombre} · camiseta ${j.numero}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mx: 0.3 }}>
+    <Box title={`${j.nombre} · camiseta ${j.numero}`} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mx: { xs: 0.2, sm: 0.3 } }}>
       <Box sx={{
-        width: 30, height: 30, borderRadius: '50%', bgcolor: ROLE_COLORS[rol] || ROLE_COLORS.OTROS, color: '#fff',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 11,
+        width: { xs: 28, sm: 30 }, height: { xs: 28, sm: 30 }, borderRadius: '50%', bgcolor: ROLE_COLORS[rol] || ROLE_COLORS.OTROS, color: '#fff',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: { xs: 10.5, sm: 11 },
         fontVariantNumeric: 'tabular-nums', border: '1.5px solid #fff', boxShadow: '0 1px 3px rgba(0,0,0,.35)',
       }}>
         {j.numero}
       </Box>
       <Typography sx={{
-        fontSize: 8.5, lineHeight: 1.15, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.7)',
-        maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.15,
+        fontSize: { xs: 8, sm: 8.5 }, lineHeight: 1.15, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,.7)',
+        maxWidth: { xs: 52, sm: 60 }, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', mt: 0.15,
       }}>
         {j.nombre}
       </Typography>
@@ -451,7 +434,7 @@ function SuplentesTable({ titulo, jugadores }) {
   )
 }
 
-function FixtureRow({ p, fav, onFav, onOpen, delay, last, prob, forma }) {
+function FixtureRow({ p, onOpen, delay, last, prob, forma }) {
   const jugado = !NO_RESULTADO.includes(p.resultado)
   const postergado = p.resultado === 'POSTERGADO'
   const enVivo = estaEnVivo(p)
@@ -493,24 +476,15 @@ function FixtureRow({ p, fav, onFav, onOpen, delay, last, prob, forma }) {
     >
       <Box sx={{
         display: 'grid',
-        gridTemplateColumns: '30px minmax(0,1fr) auto minmax(0,1fr)',
-        alignItems: 'center', gap: { xs: 0.8, sm: 1.2 },
-        px: { xs: 1.25, sm: 2 }, py: 1,
+        gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+        alignItems: 'center', gap: { xs: 1, sm: 1.2 },
+        px: { xs: 1.25, sm: 2 }, py: { xs: 0.75, sm: 1 },
       }}>
-        <Box
-          component="button"
-          aria-label="Favorito"
-          onClick={(e) => { e.stopPropagation(); onFav(`m${p.id}`) }}
-          sx={starBtn(fav)}
-        >
-          {fav ? <StarIcon /> : <StarBorderIcon />}
-        </Box>
-
         <RowTeam nombre={p.equipo_local} win={localWin} align="right" />
 
         <Typography sx={{
           fontFamily: FONT_DISPLAY, fontVariantNumeric: 'tabular-nums', textAlign: 'center',
-          minWidth: 54, px: 0.5, whiteSpace: 'nowrap', ...centroSx,
+          minWidth: { xs: 48, sm: 54 }, px: 0.5, whiteSpace: 'nowrap', ...centroSx,
         }}>
           {centro}
         </Typography>
@@ -541,7 +515,6 @@ function FixtureRow({ p, fav, onFav, onOpen, delay, last, prob, forma }) {
  * PANEL: RESULTADOS (pestañas por jornada)
  * ============================================================ */
 function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, torneoNombre, statsIndex }) {
-  const [favs, toggleFav] = useFavoritos()
   const forma = useFormaPorEquipo(jornadas)
   const sorted = useMemo(() => [...(jornadas || [])].sort((a, b) => (a.jornada || 0) - (b.jornada || 0)), [jornadas])
 
@@ -598,7 +571,7 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
           )}
         </Box>
         {ps.map((p, i) => (
-          <FixtureRow key={p.id} p={p} delay={i} last={i === ps.length - 1} fav={favs.has(`m${p.id}`)} onFav={toggleFav} onOpen={onOpenPartido} prob={matchProbabilities(p, statsIndex)} forma={forma} />
+          <FixtureRow key={p.id} p={p} delay={i} last={i === ps.length - 1} onOpen={onOpenPartido} prob={matchProbabilities(p, statsIndex)} forma={forma} />
         ))}
       </Box>
     )
@@ -620,7 +593,7 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
             flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.75, mr: 0.5,
             fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 700, letterSpacing: '.04em',
             textTransform: 'uppercase', whiteSpace: 'nowrap', cursor: 'pointer',
-            px: 1.75, py: 0.9, borderRadius: 100,
+            px: 1.75, py: { xs: 1.1, sm: 0.9 }, minHeight: { xs: 44, sm: 'unset' }, borderRadius: 100,
             color: verTodas ? '#020621' : PUB.fgDim,
             bgcolor: verTodas ? PUB.cyan : 'rgba(255,255,255,.04)',
             border: `1px solid ${verTodas ? PUB.cyan : PUB.line}`,
@@ -645,7 +618,7 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
                 flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 0.75,
                 fontFamily: FONT_DISPLAY, fontSize: 12, fontWeight: 700, letterSpacing: '.04em',
                 textTransform: 'uppercase', whiteSpace: 'nowrap', cursor: 'pointer',
-                px: 1.75, py: 0.9, borderRadius: 100,
+                px: 1.75, py: { xs: 1.1, sm: 0.9 }, minHeight: { xs: 44, sm: 'unset' }, borderRadius: 100,
                 color: isActive ? '#020621' : PUB.fgDim,
                 bgcolor: isActive ? PUB.cyan : 'rgba(255,255,255,.04)',
                 border: `1px solid ${isActive ? PUB.cyan : PUB.line}`,
@@ -711,7 +684,7 @@ function PosicionesPanel({ posiciones, jornadas, loading }) {
   if (loading) return <PendingOrBar />
   if (!posiciones || !posiciones.length) return <Empty text="Aún no hay posiciones." />
 
-  const template = { xs: '2.2rem 1fr 3rem 3rem 3rem 3rem 3.4rem', md: '2.4rem 1fr 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 6.5rem 4.2rem' }
+  const template = { xs: '1.9rem minmax(0,1fr) 2.2rem 2.2rem 2.2rem 2.2rem 2.7rem', md: '2.4rem minmax(0,1fr) 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 3.2rem 6.5rem 4.2rem' }
   const zones = zonesFor(posiciones)
   const present = [...new Set(zones)].map((z) => ZONES[z])
 
@@ -727,7 +700,7 @@ function PosicionesPanel({ posiciones, jornadas, loading }) {
         boxShadow: '0 10px 30px rgba(0,0,0,.5)',
       }}>
         <Box component="span" sx={{
-          display: 'grid', gridTemplateColumns: template, gap: 0, px: { xs: 2, sm: 3.5 }, py: 2,
+          display: 'grid', gridTemplateColumns: template, gap: 0, px: { xs: 1.25, sm: 3.5 }, py: { xs: 1.25, sm: 2 },
           textTransform: 'uppercase', letterSpacing: '1px', fontSize: 11, color: PUB.muted, fontWeight: 700,
           bgcolor: 'rgba(0,0,0,.4)', borderBottom: '1px solid rgba(255,255,255,.02)', fontFamily: FONT_BODY, alignItems: 'center',
         }}>
@@ -747,7 +720,7 @@ function PosicionesPanel({ posiciones, jornadas, loading }) {
           const col = ZONES[zones[i]].color
           return (
             <Box key={r.equipo_id} sx={{
-              display: 'grid', gridTemplateColumns: template, gap: 0, px: { xs: 2, sm: 3.5 }, py: 2.2, alignItems: 'center',
+              display: 'grid', gridTemplateColumns: template, gap: 0, px: { xs: 1.25, sm: 3.5 }, py: { xs: 1.5, sm: 2.2 }, alignItems: 'center',
               borderBottom: '1px solid rgba(255,255,255,.02)', borderLeft: `4px solid ${col}`,
               bgcolor: i % 2 ? 'rgba(255,255,255,.01)' : 'transparent',
               fontSize: 13,
@@ -796,6 +769,13 @@ const hCell = { textAlign: 'center', fontSize: 10, color: PUB.muted, fontWeight:
 /* ============================================================
  * PANEL: ESTADÍSTICAS
  * ============================================================ */
+// Columnas de la tabla de sanciones. Compartida por encabezado y filas para
+// que no se desalineen; en xs solo se ven los puntos de color (sin rótulo).
+const sancTemplate = { xs: 'minmax(0,1fr) 40px 40px 78px', sm: 'minmax(0,1fr) 84px 84px 108px' }
+const goolTemplate = { xs: '34px minmax(0,1fr) 58px', sm: '44px minmax(0,1fr) 72px' }
+const sancPx = { xs: 1.25, sm: 2 }
+const sancHead = { fontSize: { xs: 9.5, sm: 10.5 }, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted }
+
 function EstadisticasPanel({ resumen, goleadores, sanciones, loading }) {
   const [sub, setSub] = useState('goleadores')
 
@@ -812,36 +792,36 @@ function EstadisticasPanel({ resumen, goleadores, sanciones, loading }) {
           ['Tarjetas rojas', resumen?.rojas ?? 0],
           ['Tarjetas amarillas', resumen?.amarillas ?? 0],
         ].map(([label, value]) => (
-          <Box key={label} className="pl-fade-up" sx={{ background: PUB.panel, border: `1px solid ${PUB.line}`, borderRadius: 2, p: 2, textAlign: 'center' }}>
-            <Typography className="pl-big-stat" sx={{ fontSize: 22 }}>{value}</Typography>
-            <Typography sx={{ mt: 0.5, fontSize: 9, color: PUB.fgDim, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.1em' }}>{label}</Typography>
+          <Box key={label} className="pl-fade-up" sx={{ background: PUB.panel, border: `1px solid ${PUB.line}`, borderRadius: 2, p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
+            <Typography className="pl-big-stat" sx={{ fontSize: { xs: 19, sm: 22 } }}>{value}</Typography>
+            <Typography sx={{ mt: 0.5, fontSize: { xs: 8.5, sm: 9 }, color: PUB.fgDim, fontWeight: 600, textTransform: 'uppercase', letterSpacing: { xs: '.06em', sm: '.1em' } }}>{label}</Typography>
           </Box>
         ))}
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: `1px solid ${PUB.line}`, mb: 2.5 }}>
-        <TabBtn active={sub === 'goleadores'} onClick={() => setSub('goleadores')} sx={{ fontSize: 15 }}>Goleadores</TabBtn>
-        <TabBtn active={sub === 'sanciones'} onClick={() => setSub('sanciones')} sx={{ fontSize: 15 }}>Sanciones</TabBtn>
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, borderBottom: `1px solid ${PUB.line}`, mb: 2.5, overflowX: 'auto' }}>
+        <TabBtn active={sub === 'goleadores'} onClick={() => setSub('goleadores')} sx={{ fontSize: { xs: 14, sm: 15 }, minHeight: 44 }}>Goleadores</TabBtn>
+        <TabBtn active={sub === 'sanciones'} onClick={() => setSub('sanciones')} sx={{ fontSize: { xs: 14, sm: 15 }, minHeight: 44 }}>Sanciones</TabBtn>
       </Box>
 
       {sub === 'goleadores' ? (
         !goleadores || !goleadores.length ? <Empty text="No hay goles registrados todavía." /> : (
           <Box className="pl-fade-up" sx={{ overflow: 'hidden', borderRadius: 1.5, border: `1px solid ${PUB.line}`, bgcolor: 'rgba(5,12,30,.75)', boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) 72px', alignItems: 'center', px: 2, py: 1.25, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted }}>Pos</Typography>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted }}>Jugador</Typography>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted, textAlign: 'right' }}>Goles</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: goolTemplate, alignItems: 'center', px: sancPx, py: 1.25, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
+              <Typography sx={sancHead}>Pos</Typography>
+              <Typography sx={sancHead}>Jugador</Typography>
+              <Typography sx={{ ...sancHead, textAlign: 'right' }}>Goles</Typography>
             </Box>
             {goleadores.map((g, i) => (
               <Box className="pl-slide-in" key={g.jugador_id} sx={{
                 animationDelay: `${0.1 + i * 0.04}s`,
-                display: 'grid', gridTemplateColumns: '44px minmax(0,1fr) 72px', alignItems: 'center',
-                px: 2, py: 1, borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,.04)',
+                display: 'grid', gridTemplateColumns: goolTemplate, alignItems: 'center',
+                px: sancPx, py: 1, borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,.04)',
                 bgcolor: i % 2 ? 'rgba(255,255,255,.015)' : 'transparent',
                 transition: 'background .2s',
                 '&:hover': { background: 'rgba(255,255,255,.03)' },
               }}>
-                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 14, color: i < 3 ? PUB.gold : PUB.muted }}>{g.pos}</Typography>
+                <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 13, sm: 14 }, color: i < 3 ? PUB.gold : PUB.muted }}>{g.pos}</Typography>
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0 }}>
                   <TeamBadge name={g.equipo} size={24} />
                   <Box sx={{ minWidth: 0, lineHeight: 1.15 }}>
@@ -862,17 +842,23 @@ function EstadisticasPanel({ resumen, goleadores, sanciones, loading }) {
       ) : (
         !sanciones || !sanciones.length ? <Empty text="No hay sanciones registradas." /> : (
           <Box className="pl-fade-up" sx={{ overflow: 'hidden', borderRadius: 1.5, border: `1px solid ${PUB.line}`, bgcolor: 'rgba(5,12,30,.75)', boxShadow: '0 8px 24px rgba(0,0,0,.35)' }}>
-            <Box sx={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 84px 108px', alignItems: 'center', px: 2, py: 1.25, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted }}>Jugador</Typography>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted, textAlign: 'center' }}>Amarillas</Typography>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted, textAlign: 'center' }}>Rojas</Typography>
-              <Typography sx={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: PUB.muted, textAlign: 'right' }}>Estado</Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: sancTemplate, alignItems: 'center', px: sancPx, py: { xs: 1, sm: 1.25 }, bgcolor: 'rgba(16,32,66,.9)', borderBottom: `1px solid ${PUB.line}` }}>
+              <Typography sx={sancHead}>Jugador</Typography>
+              <Typography sx={{ ...sancHead, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.4 }}>
+                <Box component="span" sx={{ width: 8, height: 8, borderRadius: 2, bgcolor: PUB.yellow, flexShrink: 0 }} />
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Amarillas</Box>
+              </Typography>
+              <Typography sx={{ ...sancHead, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.4 }}>
+                <Box component="span" sx={{ width: 8, height: 8, borderRadius: 2, bgcolor: PUB.red, flexShrink: 0 }} />
+                <Box component="span" sx={{ display: { xs: 'none', sm: 'inline' } }}>Rojas</Box>
+              </Typography>
+              <Typography sx={{ ...sancHead, textAlign: 'right' }}>Estado</Typography>
             </Box>
             {sanciones.map((s, i) => (
               <Box className="pl-slide-in" key={s.jugador_id} sx={{
                 animationDelay: `${0.1 + i * 0.04}s`,
-                display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 84px 84px 108px', alignItems: 'center',
-                px: 2, py: 1, borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,.04)',
+                display: 'grid', gridTemplateColumns: sancTemplate, alignItems: 'center',
+                px: sancPx, py: 1, borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,.04)',
                 bgcolor: i % 2 ? 'rgba(255,255,255,.015)' : 'transparent',
                 transition: 'background .2s',
                 '&:hover': { background: 'rgba(255,255,255,.03)' },
@@ -892,10 +878,14 @@ function EstadisticasPanel({ resumen, goleadores, sanciones, loading }) {
                   <Box component="span" sx={{ width: 9, height: 9, borderRadius: 3, bgcolor: PUB.red, flexShrink: 0 }} />
                   <Typography sx={{ color: PUB.fg, fontWeight: 700, fontVariantNumeric: 'tabular-nums', fontSize: 13 }}>{s.rojas}</Typography>
                 </Box>
-                <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                  {s.suspendido
-                    ? <Typography sx={{ fontSize: 9, fontWeight: 800, color: PUB.live, bgcolor: PUB.liveSoft, border: `1px solid ${PUB.live}`, px: 1.2, py: 0.4, borderRadius: 100, letterSpacing: '.06em' }}>Suspendido</Typography>
-                    : <Typography sx={{ fontSize: 9, fontWeight: 800, color: PUB.green, bgcolor: 'rgba(74,222,128,.1)', border: '1px solid rgba(74,222,128,.4)', px: 1.2, py: 0.4, borderRadius: 100, letterSpacing: '.06em' }}>Disponible</Typography>}
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', minWidth: 0 }}>
+                  <Typography sx={{
+                    fontSize: { xs: 8, sm: 9 }, fontWeight: 800, letterSpacing: { xs: '.02em', sm: '.06em' },
+                    px: { xs: 0.8, sm: 1.2 }, py: 0.4, borderRadius: 100, whiteSpace: 'nowrap',
+                    ...(s.suspendido
+                      ? { color: PUB.live, bgcolor: PUB.liveSoft, border: `1px solid ${PUB.live}` }
+                      : { color: PUB.green, bgcolor: 'rgba(74,222,128,.1)', border: '1px solid rgba(74,222,128,.4)' }),
+                  }}>{s.suspendido ? 'Suspendido' : 'Disponible'}</Typography>
                 </Box>
               </Box>
             ))}
@@ -967,56 +957,57 @@ function MatchModal({ partido, onClose, onFormacion }) {
         borderTopRightRadius: { xs: 24, md: 18 },
         borderBottomLeftRadius: { xs: 0, md: 18 },
         borderBottomRightRadius: { xs: 0, md: 18 },
-        maxHeight: '85vh', overflowY: 'auto', p: 3,
+        maxHeight: { xs: '90vh', md: '85vh' }, overflowY: 'auto', overscrollBehavior: 'contain',
+        p: { xs: 2, sm: 3 }, pb: { xs: 'calc(16px + env(safe-area-inset-bottom))', sm: 3 },
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 3, height: 16, borderRadius: 2, bgcolor: PUB.cyan }} />
-            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 20, textTransform: 'uppercase', color: PUB.fg, letterSpacing: '.04em' }}>Detalle del partido</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: { xs: 2, sm: 3 }, position: 'sticky', top: { xs: -8, sm: -12 }, bgcolor: '#020621', zIndex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            <Box sx={{ width: 3, height: 16, borderRadius: 2, bgcolor: PUB.cyan, flexShrink: 0 }} />
+            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 16, sm: 20 }, textTransform: 'uppercase', color: PUB.fg, letterSpacing: '.04em' }}>Detalle del partido</Typography>
           </Box>
-          <Box component="button" onClick={onClose} sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PUB.muted, cursor: 'pointer', border: 'none', '&:hover': { color: PUB.fg } }}>
+          <Box component="button" onClick={onClose} aria-label="Cerrar" sx={{ width: { xs: 40, sm: 32 }, height: { xs: 40, sm: 32 }, flexShrink: 0, borderRadius: 2, bgcolor: 'rgba(255,255,255,.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PUB.muted, cursor: 'pointer', border: 'none', WebkitTapHighlightColor: 'transparent', '&:hover': { color: PUB.fg } }}>
             <CloseIcon fontSize="small" />
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-            <TeamBadge name={partido.equipo_local} size={52} />
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg }}>{partido.equipo_local}</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: { xs: 3, sm: 4 } }}>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 0 }}>
+            <TeamBadge name={partido.equipo_local} size={44} />
+            <Typography sx={{ ...clamp2, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 12, sm: 14 }, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg, width: '100%' }}>{partido.equipo_local}</Typography>
           </Box>
           {mostrarMarcador ? (
-            <ScoreBox>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreLocal}</Typography>
-              <Typography sx={{ color: PUB.fgDim, fontSize: 18 }}>-</Typography>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 32, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreVisit}</Typography>
+            <ScoreBox sx={{ minWidth: { xs: 76, sm: 96 }, px: { xs: 1.5, sm: 3 }, gap: { xs: 1.5, sm: 2 } }}>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 26, sm: 32 }, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreLocal}</Typography>
+              <Typography sx={{ color: PUB.fgDim, fontSize: { xs: 15, sm: 18 } }}>-</Typography>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 26, sm: 32 }, color: PUB.fg, fontVariantNumeric: 'tabular-nums' }}>{scoreVisit}</Typography>
             </ScoreBox>
           ) : (
-            <ScoreBox sx={{ flexDirection: 'column', gap: 0.4 }}>
-              <Typography className="pl-shimmer" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 26 }}>VS</Typography>
-              {horas && <Typography sx={{ fontSize: 12, fontWeight: 600, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{horas}</Typography>}
+            <ScoreBox sx={{ flexDirection: 'column', gap: 0.4, minWidth: { xs: 76, sm: 96 }, px: { xs: 1.5, sm: 3 } }}>
+              <Typography className="pl-shimmer" sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 22, sm: 26 } }}>VS</Typography>
+              {horas && <Typography sx={{ fontSize: { xs: 10.5, sm: 12 }, fontWeight: 600, color: PUB.cyan, fontVariantNumeric: 'tabular-nums', textAlign: 'center' }}>{horas}</Typography>}
             </ScoreBox>
           )}
-          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1, flex: 1, minWidth: 0 }}>
-            <TeamBadge name={partido.equipo_visitante} size={52} />
-            <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg }}>{partido.equipo_visitante}</Typography>
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.75, flex: 1, minWidth: 0 }}>
+            <TeamBadge name={partido.equipo_visitante} size={44} />
+            <Typography sx={{ ...clamp2, fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 12, sm: 14 }, textTransform: 'uppercase', textAlign: 'center', color: PUB.fg, width: '100%' }}>{partido.equipo_visitante}</Typography>
           </Box>
         </Box>
 
-        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
-          <Box component="button" type="button" onClick={() => onFormacion(partido)} sx={{ display: 'inline-flex', alignItems: 'center', gap: 1, fontSize: 12, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 2.2, py: 1, borderRadius: 100, cursor: 'pointer', fontFamily: FONT_BODY, transition: 'all .2s', '&:hover': { bgcolor: 'rgba(0,240,255,.25)', color: PUB.fg } }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: { xs: 2.5, sm: 3 } }}>
+          <Box component="button" type="button" onClick={() => onFormacion(partido)} sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 1, fontSize: 12, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 2.2, py: 1, minHeight: { xs: 44, sm: 'unset' }, borderRadius: 100, cursor: 'pointer', fontFamily: FONT_BODY, transition: 'all .2s', '&:hover': { bgcolor: 'rgba(0,240,255,.25)', color: PUB.fg } }}>
             <GroupsIcon sx={{ fontSize: 15 }} />
             Formación y cambios
           </Box>
         </Box>
 
-        <Box sx={{ bgcolor: 'rgba(7,16,34,.6)', borderRadius: 2, border: `1px solid ${PUB.line}`, p: 3, mb: 3 }}>
-          <Typography sx={{ mb: 3, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.14em', color: PUB.muted, fontWeight: 700 }}>
+        <Box sx={{ bgcolor: 'rgba(7,16,34,.6)', borderRadius: 2, border: `1px solid ${PUB.line}`, p: { xs: 1.75, sm: 3 }, mb: { xs: 2.5, sm: 3 } }}>
+          <Typography sx={{ mb: { xs: 2, sm: 3 }, fontSize: 10, textTransform: 'uppercase', letterSpacing: '.14em', color: PUB.muted, fontWeight: 700 }}>
             Eventos del partido
           </Typography>
           {eventos.length === 0 ? (
             <Typography sx={{ fontSize: 13, color: PUB.muted }}>{jugado ? 'Sin eventos registrados.' : 'Partido aún no disputado.'}</Typography>
           ) : (
-            <Box sx={{ display: 'grid', gap: 2 }}>
+            <Box sx={{ display: 'grid', gap: 1.5 }}>
               {eventos.map((e) => {
                 const esLocal = e.equipo === partido.equipo_local
                 const typo = {
@@ -1029,23 +1020,23 @@ function MatchModal({ partido, onClose, onFormacion }) {
                   ? <Box component="span" sx={{ width: 10, height: 10, borderRadius: 3, bgcolor: typo.color, flexShrink: 0 }} />
                   : <Box component="span" sx={{ display: 'flex', flexShrink: 0 }}>{typo.icon}</Box>
                 return (
-                  <Box key={e.id || `${e.tipo}-${e.minuto}-${e.jugador}`} sx={{ display: 'flex', alignItems: 'center', gap: 1.5, justifyContent: esLocal ? 'flex-start' : 'flex-end' }}>
-                    <Typography sx={{ fontSize: 12, color: PUB.muted, textAlign: 'right' }}>{e.minuto}'</Typography>
+                  <Box key={e.id || `${e.tipo}-${e.minuto}-${e.jugador}`} sx={{ display: 'flex', alignItems: 'center', gap: 1.2, minWidth: 0, justifyContent: esLocal ? 'flex-start' : 'flex-end' }}>
+                    <Typography sx={{ fontSize: 12, color: PUB.muted, textAlign: 'right', flexShrink: 0 }}>{e.minuto}'</Typography>
                     {Icon}
                     {e.tipo === 'CAMBIO' ? (
                       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: esLocal ? 'flex-start' : 'flex-end', minWidth: 0 }}>
-                        <Typography sx={{ color: PUB.green, fontSize: 13, fontWeight: 700 }}>{e.jugador}</Typography>
-                        {e.jugador_sale && <Typography sx={{ color: PUB.muted, fontSize: 11 }}>Sale {e.jugador_sale}</Typography>}
+                        <Typography sx={{ color: PUB.green, fontSize: 13, fontWeight: 700, wordBreak: 'break-word' }}>{e.jugador}</Typography>
+                        {e.jugador_sale && <Typography sx={{ color: PUB.muted, fontSize: 11, wordBreak: 'break-word' }}>Sale {e.jugador_sale}</Typography>}
                       </Box>
                     ) : (
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.6, minWidth: 0, flexWrap: 'wrap', justifyContent: esLocal ? 'flex-start' : 'flex-end' }}>
-                        <Typography sx={{ color: PUB.fg, fontSize: 13 }}>{e.jugador || e.sancionado}</Typography>
+                        <Typography sx={{ color: PUB.fg, fontSize: 13, wordBreak: 'break-word' }}>{e.jugador || e.sancionado}</Typography>
                         {e.tipo_sancionado === 'TECNICO' && (
-                          <span style={{ padding: '1px 6px', borderRadius: 99, fontSize: 9, fontWeight: 700, letterSpacing: '.04em', color: PUB.cyan, border: `1px solid ${PUB.line}` }}>TÉCNICO</span>
+                          <span style={{ padding: '1px 6px', borderRadius: 99, fontSize: 9, fontWeight: 700, letterSpacing: '.04em', color: PUB.cyan, border: `1px solid ${PUB.line}`, flexShrink: 0 }}>TÉCNICO</span>
                         )}
                       </Box>
                     )}
-                    {e.descripcion && <Typography sx={{ fontSize: 10, color: PUB.muted, bgcolor: 'rgba(255,255,255,.05)', px: 1.2, py: 0.5, borderRadius: 1 }}>{e.descripcion}</Typography>}
+                    {e.descripcion && <Typography sx={{ fontSize: 10, color: PUB.muted, bgcolor: 'rgba(255,255,255,.05)', px: 1.2, py: 0.5, borderRadius: 1, flexShrink: 0 }}>{e.descripcion}</Typography>}
                   </Box>
                 )
               })}
@@ -1053,15 +1044,15 @@ function MatchModal({ partido, onClose, onFormacion }) {
           )}
         </Box>
 
-        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 2 }}>
+        <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: { xs: 1.25, sm: 2 } }}>
           {[
             ['Goles', goles, PUB.fg],
             ['Amarillas', amarillas, PUB.yellow],
             ['Rojas', rojas, PUB.red],
           ].map(([label, value, color]) => (
-            <Box key={label} sx={{ bgcolor: 'rgba(7,16,34,.6)', borderRadius: 2, border: `1px solid ${PUB.line}`, p: 2.5, textAlign: 'center' }}>
-              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, color, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
-              <Typography sx={{ fontSize: 10, color: PUB.muted, mt: 0.5, letterSpacing: '.1em', textTransform: 'uppercase' }}>{label}</Typography>
+            <Box key={label} sx={{ bgcolor: 'rgba(7,16,34,.6)', borderRadius: 2, border: `1px solid ${PUB.line}`, p: { xs: 1.5, sm: 2.5 }, textAlign: 'center' }}>
+              <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 19, sm: 22 }, color, fontVariantNumeric: 'tabular-nums' }}>{value}</Typography>
+              <Typography sx={{ fontSize: { xs: 8.5, sm: 10 }, color: PUB.muted, mt: 0.5, letterSpacing: { xs: '.05em', sm: '.1em' }, textTransform: 'uppercase' }}>{label}</Typography>
             </Box>
           ))}
         </Box>
@@ -1132,21 +1123,22 @@ function FormationDialog({ partido, onClose }) {
       <Box sx={{ position: 'absolute', inset: 0, bgcolor: 'rgba(3,8,18,.75)', backdropFilter: 'blur(4px)' }} onClick={onClose} />
       <Box sx={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
-        '@media (min-width:900px)': { bottom: 'auto', top: '50%', left: '50%', right: 'auto', transform: 'translate(-50%,-50%)', maxWidth: 720, width: '100%', maxHeight: '85vh' },
+        '@media (min-width:900px)': { bottom: 'auto', top: '50%', left: '50%', right: 'auto', transform: 'translate(-50%,-50%)', maxWidth: 720, width: '100%' },
         bgcolor: '#020621', color: PUB.fg,
         border: `1px solid ${PUB.lineStrong}`,
         borderTopLeftRadius: { xs: 24, md: 18 },
         borderTopRightRadius: { xs: 24, md: 18 },
         borderBottomLeftRadius: { xs: 0, md: 18 },
         borderBottomRightRadius: { xs: 0, md: 18 },
-        maxHeight: '85vh', overflowY: 'auto', p: 3,
+        maxHeight: { xs: '90vh', md: '85vh' }, overflowY: 'auto', overscrollBehavior: 'contain',
+        p: { xs: 2, sm: 3 }, pb: { xs: 'calc(16px + env(safe-area-inset-bottom))', sm: 3 },
       }}>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Box sx={{ width: 3, height: 16, borderRadius: 2, bgcolor: PUB.cyan }} />
-            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 18, textTransform: 'uppercase', letterSpacing: '.04em' }}>Formación y cambios</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, mb: { xs: 2, sm: 3 }, position: 'sticky', top: { xs: -8, sm: -12 }, bgcolor: '#020621', zIndex: 1 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+            <Box sx={{ width: 3, height: 16, borderRadius: 2, bgcolor: PUB.cyan, flexShrink: 0 }} />
+            <Typography sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 16, sm: 18 }, textTransform: 'uppercase', letterSpacing: '.04em' }}>Formación y cambios</Typography>
           </Box>
-          <Box component="button" type="button" onClick={onClose} sx={{ width: 32, height: 32, borderRadius: 2, bgcolor: 'rgba(255,255,255,.05)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PUB.muted, cursor: 'pointer', '&:hover': { color: PUB.fg } }}>
+          <Box component="button" type="button" onClick={onClose} aria-label="Cerrar" sx={{ width: { xs: 40, sm: 32 }, height: { xs: 40, sm: 32 }, flexShrink: 0, borderRadius: 2, bgcolor: 'rgba(255,255,255,.05)', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', color: PUB.muted, cursor: 'pointer', WebkitTapHighlightColor: 'transparent', '&:hover': { color: PUB.fg } }}>
             <CloseIcon fontSize="small" />
           </Box>
         </Box>
@@ -1176,9 +1168,9 @@ function FormationDialog({ partido, onClose }) {
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, justifyContent: side === 'bottom' ? 'flex-end' : 'flex-start' }}>
                     {side === 'top' && <TeamBadge name={team.nombre} size={26} />}
                     <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, minWidth: 0 }}>
-                      <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, textTransform: 'uppercase', color: PUB.fg }}>{team.nombre}</Typography>
+                      <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: { xs: 12.5, sm: 14 }, textTransform: 'uppercase', color: PUB.fg }}>{team.nombre}</Typography>
                       {posicionesEfectivas(team).length > 0 && (
-                        <Typography sx={{ fontSize: 10.5, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 1, py: 0.3, borderRadius: 100 }}>{tactic(team)}</Typography>
+                        <Typography sx={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, color: PUB.cyan, bgcolor: PUB.blueSoft, border: `1px solid ${PUB.cyan}`, px: 1, py: 0.3, borderRadius: 100, whiteSpace: 'nowrap' }}>{tactic(team)}</Typography>
                       )}
                     </Box>
                     {side === 'bottom' && <TeamBadge name={team.nombre} size={26} />}
@@ -1206,7 +1198,7 @@ function FormationDialog({ partido, onClose }) {
                     <Box sx={{ mt: 1.25, mb: 1.25, background: 'linear-gradient(180deg,#3a8f44,#2c6e31 50%,#1b5e20)', borderRadius: 1.5, p: 1.25, position: 'relative', overflow: 'hidden' }}>
                       <Box sx={{ position: 'absolute', top: '50%', left: 8, right: 8, borderTop: '1.5px dashed rgba(255,255,255,.4)' }} />
                       <Box sx={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', width: 52, height: 52, borderRadius: '50%', border: '1.5px dashed rgba(255,255,255,.3)' }} />
-                      <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', minHeight: 430 }}>
+                      <Box sx={{ position: 'relative', display: 'flex', flexDirection: 'column', minHeight: { xs: 380, sm: 430 } }}>
                         <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-evenly' }}>
                           {mitad(visitante, ['POR', 'DEF', 'MED', 'DEL', 'OTROS'])}
                         </Box>
@@ -1236,11 +1228,11 @@ function FormationDialog({ partido, onClose }) {
                 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 0.75 }}>
                   {cambios.map((c, i) => (
                     <Box key={i} sx={{ display: 'flex', alignItems: 'center', gap: 0.9, bgcolor: 'rgba(255,255,255,.04)', border: `1px solid ${PUB.line}`, borderRadius: 1, px: 1.25, py: 0.8 }}>
-                      <Typography sx={{ flexShrink: 0, width: 24, fontSize: 11, fontWeight: 800, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{c.minuto}'</Typography>
+                      <Typography noWrap sx={{ flexShrink: 0, fontSize: { xs: 10, sm: 11 }, fontWeight: 800, color: PUB.cyan, fontVariantNumeric: 'tabular-nums' }}>{c.minuto}'</Typography>
                       <Typography noWrap sx={{ minWidth: 0, flex: 1, fontSize: 11, color: PUB.red, fontWeight: 600, textDecoration: 'line-through', opacity: .85 }}>{c.sale}</Typography>
                       <SwapHorizIcon sx={{ flexShrink: 0, fontSize: 13, color: PUB.muted }} />
                       <Typography noWrap sx={{ minWidth: 0, flex: 1, fontSize: 11, color: PUB.green, fontWeight: 700 }}>{c.entra}</Typography>
-                      {c.equipo && <Typography sx={{ flexShrink: 0, fontSize: 9.5, color: PUB.muted, letterSpacing: '.04em', textTransform: 'uppercase' }}>{c.equipo}</Typography>}
+                      {c.equipo && <Typography sx={{ display: { xs: 'none', sm: 'block' }, flexShrink: 0, fontSize: 9.5, color: PUB.muted, letterSpacing: '.04em', textTransform: 'uppercase' }}>{c.equipo}</Typography>}
                     </Box>
                   ))}
                 </Box>
@@ -1302,22 +1294,24 @@ export default function PublicLanding() {
     <Box sx={{
       minHeight: '100vh',
       bgcolor: '#020621',
-      color: PUB.fg, fontFamily: FONT_BODY, pb: { xs: 16, md: 8 },
+      color: PUB.fg, fontFamily: FONT_BODY,
+      // En móvil hay una barra de navegación fija abajo: el pie no debe quedar tapado.
+      pb: { xs: 'calc(60px + 20px + env(safe-area-inset-bottom))', md: 8 },
     }}>
       {/* Header */}
       <Box sx={{ position: 'sticky', top: 0, zIndex: 50, backdropFilter: 'blur(16px)', bgcolor: 'rgba(2,6,33,.85)', borderBottom: '2px solid rgba(0,240,255,.1)' }}>
-        <Box sx={{ maxWidth: 1152, mx: 'auto', px: { xs: 2, sm: 4 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 60 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+        <Box sx={{ maxWidth: 1152, mx: 'auto', px: { xs: 1.5, sm: 4 }, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1, height: { xs: 56, sm: 60 } }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 1.5 }, minWidth: 0 }}>
             {org?.logo_url ? (
-              <Box component="img" src={org.logo_url} alt={org.nombre} sx={{ width: 34, height: 34, borderRadius: '8px', objectFit: 'cover', bgcolor: PUB.panelDeep }} />
+              <Box component="img" src={org.logo_url} alt={org.nombre} sx={{ width: { xs: 30, sm: 34 }, height: { xs: 30, sm: 34 }, borderRadius: '8px', objectFit: 'cover', bgcolor: PUB.panelDeep }} />
             ) : (
-              <Box sx={{ width: 34, height: 34, borderRadius: '8px', background: 'linear-gradient(135deg, #0b2a6b, #061138)', border: `1px solid ${PUB.lineStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Box sx={{ width: { xs: 30, sm: 34 }, height: { xs: 30, sm: 34 }, borderRadius: '8px', background: 'linear-gradient(135deg, #0b2a6b, #061138)', border: `1px solid ${PUB.lineStrong}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <EmojiEventsIcon sx={{ color: PUB.cyan, fontSize: 17 }} />
               </Box>
             )}
             <Box sx={{ display: 'flex', alignItems: 'baseline', minWidth: 0 }}>
-              {logoBase && <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, letterSpacing: '2px', textTransform: 'uppercase', color: PUB.fg }}>{logoBase}&nbsp;</Typography>}
-              <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: 22, letterSpacing: '2px', textTransform: 'uppercase', color: PUB.cyan, textShadow: '0 0 10px rgba(0,240,255,.5)' }}>
+              {logoBase && <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 15, sm: 22 }, letterSpacing: { xs: '.5px', sm: '2px' }, textTransform: 'uppercase', color: PUB.fg }}>{logoBase}&nbsp;</Typography>}
+              <Typography noWrap sx={{ fontFamily: FONT_DISPLAY, fontWeight: 800, fontSize: { xs: 15, sm: 22 }, letterSpacing: { xs: '.5px', sm: '2px' }, textTransform: 'uppercase', color: PUB.cyan, textShadow: '0 0 10px rgba(0,240,255,.5)' }}>
                 {logoAccent}
               </Typography>
             </Box>
@@ -1329,27 +1323,28 @@ export default function PublicLanding() {
             ))}
           </Box>
 
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 0.75, sm: 1.5 }, flexShrink: 0 }}>
             <Typography sx={{ display: { xs: 'none', sm: 'block' }, fontSize: 11, color: PUB.fgDim, textTransform: 'uppercase', letterSpacing: '.1em', fontVariantNumeric: 'tabular-nums' }}>
               {today}
             </Typography>
             <Box component="span" sx={{
-              display: 'inline-flex', alignItems: 'center', gap: 1, fontSize: 10, fontWeight: 800, letterSpacing: '.1em',
+              display: 'inline-flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 }, fontSize: { xs: 9, sm: 10 }, fontWeight: 800, letterSpacing: { xs: '.06em', sm: '.1em' },
               color: hayEnVivo ? PUB.live : PUB.muted,
               bgcolor: hayEnVivo ? PUB.liveSoft : 'rgba(255,255,255,.03)',
               border: `1px solid ${hayEnVivo ? PUB.live : PUB.line}`,
-              px: 1.4, py: 0.5, borderRadius: 100,
+              px: { xs: 1, sm: 1.4 }, py: 0.5, borderRadius: 100, whiteSpace: 'nowrap',
             }}>
-              <Box component="span" className={hayEnVivo ? 'pl-blink' : ''} sx={{ width: 7, height: 7, borderRadius: '50%', bgcolor: hayEnVivo ? PUB.live : PUB.line }} />
+              <Box component="span" className={hayEnVivo ? 'pl-blink' : ''} sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: hayEnVivo ? PUB.live : PUB.line, flexShrink: 0 }} />
               En vivo
             </Box>
-            <Box component="button" aria-label="Buscar" sx={iconBtn}>
+            {/* Botones decorativos: sólo tienen sentido con espacio de sobra. */}
+            <Box component="button" aria-label="Buscar" sx={{ ...iconBtn, display: { xs: 'none', sm: 'flex' } }}>
               <SearchIcon sx={{ fontSize: 15 }} />
             </Box>
-            <Box component="button" aria-label="Notificaciones" sx={iconBtn}>
+            <Box component="button" aria-label="Notificaciones" sx={{ ...iconBtn, display: { xs: 'none', sm: 'flex' } }}>
               <NotificationsNoneIcon sx={{ fontSize: 15 }} />
             </Box>
-            <Box component={Link} to="/login" sx={{ ml: 0.5, fontSize: 12, fontWeight: 700, color: PUB.fg, textDecoration: 'none', border: `1px solid ${PUB.lineStrong}`, bgcolor: 'rgba(255,255,255,.04)', px: 2, py: 1, borderRadius: '8px', cursor: 'pointer', transition: 'all .2s', '&:hover': { borderColor: PUB.cyan, color: PUB.cyan } }}>
+            <Box component={Link} to="/login" sx={{ ml: { xs: 0, sm: 0.5 }, fontSize: { xs: 11, sm: 12 }, fontWeight: 700, color: PUB.fg, textDecoration: 'none', border: `1px solid ${PUB.lineStrong}`, bgcolor: 'rgba(255,255,255,.04)', px: { xs: 1.5, sm: 2 }, py: { xs: 0.75, sm: 1 }, borderRadius: '8px', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all .2s', '&:hover': { borderColor: PUB.cyan, color: PUB.cyan } }}>
               Ingresar
             </Box>
           </Box>
@@ -1415,13 +1410,13 @@ export default function PublicLanding() {
       </Box>
 
       {/* Bottom nav móvil */}
-      <Box sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, bgcolor: 'rgba(7,13,28,.95)', backdropFilter: 'blur(16px)', borderTop: `1px solid ${PUB.line}`, display: { xs: 'block', md: 'none' } }}>
+      <Box sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, bgcolor: 'rgba(7,13,28,.95)', backdropFilter: 'blur(16px)', borderTop: `1px solid ${PUB.line}`, pb: 'env(safe-area-inset-bottom)', display: { xs: 'block', md: 'none' } }}>
         <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', height: 60 }}>
           {TABS.map((t) => {
             const Icon = { resultados: SportsSoccerIcon, posiciones: FormatListNumberedIcon, estadisticas: BarChartIcon }[t.key]
             const active = tab === t.key
             return (
-              <Box component="button" key={t.key} onClick={() => setTab(t.key)} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.4, bgcolor: 'transparent', border: 'none', cursor: 'pointer', color: active ? PUB.cyan : PUB.muted }}>
+              <Box component="button" key={t.key} onClick={() => setTab(t.key)} aria-current={active ? 'page' : undefined} sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0.4, bgcolor: 'transparent', border: 'none', cursor: 'pointer', color: active ? PUB.cyan : PUB.muted, WebkitTapHighlightColor: 'transparent' }}>
                 <Icon fontSize="small" />
                 <Typography sx={{ fontSize: 9.5, fontWeight: 700 }}>{t.label}</Typography>
               </Box>
