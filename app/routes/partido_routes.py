@@ -7,10 +7,43 @@ from app.models.partido_alineacion import PartidoAlineacion
 from app.models.jugador import Jugador
 from app.models.partido_en_vivo import PartidoEnVivo
 from app.extensions import db
-from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role, ensure_delegado_equipo
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_management_role, ensure_planilla_role, ensure_delegado_equipo
 
 partido_bp = Blueprint('partidos', __name__)
 partido_schema = PartidoSchema()
+
+
+def _error_convocatoria(user, partido, jugador, numero_camiseta):
+    """Chequeos por jugador de una convocatoria. Devuelve (mensaje, status) o None si está bien.
+
+    Compartido por el alta individual (upsert_alineacion) y la carga masiva
+    (bulk_alineacion) para que no se diverjan las reglas.
+    El chequeo de número de camiseta duplicado NO va acá: cada caller resuelve el
+    conflicto contra una fuente distinta (filas ya en BD vs. lote en memoria).
+    """
+    if not ensure_delegado_equipo(user, jugador.equipo_id):
+        return ('No autorizado', 403)
+    if jugador.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+        return ('El jugador no pertenece a ninguno de los equipos del partido', 400)
+    if not jugador.activo:
+        return ('El jugador está inactivo (liberado)', 400)
+    from app.services.finanza_service import FinanzaService
+    motivo_bloqueo = FinanzaService.bloqueo_jugador(partido.torneo, jugador)
+    if motivo_bloqueo:
+        return (f'Jugador bloqueado: {motivo_bloqueo}', 400)
+    if numero_camiseta is not None and not (0 <= numero_camiseta <= 999):
+        return ('Número de camiseta fuera de rango', 400)
+    return None
+
+
+def _normalizar_numero(valor):
+    """Convierte el número de camiseta a int, o (None, error)."""
+    if valor is None:
+        return (None, None)
+    try:
+        return (int(valor), None)
+    except (TypeError, ValueError):
+        return (None, 'Número de camiseta inválido')
 
 
 @partido_bp.route('', methods=['GET'])
@@ -216,25 +249,13 @@ def upsert_alineacion(partido_id):
     jugador = Jugador.query.get(jugador_id)
     if not jugador:
         return jsonify({'error': 'Jugador no encontrado'}), 404
-    if not ensure_delegado_equipo(user, jugador.equipo_id):
-        return jsonify({'error': 'No autorizado'}), 403
-    if jugador.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
-        return jsonify({'error': 'El jugador no pertenece a ninguno de los equipos del partido'}), 400
-    if not jugador.activo:
-        return jsonify({'error': 'El jugador está inactivo (liberado)'}), 400
-    from app.services.finanza_service import FinanzaService
-    motivo_bloqueo = FinanzaService.bloqueo_jugador(partido.torneo, jugador)
-    if motivo_bloqueo:
-        return jsonify({'error': f'Jugador bloqueado: {motivo_bloqueo}'}), 400
+    numero_camiseta, err = _normalizar_numero(data.get('numero_camiseta'))
+    if err:
+        return jsonify({'error': err}), 400
+    err = _error_convocatoria(user, partido, jugador, numero_camiseta)
+    if err:
+        return jsonify({'error': err[0]}), err[1]
     titular = bool(data.get('titular', False))
-    numero_camiseta = data.get('numero_camiseta')
-    if numero_camiseta is not None:
-        try:
-            numero_camiseta = int(numero_camiseta)
-        except (TypeError, ValueError):
-            return jsonify({'error': 'Número de camiseta inválido'}), 400
-        if not (0 <= numero_camiseta <= 999):
-            return jsonify({'error': 'Número de camiseta fuera de rango'}), 400
 
     item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
     if not item:
@@ -264,6 +285,87 @@ def upsert_alineacion(partido_id):
     db.session.commit()
     return jsonify({'id': item.id, 'jugador_id': item.jugador_id, 'equipo_id': item.equipo_id,
                     'titular': item.titular, 'numero_camiseta': item.numero_camiseta}), 200
+
+
+@partido_bp.route('/<int:partido_id>/alineacion/bulk', methods=['POST'])
+@jwt_required()
+def bulk_alineacion(partido_id):
+    """Convoca/actualiza varios jugadores en una sola llamada.
+
+    body: { jugadores: [{jugador_id, titular?, numero_camiseta?, posicion_tactica?, posicion_orden?}] }
+
+    Es el atajo que usa la Planilla para cargar la lista de un saque (plantel activo
+    o XI del partido anterior) en lugar de ~22 requests individuales. Es de éxito
+    parcial: un jugador inválido no aborta el resto, se devuelve en `omitidos`.
+    """
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if partido.resultado != 'PENDIENTE':
+        return jsonify({'error': 'No se puede modificar la alineación de un partido jugado'}), 400
+
+    jugadores = (request.get_json() or {}).get('jugadores')
+    if not isinstance(jugadores, list) or not jugadores:
+        return jsonify({'error': 'jugadores debe ser una lista no vacía'}), 400
+    if len(jugadores) > 60:
+        return jsonify({'error': 'Máximo 60 jugadores por llamada'}), 400
+
+    # Números de camiseta ya ocupados por equipo, para detectar choques dentro del
+    # lote y contra lo que ya estaba cargado.
+    inscritos = {j.id: j.numero_camiseta for j in Jugador.query.filter(
+        Jugador.id.in_([d.get('jugador_id') for d in jugadores if d.get('jugador_id')])).all()}
+    ocupados = {}
+    for fila in PartidoAlineacion.query.filter_by(partido_id=partido_id).all():
+        n = fila.numero_camiseta if fila.numero_camiseta is not None else inscritos.get(fila.jugador_id, 0)
+        ocupados.setdefault(fila.equipo_id, {})[n] = fila.jugador_id
+
+    agregados, omitidos = [], []
+    for dato in jugadores:
+        jugador_id = dato.get('jugador_id')
+        if not jugador_id:
+            omitidos.append({'jugador_id': jugador_id, 'motivo': 'jugador_id es requerido'})
+            continue
+        jugador = Jugador.query.get(jugador_id)
+        if not jugador:
+            omitidos.append({'jugador_id': jugador_id, 'motivo': 'Jugador no encontrado'})
+            continue
+        numero, err = _normalizar_numero(dato.get('numero_camiseta'))
+        if err:
+            omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre, 'motivo': err})
+            continue
+        falla = _error_convocatoria(user, partido, jugador, numero)
+        if falla:
+            omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre, 'motivo': falla[0]})
+            continue
+        equipo_ocupados = ocupados.setdefault(jugador.equipo_id, {})
+        efectivo = numero if numero is not None else jugador.numero_camiseta
+        if efectivo is not None and equipo_ocupados.get(efectivo, jugador_id) != jugador_id:
+            omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre,
+                             'motivo': f'El número {efectivo} ya está siendo usado por otro jugador de este equipo'})
+            continue
+
+        item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
+        nuevo = item is None
+        if nuevo:
+            item = PartidoAlineacion(partido_id=partido_id, equipo_id=jugador.equipo_id, jugador_id=jugador_id)
+            db.session.add(item)
+        item.titular = bool(dato.get('titular', False))
+        item.numero_camiseta = numero
+        if dato.get('posicion_tactica') is not None:
+            item.posicion_tactica = dato.get('posicion_tactica')
+        if dato.get('posicion_orden') is not None:
+            item.posicion_orden = dato.get('posicion_orden')
+        if efectivo is not None:
+            equipo_ocupados[efectivo] = jugador_id
+        agregados.append({'jugador_id': jugador_id, 'nombre': jugador.nombre, 'nuevo': nuevo,
+                          'titular': item.titular, 'numero_camiseta': item.numero_camiseta})
+
+    db.session.commit()
+    return jsonify({'agregados': agregados, 'omitidos': omitidos,
+                    'total_agregados': len(agregados), 'total_omitidos': len(omitidos)}), 200
 
 
 @partido_bp.route('/<int:partido_id>/alineacion/<int:jugador_id>', methods=['DELETE'])

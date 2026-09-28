@@ -4,6 +4,7 @@ from app.extensions import db
 from app.models.evento_partido import EventoPartido
 from app.models.partido import Partido
 from app.models.jugador import Jugador
+from app.models.partido_alineacion import PartidoAlineacion
 from app.schemas.evento_schema import EventoSchema
 from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_planilla_role
 
@@ -83,9 +84,28 @@ def create_evento():
             return jsonify({'error': 'Jugador no encontrado'}), 400
         if entra.equipo_id != sale.equipo_id:
             return jsonify({'error': 'El jugador que sale y el que entra deben pertenecer al mismo equipo'}), 400
+        if entra.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+            return jsonify({'error': 'El equipo no participa en este partido'}), 400
         if entra.id == sale.id:
             return jsonify({'error': 'El jugador que sale y el que entra deben ser distintos'}), 400
         data['equipo_id'] = entra.equipo_id
+
+        # Un cambio también mueve la alineación: el que sale deja de ser titular y el
+        # que entra hereda su posición en la cancha. Sin esto, partido_alineaciones
+        # queda con el XI inicial y el acta oficial (que lee titular) imprime el XI
+        # errado. Va en la misma transacción que el evento, así que no queda a medias.
+        sale_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=sale.id).first()
+        if sale_item:
+            sale_item.titular = False
+        entra_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=entra.id).first()
+        if entra_item is None:
+            entra_item = PartidoAlineacion(partido_id=partido_id, equipo_id=entra.equipo_id, jugador_id=entra.id)
+            db.session.add(entra_item)
+        entra_item.titular = True
+        entra_item.numero_camiseta = None  # que resuelva al número inscrito del jugador
+        if sale_item is not None:
+            entra_item.posicion_tactica = sale_item.posicion_tactica
+            entra_item.posicion_orden = sale_item.posicion_orden
     elif data.get('jugador_sale_id'):
         return jsonify({'error': 'jugador_sale_id solo aplica a cambios'}), 400
 

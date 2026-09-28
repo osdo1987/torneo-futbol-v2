@@ -23,6 +23,9 @@ import Select from '@mui/material/Select'
 import InputLabel from '@mui/material/InputLabel'
 import FormControl from '@mui/material/FormControl'
 import List from '@mui/material/List'
+import Stepper from '@mui/material/Stepper'
+import Step from '@mui/material/Step'
+import StepLabel from '@mui/material/StepLabel'
 import ListItem from '@mui/material/ListItem'
 import ListItemText from '@mui/material/ListItemText'
 import Divider from '@mui/material/Divider'
@@ -49,6 +52,7 @@ import {
   Stadium as StadiumIcon, EmojiPeople as EmojiPeopleIcon, Tune as TuneIcon,
   Search as SearchIcon, Edit as EditIcon,
   Close as CloseIcon, Groups as GroupsIcon,
+  WarningAmber as WarningAmberIcon,
 
 } from '@mui/icons-material'
 
@@ -183,13 +187,20 @@ export default function Planilla({ selectedTorneoId }) {
   const [selId, setSelId] = useState('')
   const [marcador, setMarcador] = useState({ local: 0, visitante: 0 })
   const [accion, setAccion] = useState(null)
-  const [accForm, setAccForm] = useState({ equipo_id: '', jugador_id: '', jugador_sale_id: '', minuto: 45 })
+  const [accForm, setAccForm] = useState({ equipo_id: '', jugador_id: '', jugador_sale_id: '', minuto: 45, nombre_sancionado: '' })
   const [crono, setCrono] = useState({ seg: 0, running: false })
   const [iniciado, setIniciado] = useState(false)
   const [formEquipo, setFormEquipo] = useState({})
   const [vistaEquipo, setVistaEquipo] = useState({})
   const [ordenLocal, setOrdenLocal] = useState({})
   const [hoverKey, setHoverKey] = useState('')
+  // Cambio en dos pasos (sale → entra) para no tener dos columnas con scroll propio
+  // apiladas en el fullScreen del móvil.
+  const [cambioPaso, setCambioPaso] = useState(1)
+  // Tap-to-swap: en táctil el HTML5 drag & drop no existe, así que se elige el jugador
+  // y después el destino (otra ficha o una línea). En desktop convive con el drag.
+  const [movSel, setMovSel] = useState(null) // { eqId, jugadorId }
+  const arrastroRef = useRef(false)           // evita que el click post-drop mueva algo
   const [finalizarOpen, setFinalizarOpen] = useState(false)
   const [adicion, setAdicion] = useState(0)
   const [actaOpen, setActaOpen] = useState(false)
@@ -261,6 +272,18 @@ export default function Planilla({ selectedTorneoId }) {
       setSelId(String((destino || partidos[0]).id))
     }
   }, [partidos, selId, searchParams])
+
+  // Estado local indexado por equipo, no por partido: sin este reset el texto del
+  // Autocomplete, la vista Lista/Formación y el orden optimista de la formación
+  // sobreviven al cambio de partido y se superponen a los datos del servidor.
+  const [selIdVisto, setSelIdVisto] = useState(selId)
+  if (selId !== selIdVisto) {
+    setSelIdVisto(selId)
+    setFormEquipo({})
+    setOrdenLocal({})
+    setAdicion(0)
+    setMovSel(null)
+  }
 
   // Marcador derivado de los eventos (fuente de verdad mientras el partido está pendiente).
   // Evita que un latido SSE rezagado haga "desaparecer" un gol recién registrado.
@@ -348,7 +371,18 @@ export default function Planilla({ selectedTorneoId }) {
 
   const eventoMut = useMutation({
     mutationFn: (body) => apiPost('/eventos', body),
-    onSuccess: () => { qc.invalidateQueries(['eventos', selId]); toast.show('Acción registrada', 'success'); setAccion(null) },
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries(['eventos', selId])
+      if (vars?.tipo === 'CAMBIO') {
+        setAccion(null)
+        toast.show('Cambio registrado', 'success')
+        return
+      }
+      // Goles y tarjetas: el diálogo queda abierto para encadenar varias acciones
+      // del mismo tipo sin reabrirlo en cada registración.
+      setAccForm((f) => ({ ...f, jugador_id: '', jugador_sale_id: '', minuto: minutoCrono(), minuto_editado: false }))
+      toast.show('Acción registrada', 'success')
+    },
     onError: (e) => toast.show(e.message, 'error'),
   })
 
@@ -408,6 +442,87 @@ export default function Planilla({ selectedTorneoId }) {
     onSuccess: () => { qc.invalidateQueries(['alineacion', selId]) },
     onError: (e) => toast.show(e.message, 'error'),
   })
+
+  // Carga masiva: reemplaza ~4 toques por jugador (88 por partido) por uno solo.
+  // El backend responde con éxito parcial, así que un jugador rechazado no aborta el resto.
+  const bulkMut = useMutation({
+    mutationFn: ({ jugadores }) => apiPost(`/partidos/${selId}/alineacion/bulk`, { jugadores }),
+    onSuccess: (res) => {
+      qc.invalidateQueries(['alineacion', selId])
+      const { total_agregados: n, total_omitidos: k, omitidos = [] } = res || {}
+      if (k) {
+        const detalle = omitidos.slice(0, 3).map((o) => `${o.nombre || o.jugador_id}: ${o.motivo}`).join(' · ')
+        toast.show(`${n} cargado(s), ${k} sin cargar — ${detalle}${k > 3 ? '…' : ''}`, 'warning')
+      } else {
+        toast.show(`${n} jugador(es) cargado(s)`, 'success')
+      }
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  // Partido previo del mismo equipo (el último ya disputado) para copiar su lista.
+  const partidoPrevioDe = (equipoId) => {
+    if (!partido) return null
+    return partidos
+      .filter((p) => String(p.id) !== String(partido.id)
+        && p.resultado !== 'PENDIENTE'
+        && (String(p.equipo_local_id) === String(equipoId) || String(p.equipo_visitante_id) === String(equipoId))
+        && (p.jornada ?? 0) < (partido.jornada ?? 0))
+      .sort((a, b) => (b.jornada ?? 0) - (a.jornada ?? 0))[0] || null
+  }
+
+  const cargarPlantel = (equipoId) => {
+    const restantes = Math.max(0, MAX_TITULARES - titularesDe(equipoId))
+    if (!restantes) {
+      toast.show('Ya tenés los 11 titulares de este equipo.', 'info')
+      return
+    }
+    const candidatos = plantelDe(equipoId).filter((j) => j.activo && !alineacionMap[j.id]).slice(0, restantes)
+    if (!candidatos.length) {
+      toast.show('No quedan jugadores activos para convocar.', 'warning')
+      return
+    }
+    bulkMut.mutate({ jugadores: candidatos.map((j) => ({ jugador_id: j.id, titular: true })) })
+  }
+
+  const copiarPrevio = async (equipoId) => {
+    const previo = partidoPrevioDe(equipoId)
+    if (!previo) {
+      toast.show('Este equipo no tiene partidos anteriores en el torneo.', 'info')
+      return
+    }
+    let linea
+    try {
+      linea = await apiGet(`/partidos/${previo.id}/alineacion`)
+    } catch (e) {
+      toast.show(e.message, 'error')
+      return
+    }
+    // El endpoint devuelve la lineup de LOS DOS equipos del partido previo:
+    // hay que filtrar por el equipo que se está copiando o el bulk rechaza la mitad.
+    const yaEstan = alineacionMap
+    const nuevos = (linea || []).filter((r) => String(r.equipo_id) === String(equipoId) && !yaEstan[r.jugador_id])
+    if (!nuevos.length) {
+      toast.show(`La lista de ${eqName(equipoId)} en la jornada ${previo.jornada} ya está toda cargada.`, 'info')
+      return
+    }
+    const quedan = Math.max(0, MAX_TITULARES - titularesDe(equipoId))
+    const titularesPrevios = nuevos.filter((r) => r.titular).length
+    if (quedan < titularesPrevios) {
+      toast.show(`La jornada ${previo.jornada} tenía ${titularesPrevios} titulares y solo entran ${quedan}. Ajustá la lista.`, 'warning')
+    }
+    bulkMut.mutate({
+      jugadores: nuevos
+        .sort((a, b) => (a.posicion_orden ?? 999) - (b.posicion_orden ?? 999))
+        .map((r) => ({
+          jugador_id: r.jugador_id,
+          titular: quedan > 0 && r.titular,
+          ...(r.numero_camiseta != null ? { numero_camiseta: r.numero_camiseta } : {}),
+          ...(r.posicion_tactica ? { posicion_tactica: r.posicion_tactica } : {}),
+          ...(r.posicion_orden != null ? { posicion_orden: r.posicion_orden } : {}),
+        })),
+    })
+  }
 
   const [editJug, setEditJug] = useState(null)
   const [editForm, setEditForm] = useState({})
@@ -484,6 +599,12 @@ export default function Planilla({ selectedTorneoId }) {
 
   const eqName = (id) => equipos.find((x) => String(x.id) === String(id))?.nombre || `Equipo #${id}`
   const tecnicoDe = (id) => equipos.find((x) => String(x.id) === String(id))?.tecnico_nombre || null
+  // El backend exige nombre_sancionado no vacío para sancionar a un técnico
+  // (evento_routes.py), así que 'DT' o el rótulo no sirven: hay que pedirlo.
+  const nombreTecnicoDe = (id) => {
+    const n = (tecnicoDe(id) || '').trim()
+    return !n || n.toUpperCase() === 'DT' ? '' : n
+  }
   const [label, color] = partido ? (RESULTADOS[partido.resultado] || [partido.resultado, 'default']) : ['', 'default']
   const editable = partido?.resultado === 'PENDIENTE'
   const plantelLocal = jugadoresLocalQ.data || []
@@ -516,6 +637,11 @@ export default function Planilla({ selectedTorneoId }) {
       .filter((x) => x.faltan > 0)
     : []
   const planillaCompleta = faltantesInicio.length === 0
+  // Visible siempre, no solo en el toast de 3,5s que se borra al tocar Iniciar.
+  const totalFaltantes = faltantesInicio.reduce((n, x) => n + x.faltan, 0)
+  const detalleFaltantes = faltantesInicio
+    .map(({ eqId, faltan }) => `${eqName(eqId)}: faltan ${faltan} titular${faltan === 1 ? '' : 'es'}`)
+    .join('  ·  ')
 
   const expulsados = useMemo(() => {
     const contAmarillas = {}
@@ -551,17 +677,13 @@ export default function Planilla({ selectedTorneoId }) {
       }, [])
   }, [eventos, partido])
 
-  // Jugadores EN CANCHA: titulares de la alineación, aplicando los cambios registrados
-  // (CAMBIO: sale jugador_sale_id, entra jugador_id) y excluyendo expulsados.
+  // Jugadores EN CANCHA: los titulares de la alineación, menos los expulsados.
+  // NO se replayean los eventos CAMBIO: el backend ya mueve titular al registrar el
+  // cambio, y volver a aplicarlos metería de vuelta al jugador ya sustituido
+  // (A→B y después B→C devolverían a B a la cancha).
   const enCanchaDe = (equipoId) => {
     const conv = convocadosDe(equipoId)
     const enCancha = new Set(conv.filter((j) => alineacionMap[j.id].titular).map((j) => j.id))
-    ;(eventos || [])
-      .filter((e) => e.tipo === 'CAMBIO' && Number(e.equipo_id) === Number(equipoId))
-      .forEach((e) => {
-        if (e.jugador_sale_id) enCancha.delete(e.jugador_sale_id)
-        if (e.jugador_id) enCancha.add(e.jugador_id)
-      })
     return conv.filter((j) => enCancha.has(j.id) && !expulsados.has(j.id))
   }
   const alBancoDe = (equipoId) => {
@@ -579,23 +701,38 @@ export default function Planilla({ selectedTorneoId }) {
   const minutoCrono = () => (half === 1
     ? Math.max(1, Math.ceil(crono.seg / 60))
     : 45 + Math.max(1, Math.ceil((crono.seg - 2700) / 60)))
+  // Si el usuario no tocó el minuto, se recalcula al enviar: si no quedaba congelado
+  // con el valor de apertura del diálogo y dudar 3 minutos fechaba mal la acción.
+  const minutoEnvio = () => (accForm.minuto_editado ? Number(accForm.minuto) || 0 : minutoCrono())
 
   const abrirAccion = (tipo, equipoId) => {
     if (!iniciado) {
       toast.show('El partido aún no ha iniciado. Pulsa Iniciar para registrar acciones.', 'info')
       return
     }
-    setAccForm({ equipo_id: String(equipoId), jugador_id: '', jugador_sale_id: '', minuto: minutoCrono() })
+    const esTarjeta = tipo === 'TARJETA_AMARILLA' || tipo === 'TARJETA_ROJA'
+    setAccForm({
+      equipo_id: String(equipoId),
+      jugador_id: '',
+      jugador_sale_id: '',
+      minuto: minutoCrono(),
+      minuto_editado: false,
+      nombre_sancionado: esTarjeta ? nombreTecnicoDe(equipoId) : '',
+    })
     setAccion(tipo)
+    setCambioPaso(1)
   }
 
   const toggleCrono = () => {
     if (!crono.running) {
       if (!planillaCompleta) {
-        const detalle = faltantesInicio
-          .map(({ eqId, faltan }) => `${eqName(eqId)} (faltan ${faltan})`)
-          .join(' · ')
-        toast.show(`No se puede iniciar: la planilla está incompleta. Cada equipo debe tener ${MAX_TITULARES} titulares. ${detalle}`, 'error')
+        // En vez de un toast que se borra, lleva al usuario al equipo que falta.
+        const primero = faltantesInicio[0]?.eqId
+        if (partido && primero != null) {
+          setEquipoTab(String(primero) === String(partido.equipo_local_id) ? 'local' : 'visitante')
+          setMobileTab('equipos')
+        }
+        toast.show(`No se puede iniciar: la planilla está incompleta. Cada equipo debe tener ${MAX_TITULARES} titulares. ${detalleFaltantes}`, 'error')
         return
       }
       setIniciado(true)
@@ -614,7 +751,7 @@ export default function Planilla({ selectedTorneoId }) {
       partido_id: Number(selId),
       tipo: accion,
       equipo_id: Number(accForm.equipo_id),
-      minuto: Number(accForm.minuto) || 0,
+      minuto: minutoEnvio(),
       jugador_id: jugadorId ? Number(jugadorId) : null,
     })
   }
@@ -624,14 +761,19 @@ export default function Planilla({ selectedTorneoId }) {
       toast.show('El partido aún no ha iniciado. Pulsa Iniciar para registrar acciones.', 'info')
       return
     }
-    if (!window.confirm(`¿Tarjeta ${tipo === 'TARJETA_AMARILLA' ? 'AMARILLA' : 'ROJA'} al DT de ${eqName(equipoId)}?`)) return
+    const nombre = (accForm.nombre_sancionado || '').trim()
+    if (!nombre) {
+      toast.show('Cargá el nombre del técnico para poder registrar la tarjeta.', 'error')
+      return
+    }
+    if (!window.confirm(`¿Tarjeta ${tipo === 'TARJETA_AMARILLA' ? 'AMARILLA' : 'ROJA'} al DT de ${eqName(equipoId)} (${nombre})?`)) return
     eventoMut.mutate({
       partido_id: Number(selId),
       tipo,
       equipo_id: Number(equipoId),
-      minuto: minutoCrono(),
+      minuto: minutoEnvio(),
       tipo_sancionado: 'TECNICO',
-      nombre_sancionado: tecnicoDe(equipoId) === 'DT' ? null : tecnicoDe(equipoId),
+      nombre_sancionado: nombre,
     })
   }
 
@@ -650,7 +792,7 @@ export default function Planilla({ selectedTorneoId }) {
       partido_id: Number(selId),
       tipo: 'CAMBIO',
       equipo_id: Number(accForm.equipo_id),
-      minuto: Number(accForm.minuto) || 0,
+      minuto: minutoEnvio(),
       jugador_id: entra,
       jugador_sale_id: sale,
     })
@@ -756,6 +898,12 @@ export default function Planilla({ selectedTorneoId }) {
                       sx={{ bgcolor: iniciado ? '#059669' : '#374151', color: iniciado ? '#022c22' : '#d1d5db', fontWeight: 800, letterSpacing: '0.04em', ...(iniciado ? { animation: 'torneoPulse 1.6s ease-in-out infinite' } : {}) }} />
                   ) : (
                     <Chip size="small" label={label} color={color} />
+                  )}
+                  {editable && !planillaCompleta && (
+                    <Chip size="small" icon={<WarningAmberIcon sx={{ fontSize: 15, color: '#fdba74 !important' }} />}
+                      label={`Faltan ${totalFaltantes} titular${totalFaltantes === 1 ? '' : 'es'}`}
+                      title={detalleFaltantes}
+                      sx={{ bgcolor: '#7c2d12', color: '#fed7aa', fontWeight: 800, letterSpacing: '0.02em' }} />
                   )}
                   <Chip size="small" label={`Jornada ${partido.jornada} · ${partido.locacion?.nombre || 'Sede por definir'}`} sx={{ bgcolor: 'rgba(255,255,255,0.10)', color: '#fff' }} />
                   {partido.fecha_programada && (
@@ -1047,6 +1195,34 @@ export default function Planilla({ selectedTorneoId }) {
                   ordenMut.mutate({ equipoId: eq.id, items })
                 }
                 const arrastrable = editable && alEquipo.some((j) => alineacionMap[j.id].titular)
+                // --- tap-to-swap ---
+                const movActivo = movSel && String(movSel.eqId) === String(eq.id) ? movSel.jugadorId : null
+                const tocarFicha = (jugadorId, rol) => {
+                  if (arrastroRef.current) { arrastroRef.current = false; return }
+                  if (!editable) return
+                  if (movActivo != null && movActivo !== jugadorId) {
+                    moverJugador(movActivo, rol, jugadorId)
+                    setMovSel(null)
+                  } else {
+                    setMovSel(movActivo === jugadorId ? null : { eqId: eq.id, jugadorId })
+                  }
+                }
+                const tocarFila = (rol) => {
+                  if (arrastroRef.current) { arrastroRef.current = false; return }
+                  if (!editable || movActivo == null) return
+                  moverJugador(movActivo, rol, null)
+                  setMovSel(null)
+                }
+                // Los 4-3-3 por defecto se disparan cuando NINGÚN titular tiene posición real,
+                // así que limpiar posicion_tactica es "volver al automático".
+                const restablecerAutomatico = () => {
+                  const items = titularesEq.map((j, i) => ({ jugador_id: j.id, posicion: 'OTROS', orden: i }))
+                  if (!items.length) return
+                  setOrdenLocal({ ...ordenLocal, [eq.id]: {} })
+                  ordenMut.mutate({ equipoId: eq.id, items })
+                  setMovSel(null)
+                  toast.show('Formación restablecida al reparto automático', 'success')
+                }
                 const form = formEquipo[eq.id] || { jugador_id: '', numero: '' }
                 const setForm = (f) => setFormEquipo({ ...formEquipo, [eq.id]: f })
                 const selJugador = eq.plantel.find((x) => String(x.id) === String(form.jugador_id)) || null
@@ -1076,6 +1252,27 @@ export default function Planilla({ selectedTorneoId }) {
                           <>
                             {editable && (
                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 1.5, mb: 1, flexWrap: 'wrap' }}>
+                                {(() => {
+                                  const previo = partidoPrevioDe(eq.id)
+                                  const restantes = Math.max(0, MAX_TITULARES - titulares)
+                                  const quedanDisponibles = disponibles.length
+                                  return (
+                                    <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', width: '100%' }}>
+                                      <Button size="small" variant="outlined" startIcon={<HistoryToggleOffIcon />}
+                                        disabled={bulkMut.isPending || !previo || !quedanDisponibles}
+                                        onClick={() => copiarPrevio(eq.id)}
+                                        sx={{ minHeight: 40 }}>
+                                        Copiar lista de la J{previo ? previo.jornada : '—'}
+                                      </Button>
+                                      <Button size="small" variant="outlined" startIcon={<PersonAddIcon />}
+                                        disabled={bulkMut.isPending || !restantes || !quedanDisponibles}
+                                        onClick={() => cargarPlantel(eq.id)}
+                                        sx={{ minHeight: 40 }}>
+                                        Cargar {restantes || ''} titular{restantes === 1 ? '' : 'es'}
+                                      </Button>
+                                    </Box>
+                                  )
+                                })()}
                                 <Autocomplete
                                   size="small"
                                   sx={{ minWidth: { xs: 160, sm: 220 }, flex: 1 }}
@@ -1195,17 +1392,20 @@ export default function Planilla({ selectedTorneoId }) {
                                   e.preventDefault()
                                   e.stopPropagation()
                                   moverJugador(Number(e.dataTransfer.getData('text/plain')), rol, null)
+                                  arrastroRef.current = true
                                   setHoverKey('')
                                 }
                                 const Token = ({ j, rol }) => {
                                   const al = alineacionMap[j.id]
                                   const key = `${eq.id}-${rol}-t${j.id}`
                                   const activo = hoverKey === key
+                                  const elegido = movActivo === j.id
                                   const amarilla = hasAmarilla(j.id)
                                   const roja = hasRoja(j.id)
                                   return (
                                     <Box
                                       draggable={editable}
+                                      onClick={() => tocarFicha(j.id, rol)}
                                       onDragStart={(e) => {
                                         dragJugador.current = { eqId: eq.id, jugadorId: j.id, rol }
                                         e.dataTransfer.setData('text/plain', String(j.id))
@@ -1218,6 +1418,8 @@ export default function Planilla({ selectedTorneoId }) {
                                         e.stopPropagation()
                                         const arrastrado = Number(e.dataTransfer.getData('text/plain'))
                                         if (arrastrado !== j.id) moverJugador(arrastrado, rol, j.id)
+                                        // el click de fin de drag no debe interpretarse como un toque
+                                        arrastroRef.current = true
                                         setHoverKey('')
                                       }}
                                       sx={{
@@ -1225,6 +1427,7 @@ export default function Planilla({ selectedTorneoId }) {
                                         cursor: editable ? 'grab' : 'default',
                                         '.MuiBox': { pointerEvents: 'none' },
                                         ...(activo ? { boxShadow: '0 0 0 3px rgba(255,255,255,0.9)', borderRadius: 2 } : {}),
+                                        ...(elegido ? { boxShadow: '0 0 0 3px #ffd54f', borderRadius: 2, transform: 'scale(1.06)' } : {}),
                                       }}
                                     >
                                       <Box sx={{ position: 'relative', lineHeight: 0 }}>
@@ -1253,12 +1456,14 @@ export default function Planilla({ selectedTorneoId }) {
                                   const filaActiva = hoverKey === `${eq.id}-${rol}-fila`
                                   return (
                                     <Box
+                                      onClick={() => tocarFila(rol)}
                                       onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setHoverKey(`${eq.id}-${rol}-fila`) }}
                                       onDrop={dropFila(rol)}
                                       sx={{
                                         display: 'flex', justifyContent: 'center', alignItems: 'center', flexWrap: 'wrap', minHeight: 60,
-                                        borderRadius: 1, py: 0.25,
-                                        ...(filaActiva ? { outline: '2px dashed rgba(255,255,255,0.8)' } : {}),
+                                        borderRadius: 1, py: 0.25, cursor: editable && movActivo != null ? 'copy' : 'default',
+                                        ...(filaActiva || (editable && movActivo != null)
+                                          ? { outline: '2px dashed rgba(255,213,79,0.9)' } : {}),
                                       }}
                                     >
                                       <Typography variant="caption" sx={{ width: { xs: 24, sm: 34 }, color: 'rgba(255,255,255,0.85)', fontWeight: 700 }}>{etiqueta}</Typography>
@@ -1269,9 +1474,19 @@ export default function Planilla({ selectedTorneoId }) {
                                 return (
                                   <Box>
                                     {arrastrable && (
-                                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.5 }}>
-                                        Arrastrá un jugador a la línea o posición deseada.
-                                      </Typography>
+                                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap', mt: 0.5, mb: 0.5 }}>
+                                        <Typography variant="caption" color={movActivo != null ? 'warning.main' : 'text.secondary'} sx={{ flex: 1, minWidth: 160, fontWeight: movActivo != null ? 700 : 400 }}>
+                                          {movActivo != null
+                                            ? `Elegido: ${titularesEq.find((j) => j.id === movActivo)?.nombre}. Tocá otra ficha o una línea para moverlo.`
+                                            : 'Tocá un jugador y después la línea de destino (o arrastralo en escritorio).'}
+                                        </Typography>
+                                        {movActivo != null && (
+                                          <Button size="small" onClick={() => setMovSel(null)} sx={{ minHeight: 32 }}>Cancelar</Button>
+                                        )}
+                                        <Button size="small" startIcon={<ReplayIcon />} onClick={restablecerAutomatico} sx={{ minHeight: 32 }}>
+                                          Automática
+                                        </Button>
+                                      </Box>
                                     )}
                                     <Box sx={{
                                       mt: 1, background: 'linear-gradient(160deg,#1b5e20,#2c6e31 55%,#3a8f44)', borderRadius: 2,
@@ -1542,7 +1757,16 @@ export default function Planilla({ selectedTorneoId }) {
 
       <Dialog open={!!accion} onClose={() => setAccion(null)} fullWidth maxWidth="sm" fullScreen={isMobile}>
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}>
-          Registrar {accion ? TIPO_ACCION[accion]?.label : ''}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, minWidth: 0 }}>
+            <span>Registrar {accion ? TIPO_ACCION[accion]?.label : ''}</span>
+            <TextField
+              label="Min" size="small" type="number"
+              inputProps={{ min: 0, max: 130, style: { textAlign: 'center' } }}
+              sx={{ width: 78, flex: '0 0 auto', '& input': { fontWeight: 800 } }}
+              value={accForm.minuto}
+              onChange={(e) => setAccForm((f) => ({ ...f, minuto: e.target.value, minuto_editado: true }))}
+            />
+          </Box>
           <IconButton onClick={() => setAccion(null)} size="small" aria-label="Cerrar" sx={{ width: 44, height: 44 }}>
             <CloseIcon />
           </IconButton>
@@ -1550,68 +1774,66 @@ export default function Planilla({ selectedTorneoId }) {
         <DialogContent>
           {accion === 'CAMBIO' ? (
             <>
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
+              <Stepper activeStep={cambioPaso - 1} alternativeLabel sx={{ mb: 2 }}>
+                <Step><StepLabel>Sale</StepLabel></Step>
+                <Step><StepLabel>Entra</StepLabel></Step>
+              </Stepper>
+              {cambioPaso === 1 ? (
+                <>
                   <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', fontWeight: 700, color: 'error.main', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
-                    Sale
+                    Quién sale de la cancha
                   </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: { xs: 220, sm: 320 }, overflowY: 'auto', p: 0.5 }}>
-                    {enCanchaDe(accForm.equipo_id).map((j) => (
-                      <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
-                        base={PALETA_CAMBIO.sale.base} sel={PALETA_CAMBIO.sale.sel}
-                        seleccionado={String(accForm.jugador_sale_id) === String(j.id)}
-                        onClick={() => setAccForm((f) => {
-                          if (String(f.jugador_sale_id) === String(j.id)) return { ...f, jugador_sale_id: '' }
-                          if (String(f.jugador_id) === String(j.id)) return f
-                          return { ...f, jugador_sale_id: String(j.id) }
-                        })} />
-                    ))}
-                  </Box>
-                  {enCanchaDe(accForm.equipo_id).length === 0 && (
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
-                      No hay titulares disponibles para sacar.
-                    </Typography>
+                  {enCanchaDe(accForm.equipo_id).length === 0 ? (
+                    <Alert severity="warning">
+                      No hay titulares disponibles para sacar. Si el equipo quedó con menos de 11 por una expulsión, convocá a un jugador desde la lista de planteles.
+                    </Alert>
+                  ) : (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1, p: 0.5 }}>
+                      {enCanchaDe(accForm.equipo_id).map((j) => (
+                        <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
+                          base={PALETA_CAMBIO.sale.base} sel={PALETA_CAMBIO.sale.sel}
+                          seleccionado={String(accForm.jugador_sale_id) === String(j.id)}
+                          onClick={() => {
+                            if (String(accForm.jugador_id) === String(j.id)) {
+                              toast.show('Ese jugador ya está elegido como entrante.', 'info')
+                              return
+                            }
+                            setAccForm((f) => ({ ...f, jugador_sale_id: f.jugador_sale_id === String(j.id) ? '' : String(j.id) }))
+                            setCambioPaso(2)
+                          }} />
+                      ))}
+                    </Box>
                   )}
-                </Grid>
-                <Grid item xs={12} sm={6}>
+                </>
+              ) : (
+                <>
                   <Typography variant="caption" sx={{ display: 'block', textAlign: 'center', fontWeight: 700, color: 'success.main', textTransform: 'uppercase', letterSpacing: 1, mb: 1 }}>
-                    Entra
+                    Quién entra
                   </Typography>
-                  <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 1, maxHeight: { xs: 220, sm: 320 }, overflowY: 'auto', p: 0.5 }}>
-                    {alBancoDe(accForm.equipo_id).map((j) => (
-                      <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
-                        base={PALETA_CAMBIO.entra.base} sel={PALETA_CAMBIO.entra.sel}
-                        seleccionado={String(accForm.jugador_id) === String(j.id)}
-                        onClick={() => setAccForm((f) => {
-                          if (String(f.jugador_id) === String(j.id)) return { ...f, jugador_id: '' }
-                          if (String(f.jugador_sale_id) === String(j.id)) return f
-                          return { ...f, jugador_id: String(j.id) }
-                        })} />
-                    ))}
-                  </Box>
-                  {alBancoDe(accForm.equipo_id).length === 0 && (
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mt: 1 }}>
-                      No hay suplentes disponibles para entrar.
-                    </Typography>
+                  {alBancoDe(accForm.equipo_id).length === 0 ? (
+                    <Alert severity="warning">
+                      No hay jugadores disponibles para entrar. Si el equipo quedó con menos de 11 por una expulsión, convocá a alguien desde la lista de planteles.
+                    </Alert>
+                  ) : (
+                    <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))', gap: 1, p: 0.5 }}>
+                      {alBancoDe(accForm.equipo_id).map((j) => (
+                        <JugadorBtn key={j.id} num={numCamiseta(j, alineacionMap[j.id])} nombre={j.nombre}
+                          base={PALETA_CAMBIO.entra.base} sel={PALETA_CAMBIO.entra.sel}
+                          seleccionado={String(accForm.jugador_id) === String(j.id)}
+                          onClick={() => setAccForm((f) => ({
+                            ...f,
+                            jugador_id: f.jugador_id === String(j.id) ? '' : String(j.id),
+                          }))} />
+                      ))}
+                    </Box>
                   )}
-                </Grid>
-              </Grid>
-              {convocadosDe(accForm.equipo_id).length === 0 && (
-                <Alert severity="warning" sx={{ mt: 2 }}>Este equipo no tiene jugadores convocados en la alineación.</Alert>
+                  {convocadosDe(accForm.equipo_id).some((j) => expulsados.has(j.id)) && (
+                    <Alert severity="error" sx={{ mt: 2 }}>
+                      Expulsados: {convocadosDe(accForm.equipo_id).filter((j) => expulsados.has(j.id)).map((j) => j.nombre).join(', ')} — no pueden participar en cambios.
+                    </Alert>
+                  )}
+                </>
               )}
-              {convocadosDe(accForm.equipo_id).some((j) => expulsados.has(j.id)) && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  Expulsados: {convocadosDe(accForm.equipo_id).filter((j) => expulsados.has(j.id)).map((j) => j.nombre).join(', ')} — no pueden participar en cambios.
-                </Alert>
-              )}
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 2, pt: 2, borderTop: '1px solid rgba(0,0,0,0.08)' }}>
-                <Button variant="contained" startIcon={<CheckIcon />}
-                  sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}
-                  disabled={!accForm.jugador_id || !accForm.jugador_sale_id || eventoMut.isPending}
-                  onClick={confirmarCambio}>
-                  {eventoMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Confirmar cambio'}
-                </Button>
-              </Box>
             </>
           ) : (
             <>
@@ -1634,7 +1856,17 @@ export default function Planilla({ selectedTorneoId }) {
               <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', mb: 1.5 }}>
                 Tocá el círculo del jugador para registrar la acción al instante
                 {(accion === 'TARJETA_AMARILLA' || accion === 'TARJETA_ROJA') && ', o el del DT para sancionar al técnico'}.
+                {accion !== 'CAMBIO' && ' — el panel queda abierto para encadenar más acciones.'}.
               </Typography>
+              {(accion === 'TARJETA_AMARILLA' || accion === 'TARJETA_ROJA') && !nombreTecnicoDe(accForm.equipo_id) && (
+                <TextField
+                  label="Nombre del técnico a sancionar" size="small" fullWidth margin="dense" required
+                  placeholder="Apellido y nombre del DT"
+                  helperText="El equipo no tiene DT cargado en su ficha. Se usa en el acta oficial."
+                  value={accForm.nombre_sancionado}
+                  onChange={(e) => setAccForm({ ...accForm, nombre_sancionado: e.target.value })}
+                />
+              )}
               {(() => {
                 // Goles/autogoles: solo jugadores EN CANCHA (titulares activos, sin expulsar).
                 // Tarjetas: titulares y suplentes habilitados + el DT (que no es jugador).
@@ -1648,7 +1880,7 @@ export default function Planilla({ selectedTorneoId }) {
                 const suplentes = esGol
                   ? []
                   : convocados.filter((j) => !alineacionMap[j.id]?.titular && !expulsados.has(j.id))
-                const nombreDt = esTarjeta ? (tecnicoDe(equipoId) || 'DT del equipo') : null
+                const nombreDt = esTarjeta ? (nombreTecnicoDe(equipoId) || 'DT del equipo') : null
                 if (titulares.length === 0 && suplentes.length === 0 && !nombreDt) {
                   return (
                     <Alert severity={esGol ? 'info' : 'warning'} sx={{ mt: 1 }}>
@@ -1702,8 +1934,34 @@ export default function Planilla({ selectedTorneoId }) {
             </>
           )}
         </DialogContent>
-        <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2 }}>
-          <Button fullWidth={isMobile} onClick={() => setAccion(null)} sx={{ minHeight: 44 }}>Cancelar</Button>
+        <DialogActions sx={{ px: { xs: 2, sm: 3 }, pb: 2, gap: 1 }}>
+          {accion === 'CAMBIO' && (
+            <>
+              {cambioPaso === 2 ? (
+                <Button fullWidth={isMobile} onClick={() => setCambioPaso(1)} sx={{ minHeight: 44 }}>
+                  Volver
+                </Button>
+              ) : (
+                <Button fullWidth={isMobile} onClick={() => setAccion(null)} sx={{ minHeight: 44 }}>
+                  Cancelar
+                </Button>
+              )}
+              <Button
+                fullWidth={isMobile}
+                variant="contained"
+                startIcon={<CheckIcon />}
+                sx={{ minHeight: 44 }}
+                disabled={cambioPaso !== 2 || !accForm.jugador_id || !accForm.jugador_sale_id || eventoMut.isPending}
+                onClick={confirmarCambio}>
+                {eventoMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Confirmar cambio'}
+              </Button>
+            </>
+          )}
+          {accion !== 'CAMBIO' && (
+            <Button fullWidth={isMobile} onClick={() => setAccion(null)} sx={{ minHeight: 44 }}>
+              Listo
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
 
