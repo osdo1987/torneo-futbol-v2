@@ -3,6 +3,24 @@
  * Prefijo .pl- para no afectar la app de administración.
  */
 
+/* Alto de pantalla: vh es el viewport "grande" en iOS (con la barra de URL
+ * contraída sobra espacio y el bottom sheet se corta abajo). dvh sigue al
+ * viewport visible; el vh queda como fallback para navegadores viejos. */
+.pl-viewport {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.pl-sheet {
+  max-height: 90vh;
+  max-height: 90dvh;
+}
+@media (min-width: 900px) {
+  .pl-sheet {
+    max-height: 85vh;
+    max-height: 85dvh;
+  }
+}
+
 .pl-scroll::-webkit-scrollbar {
   display: none;
 }
@@ -67,4 +85,83 @@
   border-radius: 2px;
   background: linear-gradient(90deg, #00f0ff, #bff6ff);
   transition: width 1s ease;
+}
+
+/* ============================================================
+ * MÓVIL: utilidades de interacción y navegación táctil
+ * ============================================================ */
+
+/* Al tocar un botón se resalta con el color de la marca (en vez del gris
+   nativo, que en iOS se queda pegado tras levantar el dedo). */
+.pl-root button,
+.pl-root a {
+  -webkit-tap-highlight-color: rgba(0, 240, 255, 0.22);
+}
+
+/* Carruseles horizontales (jornadas, torneos, pestañas): sin scrollbar,
+   con momentum nativo y sin que el scroll "rebote" al padre en móvil. */
+.pl-hscroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+}
+.pl-hscroll::-webkit-scrollbar {
+  height: 0;
+  display: none;
+}
+
+/* Tirador (handle) superior de los bottom sheets en móvil. */
+.pl-sheet-handle {
+  display: block;
+  width: 44px;
+  height: 4px;
+  margin: 0 auto 12px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.3);
+}
+@media (min-width: 900px) {
+  /* En desktop el diálogo queda centrado: el handle no aplica. */
+  .pl-sheet-handle {
+    display: none;
+  }
+}
+
+/* ============================================================
+ * ACCESIBILIDAD Y MOVIMIENTO
+ * ============================================================ */
+
+/* Los controles son <Box component="button"> sin outline por defecto: sin esto
+   el foco al navegar con teclado es invisible. */
+.pl-root button:focus-visible,
+.pl-root a:focus-visible {
+  outline: 2px solid #00f0ff;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Etiqueta de las pestañas del sheet de partido: una línea con elipsis, para que
+   "Formación y cambios" no desborde el ancho del botón en pantallas chicas. */
+.pl-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Quien pidio menos movimiento no debe ver parpadeos infinitos ni transiciones. */
+@media (prefers-reduced-motion: reduce) {
+  .pl-root *,
+  .pl-root *::before,
+  .pl-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* .pl-fade-up / .pl-slide-in arrancan en opacity:0: sin animación el contenido
+     quedaría invisible, así que se lo fija explícitamente. */
+  .pl-fade-up,
+  .pl-slide-in {
+    opacity: 1;
+  }
 }

@@ -1,25 +1,40 @@
 import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom'
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import Box from '@mui/material/Box'
+import CircularProgress from '@mui/material/CircularProgress'
 import { setAuthErrorCallback, apiGet } from './api'
-import AdminLayout from './components/AdminLayout'
-import Login from './pages/Login'
-import PublicLanding from './pages/PublicLanding'
-import RegistroJugador from './pages/RegistroJugador'
-import LandingConfig from './pages/LandingConfig'
-import Dashboard from './pages/Dashboard'
-import Torneos from './pages/Torneos'
-import Equipos from './pages/Equipos'
-import Partidos from './pages/Partidos'
-import Sanciones from './pages/Sanciones'
-import Planilla from './pages/Planilla'
-import Tabla from './pages/Tabla'
-import Estadisticas from './pages/Estadisticas'
-import Tesoreria from './pages/Tesoreria'
-import SuperAdmin from './pages/SuperAdmin'
-import Config from './pages/Config'
-import MiEquipo from './pages/MiEquipo'
-import Acta from './pages/Acta'
+
+// Cada página va en su propio chunk: la landing pública no tiene que descargar
+// la app de administración (ni xlsx, que solo usa la importación de plantillas).
+const Login = lazy(() => import('./pages/Login'))
+const PublicLanding = lazy(() => import('./pages/PublicLanding'))
+const RegistroJugador = lazy(() => import('./pages/RegistroJugador'))
+const AdminLayout = lazy(() => import('./components/AdminLayout'))
+const LandingConfig = lazy(() => import('./pages/LandingConfig'))
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Torneos = lazy(() => import('./pages/Torneos'))
+const Equipos = lazy(() => import('./pages/Equipos'))
+const Partidos = lazy(() => import('./pages/Partidos'))
+const Sanciones = lazy(() => import('./pages/Sanciones'))
+const Planilla = lazy(() => import('./pages/Planilla'))
+const Tabla = lazy(() => import('./pages/Tabla'))
+const Estadisticas = lazy(() => import('./pages/Estadisticas'))
+const Tesoreria = lazy(() => import('./pages/Tesoreria'))
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin'))
+const Config = lazy(() => import('./pages/Config'))
+const MiEquipo = lazy(() => import('./pages/MiEquipo'))
+const Acta = lazy(() => import('./pages/Acta'))
+
+// Placeholder mientras baja el chunk de la ruta. En las rutas públicas se fuerza
+// el navy de la landing para no(destellar blanco) con el tema claro por defecto.
+function RouteFallback({ dark }) {
+  return (
+    <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: dark ? '#020621' : 'background.default' }}>
+      <CircularProgress size={26} sx={{ color: dark ? '#00f0ff' : 'primary.main' }} />
+    </Box>
+  )
+}
 
 export default function App({ setDarkMode }) {
   const navigate = useNavigate()
@@ -97,13 +112,15 @@ export default function App({ setDarkMode }) {
     // La landing pública y la inscripción de jugadores se ven sin sesión; el resto pide login
     if (location.pathname.startsWith('/l/') || location.pathname.startsWith('/r/')) {
       return (
-        <Routes>
-<Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
-      <Route path="/r/:slug" element={<RegistroJugador />} />
-        </Routes>
+        <Suspense fallback={<RouteFallback dark />}>
+          <Routes>
+            <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
+            <Route path="/r/:slug" element={<RegistroJugador />} />
+          </Routes>
+        </Suspense>
       )
     }
-    return <Login onLogin={handleLogin} />
+    return <Suspense fallback={<RouteFallback />}><Login onLogin={handleLogin} /></Suspense>
   }
 
   const getTitle = () => {
@@ -134,30 +151,32 @@ export default function App({ setDarkMode }) {
   }
 
   return (
-    <Routes>
-      <Route path="/login" element={<Navigate to={isSuperadmin ? '/super' : '/'} replace />} />
-      <Route path="/super" element={
-        isSuperadmin
-          ? layoutPages(<SuperAdmin user={user} />)
-          : <Navigate to="/" replace />
-      } />
-      <Route path="/torneos" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Torneos user={user} selectedTorneoId={activeTorneoId} onSelectTorneo={onSelectTorneo} />)} />
-      <Route path="/equipos" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Equipos user={user} selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/partidos" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Partidos user={user} selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/sanciones" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Sanciones user={user} selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/tesoreria" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Tesoreria selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/planilla" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Planilla selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/tabla" element={layoutPages(<Tabla user={user} selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/estadisticas" element={layoutPages(<Estadisticas user={user} selectedTorneoId={activeTorneoId} />)} />
-      <Route path="/mi-equipo" element={layoutPages(isDelegado ? <MiEquipo user={user} selectedTorneoId={activeTorneoId} /> : <Navigate to="/" replace />)} />
-      <Route path="/usuarios" element={<Navigate to="/config" replace />} />
-      <Route path="/config" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Config user={user} selectedTorneoId={activeTorneoId} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />
-      <Route path="/acta/:id" element={<Acta />} />
-      <Route path="/landing" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <LandingConfig user={user} />)} />
-      <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
-      <Route path="/r/:slug" element={<RegistroJugador />} />
-      <Route path="/" element={layoutPages(isReferee ? <Planilla selectedTorneoId={activeTorneoId} /> : isDelegado ? <Navigate to="/mi-equipo" replace /> : <Dashboard user={user} selectedTorneoId={activeTorneoId} />)} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <Suspense fallback={<RouteFallback />}>
+      <Routes>
+        <Route path="/login" element={<Navigate to={isSuperadmin ? '/super' : '/'} replace />} />
+        <Route path="/super" element={
+          isSuperadmin
+            ? layoutPages(<SuperAdmin user={user} />)
+            : <Navigate to="/" replace />
+        } />
+        <Route path="/torneos" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Torneos user={user} selectedTorneoId={activeTorneoId} onSelectTorneo={onSelectTorneo} />)} />
+        <Route path="/equipos" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Equipos user={user} selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/partidos" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Partidos user={user} selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/sanciones" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Sanciones user={user} selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/tesoreria" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Tesoreria selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/planilla" element={layoutPages(isDelegado ? <Navigate to="/mi-equipo" replace /> : <Planilla selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/tabla" element={layoutPages(<Tabla user={user} selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/estadisticas" element={layoutPages(<Estadisticas user={user} selectedTorneoId={activeTorneoId} />)} />
+        <Route path="/mi-equipo" element={layoutPages(isDelegado ? <MiEquipo user={user} selectedTorneoId={activeTorneoId} /> : <Navigate to="/" replace />)} />
+        <Route path="/usuarios" element={<Navigate to="/config" replace />} />
+        <Route path="/config" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <Config user={user} selectedTorneoId={activeTorneoId} setDarkMode={setDarkMode} onLogout={handleLogout} />)} />
+        <Route path="/acta/:id" element={<Acta />} />
+        <Route path="/landing" element={layoutPages(isReferee || isDelegado ? <Navigate to={isDelegado ? '/mi-equipo' : '/'} replace /> : <LandingConfig user={user} />)} />
+        <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
+        <Route path="/r/:slug" element={<RegistroJugador />} />
+        <Route path="/" element={layoutPages(isReferee ? <Planilla selectedTorneoId={activeTorneoId} /> : isDelegado ? <Navigate to="/mi-equipo" replace /> : <Dashboard user={user} selectedTorneoId={activeTorneoId} />)} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </Suspense>
   )
 }
