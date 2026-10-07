@@ -374,6 +374,9 @@ export default function Planilla({ selectedTorneoId }) {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries(['eventos', selId])
       if (vars?.tipo === 'CAMBIO') {
+        // El CAMBIO también mueve la lineup en el backend (titular sale/entra), así
+        // que hay que refrescarla además de los eventos.
+        qc.invalidateQueries(['alineacion', selId])
         setAccion(null)
         toast.show('Cambio registrado', 'success')
         return

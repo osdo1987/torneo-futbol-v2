@@ -6,10 +6,25 @@ from app.models.partido import Partido
 from app.models.jugador import Jugador
 from app.models.partido_alineacion import PartidoAlineacion
 from app.schemas.evento_schema import EventoSchema
-from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_planilla_role
+from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_planilla_role, ensure_delegado_equipo
 
 evento_bp = Blueprint('eventos', __name__)
 evento_schema = EventoSchema()
+
+
+def _puede_ser_convocado(user, partido, jugador):
+    """Un jugador que todavía no está en la lineup igual tiene que pasar los controles
+    de convocatoria (equipo del partido, activo, sin bloqueo por finanzas). Los mismos
+    que aplica partido_routes._error_convocatoria, que no se puede importar acá por
+    evitar una dependencia circular entre blueprints."""
+    if not ensure_delegado_equipo(user, jugador.equipo_id):
+        return False
+    if jugador.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+        return False
+    if not jugador.activo:
+        return False
+    from app.services.finanza_service import FinanzaService
+    return not FinanzaService.bloqueo_jugador(partido.torneo, jugador)
 
 
 @evento_bp.route('', methods=['GET'])
@@ -91,9 +106,33 @@ def create_evento():
         data['equipo_id'] = entra.equipo_id
 
         # Un cambio también mueve la alineación: el que sale deja de ser titular y el
-        # que entra hereda su posición en la cancha. Sin esto, partido_alineaciones
-        # queda con el XI inicial y el acta oficial (que lee titular) imprime el XI
-        # errado. Va en la misma transacción que el evento, así que no queda a medias.
+        # que entra toma su lugar. Sin esto, partido_alineaciones queda con el XI
+        # inicial y el acta oficial (que lee titular) imprime el XI errado. Va en la
+        # misma transacción que el evento, así que no queda a medias.
+        #
+        # El número NO se hereda: cada jugador conserva el suyo (el de la camiseta
+        # con la que sale a la cancha, que es el inscrito o el que se le haya
+        # asignado en este partido). Por eso hay que validar que no choque con el
+        # de otro titular que sigue en cancha, igual que en upsert_alineacion.
+        if not PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=entra.id).first() \
+                and not _puede_ser_convocado(user, partido, entra):
+            return jsonify({'error': 'El jugador que entra no puede ser convocado a este partido'}), 400
+
+        numero_entra = entra.numero_camiseta
+        otros = PartidoAlineacion.query.filter(
+            PartidoAlineacion.partido_id == partido_id,
+            PartidoAlineacion.equipo_id == entra.equipo_id,
+            PartidoAlineacion.jugador_id != entra.id,
+        ).all()
+        if numero_entra is not None:
+            otros_ids = [o.jugador_id for o in otros]
+            inscritos = {i.id: i.numero_camiseta for i in Jugador.query.filter(Jugador.id.in_(otros_ids)).all()}
+            for o in otros:
+                onum = o.numero_camiseta if o.numero_camiseta is not None else inscritos.get(o.jugador_id)
+                if onum == numero_entra:
+                    return jsonify({'error': f'El número {numero_entra} ya está siendo usado por otro '
+                                             f'convocado de este equipo. Asignale otro número antes del cambio.'}), 409
+
         sale_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=sale.id).first()
         if sale_item:
             sale_item.titular = False
@@ -102,8 +141,9 @@ def create_evento():
             entra_item = PartidoAlineacion(partido_id=partido_id, equipo_id=entra.equipo_id, jugador_id=entra.id)
             db.session.add(entra_item)
         entra_item.titular = True
-        entra_item.numero_camiseta = None  # que resuelva al número inscrito del jugador
         if sale_item is not None:
+            # La posición en la cancha sí se hereda: el que entra ocupa el lugar
+            # de quien sale, que es lo que espera el resto de la UI.
             entra_item.posicion_tactica = sale_item.posicion_tactica
             entra_item.posicion_orden = sale_item.posicion_orden
     elif data.get('jugador_sale_id'):
