@@ -37,7 +37,7 @@ import Grid from '@mui/material/Grid'
 import InputAdornment from '@mui/material/InputAdornment'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
-import { apiGet, apiPost, apiPut, apiDelete } from '../api'
+import { apiGet, apiPost, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
 import { usePartidoStream } from '../lib/sse'
 import {
@@ -50,7 +50,7 @@ import {
   Verified as VerifiedIcon, HistoryToggleOff as HistoryToggleOffIcon,
   PublishedWithChanges as PublishedWithChangesIcon, VerifiedUser as VerifiedUserIcon,
   Stadium as StadiumIcon, EmojiPeople as EmojiPeopleIcon, Tune as TuneIcon,
-  Search as SearchIcon, Edit as EditIcon,
+  Search as SearchIcon,
   Close as CloseIcon, Groups as GroupsIcon,
   WarningAmber as WarningAmberIcon,
 
@@ -165,9 +165,6 @@ const POSICION_LABEL = {
   DELANTERO: 'Delantero',
 }
 const POSICION_FILA = { ARQUERO: 0, DEFENSOR: 1, MEDIOCAMPISTA: 2, DELANTERO: 3 }
-
-const TIPOS_SANGRE = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']
-const PIERNAS = [{ value: '', label: 'Sin definir' }, { value: 'DERECHA', label: 'Derecha' }, { value: 'IZQUIERDA', label: 'Izquierda' }, { value: 'AMBIDESTRO', label: 'Ambidestro' }]
 
 const sinAcentos = (s) => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
 const textoNumero = (n) => (n === null || n === undefined || n === '' ? 'S/N' : `#${n}`)
@@ -525,70 +522,6 @@ export default function Planilla({ selectedTorneoId }) {
           ...(r.posicion_orden != null ? { posicion_orden: r.posicion_orden } : {}),
         })),
     })
-  }
-
-  const [editJug, setEditJug] = useState(null)
-  const [editForm, setEditForm] = useState({})
-
-  const abrirEditarJugador = (jugador, equipoId) => {
-    setEditJug({ jugador, equipo_id: Number(equipoId) })
-    setEditForm({
-      nombre: jugador.nombre || '',
-      numero_camiseta: jugador.numero_camiseta == null ? '' : String(jugador.numero_camiseta),
-      posicion: jugador.posicion || '',
-      fecha_nacimiento: jugador.fecha_nacimiento || '',
-      documento_identidad: jugador.documento_identidad || '',
-      telefono: jugador.telefono || '',
-      pierna_habil: jugador.pierna_habil || '',
-      altura_cm: jugador.altura_cm == null ? '' : String(jugador.altura_cm),
-      tipo_sangre: jugador.tipo_sangre || '',
-      eps: jugador.eps || '',
-      contacto_emergencia: jugador.contacto_emergencia || '',
-      alergias: jugador.alergias || '',
-    })
-  }
-
-  const editarJugadorMut = useMutation({
-    mutationFn: ({ id, body }) => apiPut(`/jugadores/${id}`, body),
-    onSuccess: () => {
-      qc.invalidateQueries(['jugadores'])
-      qc.invalidateQueries(['alineacion', selId])
-      toast.show('Datos del jugador actualizados', 'success')
-      setEditJug(null)
-    },
-    onError: (e) => toast.show(e.message, 'error'),
-  })
-
-  const guardarEdicionJugador = () => {
-    if (!editJug) return
-    const nombre = editForm.nombre.trim()
-    if (!nombre) {
-      toast.show('El nombre del jugador es obligatorio', 'error')
-      return
-    }
-    const num = editForm.numero_camiseta.trim()
-    if (num !== '') {
-      const n = Number(num)
-      if (!Number.isInteger(n) || n < 0 || n > 999) {
-        toast.show('El número de camiseta debe ser un entero entre 0 y 999', 'error')
-        return
-      }
-    }
-    const body = {
-      nombre,
-      numero_camiseta: num === '' ? 0 : Number(num),
-      posicion: editForm.posicion || null,
-      fecha_nacimiento: editForm.fecha_nacimiento || null,
-      documento_identidad: editForm.documento_identidad.trim() || null,
-      telefono: editForm.telefono.trim() || null,
-      pierna_habil: editForm.pierna_habil || null,
-      altura_cm: editForm.altura_cm.trim() === '' ? null : Number(editForm.altura_cm),
-      tipo_sangre: editForm.tipo_sangre || null,
-      eps: editForm.eps.trim() || null,
-      contacto_emergencia: editForm.contacto_emergencia.trim() || null,
-      alergias: editForm.alergias.trim() || null,
-    }
-    editarJugadorMut.mutate({ id: editJug.jugador.id, body })
   }
 
   const ordenMut = useMutation({
@@ -1549,11 +1482,6 @@ export default function Planilla({ selectedTorneoId }) {
                                             <Tooltip title={roja ? 'Expulsado (roja) en este partido' : 'Sin tarjeta roja'}>
                                               <RedCardIcon sx={{ color: roja ? 'error.main' : 'grey.300', fontSize: 18, mx: 0.25 }} />
                                             </Tooltip>
-                                            <Tooltip title="Editar los datos de este jugador">
-                                              <IconButton size="small" onClick={() => abrirEditarJugador(j, eq.id)}>
-                                                <EditIcon sx={{ fontSize: 17 }} />
-                                              </IconButton>
-                                            </Tooltip>
                                             {editable && (
                                               <>
                                                 <ToggleButtonGroup size="small" exclusive
@@ -2048,90 +1976,6 @@ export default function Planilla({ selectedTorneoId }) {
           <Button variant="contained" startIcon={<VerifiedIcon />} disabled={actaMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}
             onClick={() => actaMut.mutate({ id: partido.id, body: { ...actaForm } })}>
             {actaMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar datos'}
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Editar datos del jugador */}
-      <Dialog open={!!editJug} onClose={() => setEditJug(null)} fullWidth maxWidth="sm" fullScreen={isMobile}>
-        <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
-          <EditIcon sx={{ fontSize: 20, color: 'primary.main' }} />
-          Editar jugador
-          {editJug && (
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {eqName(editJug.equipo_id)}
-            </Typography>
-          )}
-          <Box sx={{ flex: 1 }} />
-          <IconButton onClick={() => setEditJug(null)} size="small" aria-label="Cerrar" sx={{ width: 44, height: 44 }}>
-            <CloseIcon />
-          </IconButton>
-        </DialogTitle>
-        <DialogContent dividers sx={{ pt: 2 }}>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Los cambios se guardan en la ficha del jugador y quedan disponibles en todo el torneo.
-          </Typography>
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
-            <TextField label="Nombre completo *" required fullWidth value={editForm.nombre}
-              onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })} />
-            <TextField label="N° de camiseta" type="number" fullWidth
-              inputProps={{ min: 0, max: 999 }} value={editForm.numero_camiseta}
-              onChange={(e) => setEditForm({ ...editForm, numero_camiseta: e.target.value })} />
-            <FormControl fullWidth>
-              <InputLabel id="pl-pos-label">Posición</InputLabel>
-              <Select labelId="pl-pos-label" label="Posición" value={editForm.posicion}
-                onChange={(e) => setEditForm({ ...editForm, posicion: e.target.value })}>
-                <MenuItem value=""><em>Sin definir</em></MenuItem>
-                {Object.entries(POSICION_LABEL).map(([k, v]) => <MenuItem key={k} value={k}>{v}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <TextField label="Fecha de nacimiento" type="date" fullWidth value={editForm.fecha_nacimiento}
-              onChange={(e) => setEditForm({ ...editForm, fecha_nacimiento: e.target.value })}
-              sx={{ colorScheme: 'light' }} />
-            <TextField label="Documento de identidad" fullWidth value={editForm.documento_identidad}
-              onChange={(e) => setEditForm({ ...editForm, documento_identidad: e.target.value })} />
-            <TextField label="Teléfono" fullWidth value={editForm.telefono}
-              onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })} />
-            <FormControl fullWidth>
-              <InputLabel id="pl-pierna-label">Pierna hábil</InputLabel>
-              <Select labelId="pl-pierna-label" label="Pierna hábil" value={editForm.pierna_habil}
-                onChange={(e) => setEditForm({ ...editForm, pierna_habil: e.target.value })}>
-                {PIERNAS.map((p) => <MenuItem key={p.value} value={p.value}>{p.label}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <TextField label="Altura (cm)" type="number" fullWidth
-              inputProps={{ min: 100, max: 250 }} value={editForm.altura_cm}
-              onChange={(e) => setEditForm({ ...editForm, altura_cm: e.target.value })} />
-            <FormControl fullWidth>
-              <InputLabel id="pl-sangre-label">Tipo de sangre</InputLabel>
-              <Select labelId="pl-sangre-label" label="Tipo de sangre" value={editForm.tipo_sangre}
-                onChange={(e) => setEditForm({ ...editForm, tipo_sangre: e.target.value })}>
-                <MenuItem value=""><em>Sin definir</em></MenuItem>
-                {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
-              </Select>
-            </FormControl>
-            <TextField label="EPS / Entidad de salud" fullWidth value={editForm.eps}
-              onChange={(e) => setEditForm({ ...editForm, eps: e.target.value })} />
-          </Box>
-          <TextField label="Contacto de emergencia (nombre y teléfono)" fullWidth margin="dense"
-            value={editForm.contacto_emergencia}
-            onChange={(e) => setEditForm({ ...editForm, contacto_emergencia: e.target.value })} />
-          <TextField label="Alergias o condiciones médicas" fullWidth margin="dense"
-            value={editForm.alergias} onChange={(e) => setEditForm({ ...editForm, alergias: e.target.value })} />
-          {editJug && numCamiseta(editJug.jugador, alineacionMap[editJug.jugador.id]) != null
-            && Number(alineacionMap[editJug.jugador.id]?.numero_camiseta) > 0
-            && Number(alineacionMap[editJug.jugador.id]?.numero_camiseta) !== Number(editForm.numero_camiseta) && (
-            <Alert severity="info" sx={{ mt: 2 }}>
-              En este partido juega con la camiseta N° {alineacionMap[editJug.jugador.id].numero_camiseta}: el número de la
-              planilla no cambia, solo la ficha del jugador.
-            </Alert>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
-          <Button onClick={() => setEditJug(null)} disabled={editarJugadorMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}>Cancelar</Button>
-          <Button variant="contained" startIcon={<VerifiedIcon />} disabled={editarJugadorMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}
-            onClick={guardarEdicionJugador}>
-            {editarJugadorMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar cambios'}
           </Button>
         </DialogActions>
       </Dialog>

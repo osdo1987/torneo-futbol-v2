@@ -13,6 +13,92 @@ def _f(valor):
     return round(float(valor or 0), 2)
 
 
+def eventos_tarjetas(torneo_id, jugador_id):
+    """Eventos de tarjetas del jugador en el torneo, en orden cronológico."""
+    eventos = (EventoPartido.query
+               .join(Partido, EventoPartido.partido_id == Partido.id)
+               .filter(Partido.torneo_id == torneo_id,
+                       EventoPartido.jugador_id == jugador_id,
+                       EventoPartido.tipo.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']))
+               .all())
+    return sorted(eventos, key=lambda e: (e.partido.jornada or 0, e.id))
+
+
+def cargos_tarjetas(evs):
+    """Cargos de pago generados por las tarjetas de un jugador.
+
+    Reglas de cobro (agrupando por partido, en orden cronológico):
+    - 2+ amarillas en el mismo partido -> un solo cargo TARJETA_ROJA
+      (se paga como si fuera roja) que cubre esas amarillas.
+    - Amarilla suelta -> cargo TARJETA_AMARILLA.
+    - Cada roja directa -> cargo TARJETA_ROJA.
+    - Amarilla + roja en el mismo partido -> se cobran ambos cargos.
+
+    Devuelve lista de {'concepto', 'eventos': [ids], 'partido_id'}.
+    """
+    orden, por_partido = [], {}
+    for e in evs:
+        pid = e.partido_id
+        if pid not in por_partido:
+            por_partido[pid] = {'amarillas': [], 'rojas': []}
+            orden.append(pid)
+        clave = 'rojas' if e.tipo == 'TARJETA_ROJA' else 'amarillas'
+        por_partido[pid][clave].append(e.id)
+
+    cargos = []
+    for pid in orden:
+        grupo = por_partido[pid]
+        if len(grupo['amarillas']) >= 2:
+            cargos.append({'concepto': 'TARJETA_ROJA',
+                           'eventos': list(grupo['amarillas']),
+                           'partido_id': pid})
+        else:
+            for eid in grupo['amarillas']:
+                cargos.append({'concepto': 'TARJETA_AMARILLA',
+                               'eventos': [eid], 'partido_id': pid})
+        for eid in grupo['rojas']:
+            cargos.append({'concepto': 'TARJETA_ROJA',
+                           'eventos': [eid], 'partido_id': pid})
+    return cargos
+
+
+def aplicar_pagos(cargos, pagado, valor_amarilla, valor_roja):
+    """Aplica el total pagado a los cargos, del más antiguo al más reciente (FIFO).
+
+    Devuelve {valor_total, deuda, eventos_pagados (set), amarillas_pagadas,
+    rojas_pagadas, pendientes}.
+    """
+    pagado = float(pagado or 0)
+    pool = pagado
+    valor_total = 0.0
+    eventos_pagados = set()
+    amarillas_pagadas = rojas_pagadas = 0
+    pendientes = []
+
+    for c in cargos:
+        bruto = valor_roja if c['concepto'] == 'TARJETA_ROJA' else valor_amarilla
+        valor = round(float(bruto or 0), 2)
+        valor_total += valor
+        if valor > 0 and pool >= valor - 1e-9:
+            pool -= valor
+            eventos_pagados.update(c['eventos'])
+            if c['concepto'] == 'TARJETA_ROJA':
+                rojas_pagadas += 1
+            else:
+                amarillas_pagadas += 1
+        else:
+            pendientes.append(c)
+
+    return {
+        'valor_total': round(valor_total, 2),
+        'deuda': round(max(0.0, valor_total - pagado), 2),
+        'eventos_pagados': eventos_pagados,
+        'amarillas_pagadas': amarillas_pagadas,
+        'rojas_pagadas': rojas_pagadas,
+        'pendientes': pendientes,
+    }
+
+
 class FinanzaService:
     CAMPOS_CONFIG = [
         'valor_tarjeta_amarilla', 'valor_tarjeta_roja',
@@ -24,19 +110,6 @@ class FinanzaService:
     def config(torneo):
         reglas = reglas_normalizadas(torneo)
         return {c: reglas.get(c) for c in FinanzaService.CAMPOS_CONFIG}
-
-    @staticmethod
-    def cuenta_tarjetas(torneo_id, jugador_id):
-        """(amarillas, rojas) acumuladas de un jugador en el torneo."""
-        eventos = (EventoPartido.query
-                   .join(Partido, EventoPartido.partido_id == Partido.id)
-                   .filter(Partido.torneo_id == torneo_id,
-                           EventoPartido.jugador_id == jugador_id,
-                           EventoPartido.tipo.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']))
-                   .all())
-        amarillas = sum(1 for e in eventos if e.tipo == 'TARJETA_AMARILLA')
-        rojas = sum(1 for e in eventos if e.tipo == 'TARJETA_ROJA')
-        return amarillas, rojas
 
     @staticmethod
     def deuda_jugador(torneo, jugador):
@@ -63,8 +136,9 @@ class FinanzaService:
             ).first() is not None
             inscripcion_pendiente = not pagada and bool(_f(cfg['valor_inscripcion']) > 0)
 
-        amarillas, rojas = FinanzaService.cuenta_tarjetas(torneo.id, jugador.id)
-        deuda_tarjetas = amarillas * _f(cfg['valor_tarjeta_amarilla']) + rojas * _f(cfg['valor_tarjeta_roja'])
+        eventos = eventos_tarjetas(torneo.id, jugador.id)
+        amarillas = sum(1 for e in eventos if e.tipo == 'TARJETA_AMARILLA')
+        rojas = sum(1 for e in eventos if e.tipo == 'TARJETA_ROJA')
         pagado_tarjetas = _f(db.session.query(
             db.func.coalesce(db.func.sum(Pago.monto), 0)
         ).filter(
@@ -72,7 +146,11 @@ class FinanzaService:
             Pago.jugador_id == jugador.id,
             Pago.concepto.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']),
         ).scalar())
-        deuda_tarjetas = round(max(0, deuda_tarjetas - pagado_tarjetas), 2)
+        cargos = cargos_tarjetas(eventos)
+        resumen = aplicar_pagos(cargos, pagado_tarjetas,
+                                _f(cfg['valor_tarjeta_amarilla']),
+                                _f(cfg['valor_tarjeta_roja']))
+        deuda_tarjetas = resumen['deuda']
 
         bloqueado = False
         if cfg['bloquear_por_inscripcion_pendiente'] and inscripcion_pendiente:

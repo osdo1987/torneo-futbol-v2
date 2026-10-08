@@ -2,15 +2,56 @@ from datetime import date
 
 from sqlalchemy import or_
 
+from app.extensions import db
 from app.models.partido import Partido
 from app.models.equipo import Equipo
 from app.models.evento_partido import EventoPartido
 from app.models.jugador import Jugador
+from app.models.pago import Pago
 from app.models.torneo import Torneo
 from app.services.reglas import reglas_normalizadas
+from app.services.finanza_service import aplicar_pagos, cargos_tarjetas
 
 # Resultados que cuentan como partido jugado
 RESULTADOS_JUGADOS = ['LOCAL_GANO', 'VISITANTE_GANO', 'EMPATE', 'W_LOCAL', 'W_VISITANTE']
+
+
+def pagos_tarjetas(torneo_id):
+    """Pagos de tarjetas por jugador: {jugador_id: {concepto: monto}}."""
+    filas = (db.session.query(Pago.jugador_id, Pago.concepto,
+                              db.func.coalesce(db.func.sum(Pago.monto), 0))
+             .filter(Pago.torneo_id == torneo_id,
+                     Pago.concepto.in_(['TARJETA_AMARILLA', 'TARJETA_ROJA']))
+             .group_by(Pago.jugador_id, Pago.concepto)
+             .all())
+    out = {}
+    for jugador_id, concepto, total in filas:
+        if jugador_id is None:
+            continue
+        out.setdefault(jugador_id, {})[concepto] = round(float(total or 0), 2)
+    return out
+
+
+def bloqueo_sancion(evs, f_doble, f_roja, pagados=None):
+    """Jornada hasta la que queda bloqueado el sancionado.
+
+    Los eventos con id en `pagados` (ya cobrados) no acumulan ni suspenden.
+    """
+    pagados = pagados or set()
+    bloqueado_hasta = 0
+    acumuladas = 0
+    for e in evs:
+        if e.id in pagados:
+            continue
+        jr = e.partido.jornada or 0
+        if e.tipo == 'TARJETA_ROJA':
+            if f_roja > 0:
+                bloqueado_hasta = max(bloqueado_hasta, jr + f_roja)
+        else:
+            acumuladas += 1
+            if f_doble > 0 and acumuladas % 2 == 0:
+                bloqueado_hasta = max(bloqueado_hasta, jr + f_doble)
+    return bloqueado_hasta
 
 
 class EstadisticaService:
@@ -118,11 +159,16 @@ class EstadisticaService:
         - Roja directa -> sanción de reglas.fechas_roja_directa fechas
         - Cada fecha se cumple con una jornada jugada por su equipo posterior
           a la tarjeta que generó la sanción (bloqueo hasta jornada N).
+        - Las amarillas ya pagadas (Pago con concepto TARJETA_AMARILLA) no
+          acumulan: al pagarlas se levanta la suspensión que generaban.
         """
         torneo = Torneo.query.get(torneo_id)
         reglas = reglas_normalizadas(torneo) if torneo else {}
         f_doble = int(reglas.get('fechas_doble_amarilla') or 0)
         f_roja = int(reglas.get('fechas_roja_directa') or 0)
+        valor_amarilla = round(float(reglas.get('valor_tarjeta_amarilla') or 0), 2)
+        valor_roja = round(float(reglas.get('valor_tarjeta_roja') or 0), 2)
+        pagos = pagos_tarjetas(torneo_id)
 
         eventos = (EventoPartido.query
                    .join(Partido, EventoPartido.partido_id == Partido.id)
@@ -145,17 +191,12 @@ class EstadisticaService:
             amarillas = sum(1 for e in evs if e.tipo == 'TARJETA_AMARILLA')
             rojas = sum(1 for e in evs if e.tipo == 'TARJETA_ROJA')
 
-            bloqueado_hasta = 0
-            acumuladas = 0
-            for e in evs:
-                jr = e.partido.jornada or 0
-                if e.tipo == 'TARJETA_ROJA':
-                    if f_roja > 0:
-                        bloqueado_hasta = max(bloqueado_hasta, jr + f_roja)
-                else:
-                    acumuladas += 1
-                    if f_doble > 0 and acumuladas % 2 == 0:
-                        bloqueado_hasta = max(bloqueado_hasta, jr + f_doble)
+            pagado = pagos.get(j.id, {})
+            pagado_total = float(pagado.get('TARJETA_AMARILLA', 0.0) + pagado.get('TARJETA_ROJA', 0.0))
+            cargos = cargos_tarjetas(evs)
+            resumen = aplicar_pagos(cargos, pagado_total, valor_amarilla, valor_roja)
+
+            bloqueado_hasta = bloqueo_sancion(evs, f_doble, f_roja, resumen['eventos_pagados'])
 
             prox = (Partido.query
                     .filter(Partido.torneo_id == torneo_id,
@@ -167,6 +208,13 @@ class EstadisticaService:
             prox_jornada = prox.jornada if prox else None
             suspendido = bool(prox_jornada is not None and bloqueado_hasta >= prox_jornada)
 
+            # contar partidos con >= 2 amarillas
+            partidos_amar = {}
+            for e in evs:
+                if e.tipo == 'TARJETA_AMARILLA':
+                    partidos_amar[e.partido_id] = partidos_amar.get(e.partido_id, 0) + 1
+            doble_amarilla = sum(1 for v in partidos_amar.values() if v >= 2)
+
             filas.append({
                 'jugador_id': j.id,
                 'jugador': j.nombre,
@@ -176,6 +224,17 @@ class EstadisticaService:
                 'rojas': rojas,
                 'suspendido_hasta_jornada': bloqueado_hasta or None,
                 'suspendido': suspendido,
+                'amarillas_pagadas': resumen['amarillas_pagadas'],
+                'rojas_pagadas': resumen['rojas_pagadas'],
+                'valor_tarjeta_amarilla': valor_amarilla,
+                'valor_tarjeta_roja': valor_roja,
+                'deuda_tarjetas': resumen['deuda'],
+                'pago_habilitado': True,
+                'amarillas_cobrables': sum(1 for c in cargos if c['concepto'] == 'TARJETA_AMARILLA'),
+                'rojas_cobrables': sum(1 for c in cargos if c['concepto'] == 'TARJETA_ROJA'),
+                'proximo_pago': cargos[0]['concepto'] if resumen['pendientes'] else None,
+                'pendiente_pago': bool(resumen['pendientes']),
+                'doble_amarilla': doble_amarilla,
             })
 
         # Técnicos amonestados/expulsados (eventos sin jugador_id, tipo_sancionado=TECNICO)
@@ -193,17 +252,7 @@ class EstadisticaService:
             amarillas = sum(1 for e in evs if e.tipo == 'TARJETA_AMARILLA')
             rojas = sum(1 for e in evs if e.tipo == 'TARJETA_ROJA')
 
-            bloqueado_hasta = 0
-            acumuladas = 0
-            for e in evs:
-                jr = e.partido.jornada or 0
-                if e.tipo == 'TARJETA_ROJA':
-                    if f_roja > 0:
-                        bloqueado_hasta = max(bloqueado_hasta, jr + f_roja)
-                else:
-                    acumuladas += 1
-                    if f_doble > 0 and acumuladas % 2 == 0:
-                        bloqueado_hasta = max(bloqueado_hasta, jr + f_doble)
+            bloqueado_hasta = bloqueo_sancion(evs, f_doble, f_roja)
 
             prox = (Partido.query
                     .filter(Partido.torneo_id == torneo_id,
@@ -225,6 +274,17 @@ class EstadisticaService:
                 'rojas': rojas,
                 'suspendido_hasta_jornada': bloqueado_hasta or None,
                 'suspendido': suspendido,
+                'amarillas_pagadas': 0,
+                'rojas_pagadas': 0,
+                'valor_tarjeta_amarilla': valor_amarilla,
+                'valor_tarjeta_roja': valor_roja,
+                'deuda_tarjetas': 0.0,
+                'pago_habilitado': False,
+                'amarillas_cobrables': 0,
+                'rojas_cobrables': rojas,
+                'proximo_pago': None,
+                'pendiente_pago': False,
+                'doble_amarilla': 0,
             })
 
         filas.sort(key=lambda r: (not r['suspendido'], -r['rojas'], -r['amarillas'], r['jugador']))

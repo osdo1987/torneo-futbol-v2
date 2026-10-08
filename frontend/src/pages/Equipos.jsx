@@ -44,13 +44,14 @@ import {
   Link as LinkIcon,
   ContentCopy as ContentCopyIcon,
   Search as SearchIcon,
+  Edit as EditIcon,
   FilterList as FilterListIcon,
   Groups as GroupsIcon,
   Verified as VerifiedIcon,
   CheckCircle as CheckCircleIcon,
   Close as CloseIcon,
 } from '@mui/icons-material'
-import { apiGet, apiPost, apiDelete } from '../api'
+import { apiGet, apiPost, apiPut, apiDelete } from '../api'
 import { useToast } from '../components/Toast'
 import { parseExcel, aPayload, descargarPlantilla } from '../lib/plantilla'
 import { fileToFotoDataURI } from '../lib/imagen'
@@ -345,6 +346,8 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
   const [copiado, setCopiado] = useState(false)
   const [filtroPosicion, setFiltroPosicion] = useState('todos')
   const [pagina, setPagina] = useState(0)
+  const [editJug, setEditJug] = useState(null)
+  const [editForm, setEditForm] = useState({})
   const rowsPerPage = 10
 
   const linkMut = useMutation({
@@ -386,6 +389,68 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
     onSuccess: () => { qc.invalidateQueries(['jugadores', equipo.id]); toast.show('Jugador liberado', 'success') },
     onError: (e) => toast.show(e.message, 'error'),
   })
+
+  const abrirEditarJugador = (jugador) => {
+    setEditJug(jugador)
+    setEditForm({
+      nombre: jugador.nombre || '',
+      numero_camiseta: jugador.numero_camiseta == null ? '' : String(jugador.numero_camiseta),
+      posicion: jugador.posicion || '',
+      fecha_nacimiento: jugador.fecha_nacimiento || '',
+      documento_identidad: jugador.documento_identidad || '',
+      telefono: jugador.telefono || '',
+      pierna_habil: jugador.pierna_habil || '',
+      altura_cm: jugador.altura_cm == null ? '' : String(jugador.altura_cm),
+      tipo_sangre: jugador.tipo_sangre || '',
+      eps: jugador.eps || '',
+      contacto_emergencia: jugador.contacto_emergencia || '',
+      alergias: jugador.alergias || '',
+    })
+  }
+
+  const editarJugadorMut = useMutation({
+    mutationFn: ({ id, body }) => apiPut(`/jugadores/${id}`, body),
+    onSuccess: () => {
+      qc.invalidateQueries(['jugadores', equipo.id])
+      toast.show('Datos del jugador actualizados', 'success')
+      setEditJug(null)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const guardarEdicionJugador = () => {
+    if (!editJug) return
+    const nombre = editForm.nombre.trim()
+    if (!nombre) {
+      toast.show('El nombre del jugador es obligatorio', 'error')
+      return
+    }
+    const num = String(editForm.numero_camiseta ?? '').trim()
+    if (num !== '') {
+      const n = Number(num)
+      if (!Number.isInteger(n) || n < 0 || n > 999) {
+        toast.show('El número de camiseta debe ser un entero entre 0 y 999', 'error')
+        return
+      }
+    }
+    editarJugadorMut.mutate({
+      id: editJug.id,
+      body: {
+        nombre,
+        numero_camiseta: num === '' ? 0 : Number(num),
+        posicion: editForm.posicion || null,
+        fecha_nacimiento: editForm.fecha_nacimiento || null,
+        documento_identidad: (editForm.documento_identidad || '').trim() || null,
+        telefono: (editForm.telefono || '').trim() || null,
+        pierna_habil: editForm.pierna_habil || null,
+        altura_cm: String(editForm.altura_cm ?? '').trim() === '' ? null : Number(editForm.altura_cm),
+        tipo_sangre: editForm.tipo_sangre || null,
+        eps: (editForm.eps || '').trim() || null,
+        contacto_emergencia: (editForm.contacto_emergencia || '').trim() || null,
+        alergias: (editForm.alergias || '').trim() || null,
+      },
+    })
+  }
 
   const handleAdd = (e) => {
     e.preventDefault()
@@ -595,22 +660,36 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
           </Box>
         </Box>
 
-        <TableContainer>
-          <Table sx={{ minWidth: 760 }}>
-            <TableHead>
-              <TableRow sx={{ bgcolor: 'background.default' }}>
-                {['Dorsal', 'Jugador', 'Posición', 'Edad / Altura', 'Identificación', 'Estado', 'Acciones'].map((c, i) => (
-                  <TableCell key={c} sx={{
-                    textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'text.secondary',
-                    ...(c === 'Dorsal' || c === 'Edad / Altura' || c === 'Estado' ? { textAlign: 'center' } : {}),
-                    ...(i === 0 ? { width: 72 } : {}),
-                    ...(i === 6 ? { textAlign: 'right' } : {}),
-                  }}>
-                    {c}
-                  </TableCell>
-                ))}
-              </TableRow>
-            </TableHead>
+          <TableContainer sx={{
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            '&::-webkit-scrollbar': { height: 6 },
+            '&::-webkit-scrollbar-thumb': { bgcolor: 'action.disabled', borderRadius: 3 },
+          }}>
+            <Table sx={{ minWidth: 680 }}>
+              <TableHead>
+                <TableRow sx={{ bgcolor: 'background.default' }}>
+                  {['Dorsal', 'Jugador', 'Posición', 'Edad / Altura', 'Identificación', 'Estado', 'Acciones'].map((c, i) => (
+                    <TableCell key={c} sx={{
+                      textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'text.secondary',
+                      ...(c === 'Dorsal' || c === 'Edad / Altura' || c === 'Estado' ? { textAlign: 'center' } : {}),
+                      ...(i === 0 ? { width: 72 } : {}),
+                      ...(i === 6 ? {
+                        textAlign: 'right',
+                        position: 'sticky',
+                        right: 0,
+                        bgcolor: 'background.default',
+                        zIndex: 2,
+                      } : {}),
+                      ...(c === 'Edad / Altura' ? { display: { xs: 'none', md: 'table-cell' } } : {}),
+                      ...(c === 'Identificación' ? { display: { xs: 'none', lg: 'table-cell' } } : {}),
+                      ...(c === 'Posición' ? { display: { xs: 'none', sm: 'table-cell' } } : {}),
+                    }}>
+                      {c}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
             <TableBody>
               {paginaFiltrada.map((j) => {
                 const pill = POSICION_PILL[j.posicion] || { bg: '#f1f5f9', color: '#475569', dot: '#94a3b8' }
@@ -644,17 +723,17 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
                         </Box>
                       </Box>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                       <Pill bg={pill.bg} color={pill.color}>
                         <Box component="span" sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: pill.dot }} />
                         {POSICION_LABEL[j.posicion] || 'Sin posición'}
                       </Pill>
                     </TableCell>
-                    <TableCell sx={{ textAlign: 'center' }}>
+                    <TableCell sx={{ textAlign: 'center', display: { xs: 'none', md: 'table-cell' } }}>
                       <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{calcEdad(j.fecha_nacimiento) ?? '—'} años</Typography>
                       <Typography variant="caption" color="text.secondary">{j.altura_cm ? `${(j.altura_cm / 100).toFixed(2)} m` : '—'}</Typography>
                     </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
                       <Typography sx={{ fontSize: 13, fontFamily: 'monospace' }}>{j.documento_identidad ?? '—'}</Typography>
                       <Typography variant="caption" sx={{ color: j.documento_identidad ? 'success.main' : 'warning.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         <CheckCircleIcon sx={{ fontSize: 12 }} />
@@ -668,9 +747,19 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
                         <Pill bg={alpha('#ef4444', 0.08)} color="#b91c1c">Liberado</Pill>
                       )}
                     </TableCell>
-                    <TableCell sx={{ textAlign: 'right' }}>
+                    <TableCell sx={{
+                      textAlign: 'right',
+                      position: 'sticky',
+                      right: 0,
+                      bgcolor: 'background.paper',
+                      zIndex: 1,
+                      boxShadow: 'inset 8px 0 8px -8px rgba(0,0,0,0.08)',
+                    }}>
                       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 0.5 }}>
-                        <IconButton size="small" color="primary" title="Ver carnet" onClick={() => setCarnet(j)}>
+                        <IconButton size="small" color="primary" title="Editar jugador" onClick={() => abrirEditarJugador(j)}>
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton size="small" title="Ver carnet" onClick={() => setCarnet(j)}>
                           <BadgeIcon fontSize="small" />
                         </IconButton>
                         {j.activo ? (
@@ -720,6 +809,85 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
         linkOpen={linkOpen} setLinkOpen={setLinkOpen} linkUrl={linkUrl} linkAbierta={linkAbierta}
         copiado={copiado} copiarLink={copiarLink} equipo={equipo}
       />
+
+      {/* Editar datos del jugador */}
+      <Dialog open={!!editJug} onClose={() => setEditJug(null)} fullWidth maxWidth="sm">
+        <form onSubmit={(e) => { e.preventDefault(); guardarEdicionJugador() }}>
+          <DialogTitle sx={{ fontWeight: 800, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <EditIcon sx={{ fontSize: 20, color: 'primary.main' }} />
+            Editar jugador
+            {editJug && (
+              <Typography component="span" variant="body2" color="text.secondary" sx={{ fontWeight: 600, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {equipo.nombre}
+              </Typography>
+            )}
+            <Box sx={{ flex: 1 }} />
+            <IconButton onClick={() => setEditJug(null)} size="small" aria-label="Cerrar" sx={{ width: 44, height: 44 }}>
+              <CloseIcon />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent dividers sx={{ pt: 2 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Los cambios se guardan en la ficha del jugador y quedan disponibles en todo el torneo.
+            </Typography>
+            <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 1.5 }}>
+              <TextField label="Nombre completo *" required fullWidth value={editForm.nombre || ''}
+                onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })} />
+              <TextField label="N° de camiseta" type="number" fullWidth
+                inputProps={{ min: 0, max: 999 }} value={editForm.numero_camiseta ?? ''}
+                onChange={(e) => setEditForm({ ...editForm, numero_camiseta: e.target.value })} />
+              <FormControl fullWidth>
+                <InputLabel id="eq-pos-label">Posición</InputLabel>
+                <Select labelId="eq-pos-label" label="Posición" value={editForm.posicion || ''}
+                  onChange={(e) => setEditForm({ ...editForm, posicion: e.target.value })}>
+                  <MenuItem value=""><em>Sin definir</em></MenuItem>
+                  {POSICIONES.map((p) => <MenuItem key={p} value={p}>{POSICION_LABEL[p]}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <TextField label="Fecha de nacimiento" type="date" fullWidth value={editForm.fecha_nacimiento || ''}
+                onChange={(e) => setEditForm({ ...editForm, fecha_nacimiento: e.target.value })} />
+              <TextField label="Documento de identidad" fullWidth value={editForm.documento_identidad || ''}
+                onChange={(e) => setEditForm({ ...editForm, documento_identidad: e.target.value })} />
+              <TextField label="Teléfono" fullWidth value={editForm.telefono || ''}
+                onChange={(e) => setEditForm({ ...editForm, telefono: e.target.value })} />
+              <FormControl fullWidth>
+                <InputLabel id="eq-pierna-label">Pierna hábil</InputLabel>
+                <Select labelId="eq-pierna-label" label="Pierna hábil" value={editForm.pierna_habil || ''}
+                  onChange={(e) => setEditForm({ ...editForm, pierna_habil: e.target.value })}>
+                  <MenuItem value=""><em>Sin definir</em></MenuItem>
+                  {PIERNAS.map((p) => <MenuItem key={p} value={p}>{p}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <TextField label="Altura (cm)" type="number" fullWidth
+                inputProps={{ min: 100, max: 250 }} value={editForm.altura_cm ?? ''}
+                onChange={(e) => setEditForm({ ...editForm, altura_cm: e.target.value })} />
+              <FormControl fullWidth>
+                <InputLabel id="eq-sangre-label">Tipo de sangre</InputLabel>
+                <Select labelId="eq-sangre-label" label="Tipo de sangre" value={editForm.tipo_sangre || ''}
+                  onChange={(e) => setEditForm({ ...editForm, tipo_sangre: e.target.value })}>
+                  <MenuItem value=""><em>Sin definir</em></MenuItem>
+                  {TIPOS_SANGRE.map((t) => <MenuItem key={t} value={t}>{t}</MenuItem>)}
+                </Select>
+              </FormControl>
+              <TextField label="EPS / Entidad de salud" fullWidth value={editForm.eps || ''}
+                onChange={(e) => setEditForm({ ...editForm, eps: e.target.value })} />
+            </Box>
+            <TextField label="Contacto de emergencia (nombre y teléfono)" fullWidth margin="dense"
+              value={editForm.contacto_emergencia || ''}
+              onChange={(e) => setEditForm({ ...editForm, contacto_emergencia: e.target.value })} />
+            <TextField label="Alergias o condiciones médicas" fullWidth margin="dense"
+              value={editForm.alergias || ''}
+              onChange={(e) => setEditForm({ ...editForm, alergias: e.target.value })} />
+          </DialogContent>
+          <DialogActions sx={{ px: { xs: 2, sm: 3 }, py: 2 }}>
+            <Button onClick={() => setEditJug(null)} disabled={editarJugadorMut.isPending} sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}>Cancelar</Button>
+            <Button type="submit" variant="contained" startIcon={<CheckCircleIcon />} disabled={editarJugadorMut.isPending}
+              sx={{ minHeight: 44, flex: { xs: 1, sm: '0 0 auto' } }}>
+              {editarJugadorMut.isPending ? <CircularProgress size={18} color="inherit" /> : 'Guardar cambios'}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
 
       <JugadorCarnet
         open={!!carnet}
