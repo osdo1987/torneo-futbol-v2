@@ -225,7 +225,7 @@ const LiveClock = memo(function LiveClock({ partidoId, vivo, onEventos }) {
 
   const estado = tick || vivo || {}
   const seg = Math.min(5400, estado.seg || 0)
-  const periodo = seg <= 2700 ? 'Primer tiempo' : 'Segundo tiempo'
+  const periodo = seg < 2700 ? 'Primer tiempo' : 'Segundo tiempo'
 
   return (
     <Box sx={{ mt: 1.25, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 0.75, minHeight: 16 }}>

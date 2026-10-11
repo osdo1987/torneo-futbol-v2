@@ -27,6 +27,34 @@ def _puede_ser_convocado(user, partido, jugador):
     return not FinanzaService.bloqueo_jugador(partido.torneo, jugador)
 
 
+def _revertir_cambio(evento):
+    """Devuelve la lineup al estado previo del cambio al borrar el evento.
+
+    Sin snapshot (cambios viejos, anteriores a esta columna) no hay forma
+    confiable de reconstruir quién era titular: se omite.
+    """
+    snap = evento.cambio_snapshot or {}
+    if 'entra_estaba' not in snap:
+        return
+    entra_item = (PartidoAlineacion.query.filter_by(partido_id=evento.partido_id, jugador_id=evento.jugador_id).first()
+                  if evento.jugador_id else None)
+    sale_item = (PartidoAlineacion.query.filter_by(partido_id=evento.partido_id, jugador_id=evento.jugador_sale_id).first()
+                 if evento.jugador_sale_id else None)
+
+    if snap.get('entra_estaba'):
+        if entra_item is not None:
+            entra_item.titular = bool(snap.get('entra_prev_titular', False))
+            entra_item.posicion_tactica = snap.get('entra_prev_posicion')
+            entra_item.posicion_orden = snap.get('entra_prev_orden')
+    elif entra_item is not None:
+        # El que entró fue dado de alta por este cambio: revertir es sacarlo.
+        db.session.delete(entra_item)
+
+    if sale_item is not None:
+        prev = snap.get('sale_prev_titular')
+        sale_item.titular = bool(prev) if isinstance(prev, bool) else True
+
+
 @evento_bp.route('', methods=['GET'])
 @jwt_required()
 def get_eventos():
@@ -78,8 +106,13 @@ def create_evento():
             return jsonify({'error': 'equipo_id es requerido para sancionar a un técnico'}), 400
         if not (data.get('nombre_sancionado') or '').strip():
             return jsonify({'error': 'nombre_sancionado es requerido para sancionar a un técnico'}), 400
-        if int(data['equipo_id']) not in (partido.equipo_local_id, partido.equipo_visitante_id):
+        try:
+            eq_id = int(data['equipo_id'])
+        except (TypeError, ValueError):
+            return jsonify({'error': 'equipo_id inválido'}), 400
+        if eq_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
             return jsonify({'error': 'El equipo no participa en este partido'}), 400
+        data['equipo_id'] = eq_id
         data['jugador_id'] = None
         data['jugador_sale_id'] = None
     else:
@@ -89,6 +122,29 @@ def create_evento():
             return jsonify({'error': 'Tarjeta inválida: indica jugador_id o tipo_sancionado=TECNICO'}), 400
         if data.get('jugador_id') and not data.get('equipo_id'):
             return jsonify({'error': 'No se pudo determinar el equipo del jugador'}), 400
+        if data.get('jugador_id'):
+            jugador_ev = Jugador.query.get(data['jugador_id'])
+            if not jugador_ev:
+                return jsonify({'error': 'Jugador no encontrado'}), 400
+            if jugador_ev.equipo_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+                return jsonify({'error': 'El jugador no pertenece a ninguno de los equipos del partido'}), 400
+            eq_id_ev = data.get('equipo_id')
+            if eq_id_ev is not None:
+                try:
+                    eq_id_ev = int(eq_id_ev)
+                except (TypeError, ValueError):
+                    return jsonify({'error': 'equipo_id inválido'}), 400
+                if eq_id_ev != jugador_ev.equipo_id:
+                    return jsonify({'error': 'El equipo del evento no coincide con el del jugador'}), 400
+            data['equipo_id'] = jugador_ev.equipo_id
+        elif data.get('equipo_id'):
+            try:
+                eq_id = int(data['equipo_id'])
+            except (TypeError, ValueError):
+                return jsonify({'error': 'equipo_id inválido'}), 400
+            if eq_id not in (partido.equipo_local_id, partido.equipo_visitante_id):
+                return jsonify({'error': 'El equipo no participa en este partido'}), 400
+            data['equipo_id'] = eq_id
 
     if data.get('tipo') == 'CAMBIO':
         if not data.get('jugador_id') or not data.get('jugador_sale_id'):
@@ -114,15 +170,29 @@ def create_evento():
         # con la que sale a la cancha, que es el inscrito o el que se le haya
         # asignado en este partido). Por eso hay que validar que no choque con el
         # de otro titular que sigue en cancha, igual que en upsert_alineacion.
-        if not PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=entra.id).first() \
-                and not _puede_ser_convocado(user, partido, entra):
+        entra_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=entra.id).first()
+        sale_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=sale.id).first()
+        if entra_item is None and not _puede_ser_convocado(user, partido, entra):
             return jsonify({'error': 'El jugador que entra no puede ser convocado a este partido'}), 400
 
-        numero_entra = entra.numero_camiseta
+        # Snapshot del estado previo: borrar el cambio devolverá la lineup a este
+        # punto (titularidad y posición de quien entra; titularidad de quien sale).
+        data['cambio_snapshot'] = {
+            'entra_estaba': entra_item is not None,
+            'entra_prev_titular': entra_item.titular if entra_item else None,
+            'entra_prev_posicion': entra_item.posicion_tactica if entra_item else None,
+            'entra_prev_orden': entra_item.posicion_orden if entra_item else None,
+            'sale_prev_titular': sale_item.titular if sale_item else None,
+        }
+
+        # El número con el que entra es el que ya lleva en este partido (los que
+        # esperan en el banco conservan su número real) o, si no, su dorsal
+        # inscrito. El que sale deja la cancha y libera su número → no cuenta.
+        numero_entra = entra_item.numero_camiseta if (entra_item and entra_item.numero_camiseta is not None) else entra.numero_camiseta
         otros = PartidoAlineacion.query.filter(
             PartidoAlineacion.partido_id == partido_id,
             PartidoAlineacion.equipo_id == entra.equipo_id,
-            PartidoAlineacion.jugador_id != entra.id,
+            PartidoAlineacion.jugador_id.notin_([entra.id, sale.id]),
         ).all()
         if numero_entra is not None:
             otros_ids = [o.jugador_id for o in otros]
@@ -133,10 +203,8 @@ def create_evento():
                     return jsonify({'error': f'El número {numero_entra} ya está siendo usado por otro '
                                              f'convocado de este equipo. Asignale otro número antes del cambio.'}), 409
 
-        sale_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=sale.id).first()
         if sale_item:
             sale_item.titular = False
-        entra_item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=entra.id).first()
         if entra_item is None:
             entra_item = PartidoAlineacion(partido_id=partido_id, equipo_id=entra.equipo_id, jugador_id=entra.id)
             db.session.add(entra_item)
@@ -170,6 +238,8 @@ def delete_evento(evento_id):
         return jsonify({'error': 'No autorizado'}), 403
     if not ensure_planilla_role(user):
         return jsonify({'error': 'No autorizado'}), 403
+    if evento.tipo == 'CAMBIO':
+        _revertir_cambio(evento)
     db.session.delete(evento)
     db.session.commit()
     return jsonify({'message': 'Evento eliminado'}), 200

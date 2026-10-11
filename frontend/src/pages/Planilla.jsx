@@ -45,7 +45,7 @@ import {
   SportsSoccer as GolIcon, Square as YellowCardIcon,
   Block as RedCardIcon, Flag as AutogolIcon, Delete as DeleteIcon,
   SwapHoriz as SwapIcon, PlayArrow as PlayIcon, Pause as PauseIcon,
-  Replay as ReplayIcon,
+  Replay as ReplayIcon, SkipNext as SkipNextIcon,
   Undo as UndoIcon, PersonAdd as PersonAddIcon, PictureAsPdf as PdfIcon,
   Verified as VerifiedIcon, HistoryToggleOff as HistoryToggleOffIcon,
   PublishedWithChanges as PublishedWithChangesIcon, VerifiedUser as VerifiedUserIcon,
@@ -388,7 +388,7 @@ export default function Planilla({ selectedTorneoId }) {
 
   const borrarEventoMut = useMutation({
     mutationFn: (id) => apiDelete(`/eventos/${id}`),
-    onSuccess: () => { qc.invalidateQueries(['eventos', selId]); toast.show('Acción eliminada', 'success') },
+    onSuccess: () => { qc.invalidateQueries(['eventos', selId]); qc.invalidateQueries(['alineacion', selId]); toast.show('Acción eliminada', 'success') },
     onError: (e) => toast.show(e.message, 'error'),
   })
 
@@ -633,7 +633,7 @@ export default function Planilla({ selectedTorneoId }) {
       .filter((j) => (numCamiseta(j, alineacionMap[j.id]) == null || !numerosEnCancha.has(numCamiseta(j, alineacionMap[j.id]))))
   }
 
-  const half = crono.seg <= 2700 ? 1 : 2
+  const half = crono.seg >= 2700 ? 2 : 1
   const minutoCrono = () => (half === 1
     ? Math.max(1, Math.ceil(crono.seg / 60))
     : 45 + Math.max(1, Math.ceil((crono.seg - 2700) / 60)))
@@ -679,6 +679,14 @@ export default function Planilla({ selectedTorneoId }) {
   const resetCrono = () => {
     setIniciado(false)
     setCrono({ seg: 0, running: false })
+  }
+
+  // Salto explícito al segundo tiempo: posiciona el reloj en 45' y lo deja
+  // corriendo. Antes había que esperar a que pasara de 45' para que cambiara solo.
+  const inicioSegundoTiempo = () => {
+    if (!iniciado || half !== 1) return
+    if (!window.confirm('¿Iniciar el segundo tiempo? El reloj salta a 45\' y sigue corriendo.')) return
+    setCrono({ seg: 2700, running: true })
   }
 
   const registrarRapido = (jugadorId) => {
@@ -952,6 +960,14 @@ export default function Planilla({ selectedTorneoId }) {
                             <ReplayIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        {iniciado && half === 1 && (
+                          <Tooltip title="Iniciar segundo tiempo (salto a 45')">
+                            <IconButton size="small" sx={{ color: '#fff', '&:hover': { bgcolor: '#374151' }, width: { xs: 44, sm: 34 }, height: { xs: 44, sm: 34 } }}
+                              onClick={inicioSegundoTiempo}>
+                              <SkipNextIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
                       </>
                     )}
                   </Box>

@@ -27,6 +27,9 @@ class EventoPartido(db.Model):
     tipo = db.Column(db.String(30), nullable=False, default='GOL')
     minuto = db.Column(db.Integer, nullable=False, default=0)
     descripcion = db.Column(db.Text, nullable=True)
+    # Solo CAMBIO: snapshot del estado de la alineación antes del cambio, para que
+    # borrar el evento revierta quién es titular en la lineup.
+    cambio_snapshot = db.Column(db.JSON, nullable=True)
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

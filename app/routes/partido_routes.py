@@ -46,6 +46,24 @@ def _normalizar_numero(valor):
         return (None, 'Número de camiseta inválido')
 
 
+def _numero_libre(ocupados, preferido):
+    """Primer número de camiseta libre para un equipo en un partido.
+
+    Empieza por `preferido` (el dorsal inscrito del jugador) y sube; si el número
+    preferido está tomado, se le asigna el siguiente libre escaneando hacia arriba
+    (con vuelta a 1). Devuelve None si el rango 1..999 está completo.
+    """
+    candidato = preferido if (preferido is not None and preferido > 0) else 1
+    n = candidato
+    while n in ocupados:
+        n += 1
+        if n > 999:
+            n = 1
+        if n == candidato:
+            return None
+    return n
+
+
 @partido_bp.route('', methods=['GET'])
 @jwt_required()
 def get_partidos():
@@ -252,35 +270,53 @@ def upsert_alineacion(partido_id):
     numero_camiseta, err = _normalizar_numero(data.get('numero_camiseta'))
     if err:
         return jsonify({'error': err}), 400
+    explicit = data.get('numero_camiseta') is not None
     err = _error_convocatoria(user, partido, jugador, numero_camiseta)
     if err:
         return jsonify({'error': err[0]}), err[1]
     titular = bool(data.get('titular', False))
 
-    item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
-    if not item:
-        item = PartidoAlineacion(partido_id=partido_id, equipo_id=jugador.equipo_id, jugador_id=jugador_id,
-                                 titular=titular, numero_camiseta=numero_camiseta)
-        db.session.add(item)
-    else:
-        item.titular = titular
-        item.numero_camiseta = numero_camiseta
-
-    # Número efectivo: usa el del partido, si no el inscrito del jugador
-    numero_efectivo = numero_camiseta if numero_camiseta is not None else jugador.numero_camiseta
+    # Números ya ocupados por otros convocados del mismo equipo en este partido
     otros = PartidoAlineacion.query.filter(
         PartidoAlineacion.partido_id == partido_id,
         PartidoAlineacion.equipo_id == jugador.equipo_id,
         PartidoAlineacion.jugador_id != jugador_id,
     ).all()
-    if otros and numero_efectivo is not None:
-        otros_ids = [o.jugador_id for o in otros]
-        inscritos = {i.id: i.numero_camiseta for i in Jugador.query.filter(Jugador.id.in_(otros_ids)).all()}
-        for o in otros:
-            onum = o.numero_camiseta if o.numero_camiseta is not None else inscritos.get(o.jugador_id)
-            if onum == numero_efectivo:
-                db.session.rollback()
-                return jsonify({'error': f'El número {numero_efectivo} ya está siendo usado por otro jugador de este equipo'}), 400
+    otros_ids = [o.jugador_id for o in otros]
+    inscritos_otros = {i.id: i.numero_camiseta for i in Jugador.query.filter(Jugador.id.in_(otros_ids)).all()}
+    ocupados = {o.numero_camiseta if o.numero_camiseta is not None else inscritos_otros.get(o.jugador_id)
+                for o in otros if (o.numero_camiseta if o.numero_camiseta is not None else inscritos_otros.get(o.jugador_id)) is not None}
+
+    item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
+    prev_custom = item.numero_camiseta if item else None
+
+    if explicit:
+        if numero_camiseta is not None and numero_camiseta in ocupados:
+            return jsonify({'error': f'El número {numero_camiseta} ya está siendo usado por otro jugador de este equipo'}), 400
+        numero_efectivo = numero_camiseta
+    else:
+        # Número implícito: conserva el número real ya asignado a este jugador si
+        # sigue libre; si no, usa el dorsal inscrito o el siguiente libre del equipo.
+        if prev_custom is not None and prev_custom not in ocupados:
+            numero_efectivo = prev_custom
+        else:
+            numero_efectivo = _numero_libre(ocupados, jugador.numero_camiseta)
+        if numero_efectivo is None:
+            return jsonify({'error': 'No hay números de camiseta libres para este equipo'}), 400
+
+    if not item:
+        item = PartidoAlineacion(partido_id=partido_id, equipo_id=jugador.equipo_id, jugador_id=jugador_id,
+                                 titular=titular, numero_camiseta=None)
+        db.session.add(item)
+    else:
+        item.titular = titular
+
+    # Banco: None significa "usar el dorsal inscrito"; solo se guarda número propio
+    # cuando difiere del inscrito (auto-asignado) o fue explícito.
+    if explicit:
+        item.numero_camiseta = numero_camiseta
+    else:
+        item.numero_camiseta = None if jugador.numero_camiseta == numero_efectivo else numero_efectivo
 
     db.session.commit()
     return jsonify({'id': item.id, 'jugador_id': item.jugador_id, 'equipo_id': item.equipo_id,
@@ -313,16 +349,15 @@ def bulk_alineacion(partido_id):
     if len(jugadores) > 60:
         return jsonify({'error': 'Máximo 60 jugadores por llamada'}), 400
 
-    # Números de camiseta ya ocupados por equipo, para detectar choques dentro del
-    # lote y contra lo que ya estaba cargado.
+    # --- Validación contra el ESTADO FINAL (no secuencial) ---
+    # Se permite reasignar números en el mismo lote (swaps y renumeración): cada
+    # jugador libera su dorsal anterior al pasar a otro. Solo choca si el número
+    # pedido queda repetido en el conjunto final del equipo.
     inscritos = {j.id: j.numero_camiseta for j in Jugador.query.filter(
         Jugador.id.in_([d.get('jugador_id') for d in jugadores if d.get('jugador_id')])).all()}
-    ocupados = {}
-    for fila in PartidoAlineacion.query.filter_by(partido_id=partido_id).all():
-        n = fila.numero_camiseta if fila.numero_camiseta is not None else inscritos.get(fila.jugador_id, 0)
-        ocupados.setdefault(fila.equipo_id, {})[n] = fila.jugador_id
+    filas_db = {f.jugador_id: f for f in PartidoAlineacion.query.filter_by(partido_id=partido_id).all()}
 
-    agregados, omitidos = [], []
+    entradas, omitidos = [], []
     for dato in jugadores:
         jugador_id = dato.get('jugador_id')
         if not jugador_id:
@@ -340,27 +375,92 @@ def bulk_alineacion(partido_id):
         if falla:
             omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre, 'motivo': falla[0]})
             continue
-        equipo_ocupados = ocupados.setdefault(jugador.equipo_id, {})
-        efectivo = numero if numero is not None else jugador.numero_camiseta
-        if efectivo is not None and equipo_ocupados.get(efectivo, jugador_id) != jugador_id:
-            omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre,
-                             'motivo': f'El número {efectivo} ya está siendo usado por otro jugador de este equipo'})
-            continue
+        entradas.append({
+            'jugador': jugador, 'numero': numero,
+            'explicito': dato.get('numero_camiseta') is not None,
+            'titular': bool(dato.get('titular', False)),
+            'posicion_tactica': dato.get('posicion_tactica'),
+            'posicion_orden': dato.get('posicion_orden'),
+        })
 
-        item = PartidoAlineacion.query.filter_by(partido_id=partido_id, jugador_id=jugador_id).first()
+    # Dedupe por jugador (gana la última entrada): el lote no debe crear dos filas
+    # de alineación para el mismo jugador en el partido.
+    unicos = {}
+    for e in entradas:
+        unicos[e['jugador'].id] = e
+    entradas = list(unicos.values())
+
+    en_lote = {e['jugador'].id for e in entradas}
+
+    # Números tomados (no se tocan en este lote) + se liberan los que cambian.
+    conjunto = {}
+    for jid, f in filas_db.items():
+        if jid in en_lote:
+            continue
+        n = f.numero_camiseta if f.numero_camiseta is not None else inscritos.get(jid)
+        if n is not None:
+            conjunto.setdefault(f.equipo_id, set()).add(n)
+
+    resueltos = []
+
+    # 1º explícitos: si el número pedido ya está tomado, se omite (no se adivina).
+    for e in entradas:
+        if not e['explicito'] or e['numero'] is None:
+            continue
+        s = conjunto.setdefault(e['jugador'].equipo_id, set())
+        if e['numero'] in s:
+            f = filas_db.get(e['jugador'].id)
+            if f is not None:
+                onum = f.numero_camiseta if f.numero_camiseta is not None else inscritos.get(f.jugador_id)
+                if onum is not None:
+                    s.add(onum)
+            omitidos.append({'jugador_id': e['jugador'].id, 'nombre': e['jugador'].nombre,
+                             'motivo': f'El número {e["numero"]} ya está siendo usado por otro jugador de este equipo'})
+            continue
+        s.add(e['numero'])
+        e['efectivo'] = e['numero']
+        resueltos.append(e)
+
+    # 2º implícitos: conserva el número real ya guardado si sigue libre; si no,
+    # auto-asigna el dorsal inscrito o el siguiente libre.
+    for e in entradas:
+        if e['explicito']:
+            continue
+        s = conjunto.setdefault(e['jugador'].equipo_id, set())
+        fprev = filas_db.get(e['jugador'].id)
+        prev_custom = fprev.numero_camiseta if fprev is not None else None
+        if prev_custom is not None and prev_custom not in s:
+            efectivo = prev_custom
+        else:
+            deseado = e['numero'] if e['numero'] is not None else inscritos.get(e['jugador'].id)
+            efectivo = _numero_libre(s, deseado)
+        if efectivo is None:
+            omitidos.append({'jugador_id': e['jugador'].id, 'nombre': e['jugador'].nombre,
+                             'motivo': 'No hay números de camiseta libres para este equipo'})
+            continue
+        s.add(efectivo)
+        e['efectivo'] = efectivo
+        resueltos.append(e)
+
+    agregados = []
+    for e in resueltos:
+        jugador_id = e['jugador'].id
+        item = filas_db.get(jugador_id)
         nuevo = item is None
         if nuevo:
-            item = PartidoAlineacion(partido_id=partido_id, equipo_id=jugador.equipo_id, jugador_id=jugador_id)
+            item = PartidoAlineacion(partido_id=partido_id, equipo_id=e['jugador'].equipo_id, jugador_id=jugador_id)
             db.session.add(item)
-        item.titular = bool(dato.get('titular', False))
-        item.numero_camiseta = numero
-        if dato.get('posicion_tactica') is not None:
-            item.posicion_tactica = dato.get('posicion_tactica')
-        if dato.get('posicion_orden') is not None:
-            item.posicion_orden = dato.get('posicion_orden')
-        if efectivo is not None:
-            equipo_ocupados[efectivo] = jugador_id
-        agregados.append({'jugador_id': jugador_id, 'nombre': jugador.nombre, 'nuevo': nuevo,
+        item.titular = e['titular']
+        inscrito = inscritos.get(jugador_id)
+        if not e['explicito'] and e['efectivo'] == inscrito and inscrito is not None:
+            item.numero_camiseta = None
+        else:
+            item.numero_camiseta = e['efectivo']
+        if e['posicion_tactica'] is not None:
+            item.posicion_tactica = e['posicion_tactica']
+        if e['posicion_orden'] is not None:
+            item.posicion_orden = e['posicion_orden']
+        agregados.append({'jugador_id': jugador_id, 'nombre': e['jugador'].nombre, 'nuevo': nuevo,
                           'titular': item.titular, 'numero_camiseta': item.numero_camiseta})
 
     db.session.commit()

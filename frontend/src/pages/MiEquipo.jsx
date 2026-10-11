@@ -41,6 +41,38 @@ const fmtFecha = (iso) => {
 
 const RESULTADO_LABEL = { PENDIENTE: 'Pendiente', JUGADO: 'Jugado', SUSPENDIDO: 'Suspendido' }
 
+function NumeroCamiseta({ valor, onSave }) {
+  const [draft, setDraft] = useState(null)
+  const mostrar = draft !== null ? draft : (valor == null ? '' : String(valor))
+
+  const commit = () => {
+    const raw = draft
+    setDraft(null)
+    if (raw === null) return
+    const n = raw === '' ? null : Number(raw)
+    const prev = valor == null ? null : Number(valor)
+    if (n !== prev) onSave(n)
+  }
+
+  return (
+    <TextField
+      size="small"
+      label="Nº"
+      type="number"
+      value={mostrar}
+      onChange={(e) => {
+        const raw = e.target.value
+        if (raw === '' || (!Number.isNaN(Number(raw)) && Number(raw) >= 0 && Number(raw) <= 999)) {
+          setDraft(raw)
+        }
+      }}
+      onBlur={commit}
+      onKeyDown={(ev) => { if (ev.key === 'Enter') ev.currentTarget.blur() }}
+      inputProps={{ style: { width: 56, textAlign: 'center' } }}
+    />
+  )
+}
+
 export default function MiEquipo({ user, selectedTorneoId }) {
   const qc = useQueryClient()
   const toast = useToast()
@@ -225,17 +257,9 @@ export default function MiEquipo({ user, selectedTorneoId }) {
                           }}
                           sx={{ fontWeight: 700 }} />
                         <Typography sx={{ flex: 1, fontWeight: 600, fontSize: 14 }}>{j.nombre}</Typography>
-                        <TextField
-                          size="small"
-                          label="Nº"
-                          type="number"
-                          value={num ?? ''}
-                          onChange={(e) => {
-                            const v = e.target.value === '' ? null : Number(e.target.value)
-                            if (v !== null && (v < 0 || v > 999)) return
-                            alinearMut.mutate({ partidoId: partidoSel.id, jugadorId: j.id, titular: esTitular, numeroCamiseta: v })
-                          }}
-                          inputProps={{ style: { width: 56, textAlign: 'center' } }}
+                        <NumeroCamiseta
+                          valor={num}
+                          onSave={(v) => alinearMut.mutate({ partidoId: partidoSel.id, jugadorId: j.id, titular: esTitular, numeroCamiseta: v })}
                         />
                         <IconButton size="small" color="error" onClick={() => desalinearMut.mutate({ partidoId: partidoSel.id, jugadorId: j.id })}>
                           <DeleteIcon fontSize="small" />
