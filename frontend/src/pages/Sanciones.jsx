@@ -17,6 +17,8 @@ import DialogActions from '@mui/material/DialogActions'
 import TextField from '@mui/material/TextField'
 import PageHeader from '../components/PageHeader'
 import Grid from '@mui/material/Grid'
+import Tabs from '@mui/material/Tabs'
+import Tab from '@mui/material/Tab'
 import { apiGet, apiPost } from '../api'
 import { useToast } from '../components/Toast'
 import { CheckCircle as CheckCircleIcon } from '@mui/icons-material'
@@ -128,6 +130,7 @@ export default function Sanciones({ selectedTorneoId }) {
   const [pagoSel, setPagoSel] = useState(null)
   const [monto, setMonto] = useState('')
   const [nota, setNota] = useState('')
+  const [tab, setTab] = useState('pendientes')
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['sanciones', selectedTorneoId],
@@ -186,11 +189,17 @@ export default function Sanciones({ selectedTorneoId }) {
   if (isError) return <Alert severity="error">{error.message}</Alert>
 
   const sanciones = data?.sanciones || []
-  const suspendidos = sanciones.filter((s) => s.suspendido)
-  const totalAmarillas = sanciones.reduce((acc, s) => acc + (s.amarillas || 0), 0)
-  const totalPagadas = sanciones.reduce((acc, s) => acc + (s.amarillas_pagadas || 0), 0)
-  const totalRojas = sanciones.reduce((acc, s) => acc + (s.rojas || 0), 0)
+  // Un sancionado está "pendiente" si le quedan cargos por cubrir (o es técnico,
+  // que no entra en el flujo de pagos). "Pagado" si tiene tarjetas y ya cubrió todo.
+  const tienePendientes = (s) => {
+    if (s.tipo_sancionado === 'TECNICO') return true
+    if (s.pendiente_pago === true || (s.deuda_tarjetas || 0) > 0) return true
+    const amarillasPend = (s.amarillas_cobrables || 0) - (s.amarillas_pagadas || 0)
+    const rojasPend = (s.rojas_cobrables || 0) - (s.rojas_pagadas || 0)
+    return amarillasPend > 0 || rojasPend > 0
+  }
 
+  // Agrupar todas las sanciones por equipo (sin filtrar por tab aún)
   const porEquipo = {}
   sanciones.forEach((s) => {
     (porEquipo[s.equipo] = porEquipo[s.equipo] || []).push(s)
@@ -203,10 +212,22 @@ export default function Sanciones({ selectedTorneoId }) {
       amarillas: jugadores.reduce((acc, s) => acc + (s.amarillas || 0), 0),
       rojas: jugadores.reduce((acc, s) => acc + (s.rojas || 0), 0),
       suspendidos: jugadores.filter((s) => s.suspendido).length,
+      pendientes: jugadores.filter(tienePendientes).length,
     }))
     .sort((a, b) => (b.suspendidos - a.suspendidos) || ((b.rojas + b.amarillas) - (a.rojas + a.amarillas)))
 
   const activo = equipos.find((e) => e.nombre === equipoSel) || equipos[0]
+
+  // Filtrar jugadores del equipo activo por tab
+  const jugadoresEquipo = activo?.jugadores || []
+  const pendientes = jugadoresEquipo.filter(tienePendientes)
+  const pagados = jugadoresEquipo.filter((s) => !tienePendientes(s))
+  const jugadoresFiltrados = tab === 'pendientes' ? pendientes : pagados
+
+  const suspendidos = jugadoresFiltrados.filter((s) => s.suspendido)
+  const totalAmarillas = jugadoresFiltrados.reduce((acc, s) => acc + (s.amarillas || 0), 0)
+  const totalPagadas = jugadoresFiltrados.reduce((acc, s) => acc + (s.amarillas_pagadas || 0), 0)
+  const totalRojas = jugadoresFiltrados.reduce((acc, s) => acc + (s.rojas || 0), 0)
 
   const celdasHeader = (label, justify = 'flex-start') => (
     <Typography sx={{ fontSize: 11, fontWeight: 800, letterSpacing: '.06em', textTransform: 'uppercase', color: 'text.secondary', display: 'flex', alignItems: 'center', justifyContent: justify, textAlign: justify === 'center' ? 'center' : justify === 'flex-end' ? 'right' : 'left' }}>{label}</Typography>
@@ -216,7 +237,7 @@ export default function Sanciones({ selectedTorneoId }) {
     { label: 'Amarillas', value: totalAmarillas, color: 'warning', extra: totalPagadas > 0 ? `${totalPagadas} pagadas` : null },
     { label: 'Rojas', value: totalRojas, color: 'error' },
     { label: 'Jugadores suspendidos', value: suspendidos.length, color: 'error' },
-    { label: 'Equipos con tarjetas', value: equipos.length, color: 'info' },
+    { label: 'Jugadores en lista', value: jugadoresFiltrados.length, color: 'info' },
   ]
 
   return (
@@ -241,7 +262,7 @@ export default function Sanciones({ selectedTorneoId }) {
         <Alert severity="info">No hay sanciones registradas en este torneo.</Alert>
       ) : (
         <Box>
-          {/* Pestañas por equipo */}
+          {/* Selector de equipo */}
           <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 2 }}>
             {equipos.map((equipo) => {
               const active = equipo.nombre === activo.nombre
@@ -249,7 +270,7 @@ export default function Sanciones({ selectedTorneoId }) {
                 <Button
                   key={equipo.nombre}
                   size="small"
-                  onClick={() => setEquipoSel(equipo.nombre)}
+                  onClick={() => { setEquipoSel(equipo.nombre); setTab('pendientes'); }}
                   sx={{
                     textTransform: 'none', fontWeight: 700, borderRadius: 99, px: { xs: 1, sm: 1.5 }, minHeight: 36, gap: 0.6,
                     maxWidth: '100%', whiteSpace: 'normal', textAlign: 'left', lineHeight: 1.2,
@@ -260,49 +281,68 @@ export default function Sanciones({ selectedTorneoId }) {
                   }}
                 >
                   {equipo.nombre}
-                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(255,193,7,0.15)', color: active ? '#fff' : 'warning.dark' }}>
-                    <span aria-hidden>🟨</span>{equipo.amarillas}
+                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', minWidth: 18, height: 18, px: 0.6, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(29,78,216,0.12)', color: active ? '#fff' : 'primary.main' }}>
+                    {equipo.pendientes}
                   </Box>
-                  <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(211,47,47,0.12)', color: active ? '#fff' : 'error.main' }}>
-                    <span aria-hidden>🟥</span>{equipo.rojas}
-                  </Box>
-                  {equipo.suspendidos > 0 && (
-                    <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.35, px: 0.6, py: 0.15, borderRadius: 99, fontSize: 11, fontWeight: 800, bgcolor: active ? 'rgba(0,0,0,0.18)' : 'rgba(211,47,47,0.14)', color: active ? '#fff' : 'error.dark' }}>
-                      <span aria-hidden>⛔</span>{equipo.suspendidos}
-                    </Box>
-                  )}
                 </Button>
               )
             })}
           </Box>
 
-          {/* Lista de amonestados */}
-          <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
-            {!isMobile && (
-              <Box sx={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 1, px: 2, py: 1.25, bgcolor: 'rgba(0,0,0,0.045)', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
-                {celdasHeader('Jugador')}
-                {celdasHeader('Amarillas', 'center')}
-                {celdasHeader('Rojas', 'center')}
-                {celdasHeader('Estado')}
-                {celdasHeader('', 'flex-end')}
-              </Box>
-            )}
-            {activo.jugadores.map((s, i) => (
-              <Fila
-                key={`${s.jugador_id ?? 'tec'}-${s.jugador}-${s.equipo}`}
-                s={s}
-                i={i}
-                ultima={i === activo.jugadores.length - 1}
-                isMobile={isMobile}
-                onPagar={abrirPago}
-              />
-            ))}
-          </Card>
+          {activo && (
+            <Box>
+              {/* Pestañas Pendientes/Pagadas DENTRO del equipo seleccionado */}
+              <Card elevation={0} sx={{ mb: 2, border: '1px solid rgba(0,0,0,0.06)' }}>
+                <Tabs
+                  value={tab}
+                  onChange={(_, v) => setTab(v)}
+                  variant="fullWidth"
+                  indicatorColor="primary"
+                  textColor="primary"
+                  sx={{ minHeight: 48, '& .MuiTab-root': { textTransform: 'none', fontWeight: 700, fontSize: 14, minHeight: 48 } }}
+                >
+                  <Tab label={`Pendientes (${pendientes.length})`} value="pendientes" />
+                  <Tab label={`Pagadas (${pagados.length})`} value="pagadas" />
+                </Tabs>
+              </Card>
 
-          {totalPagadas > 0 && (
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-              {totalPagadas} amarilla{totalPagadas === 1 ? '' : 's'} pagada{totalPagadas === 1 ? '' : 's'}: no acumulan para suspensión.
-            </Typography>
+              {/* Lista de amonestados del equipo activo filtrados por tab */}
+              <Card elevation={0} sx={{ border: '1px solid rgba(0,0,0,0.08)', overflow: 'hidden' }}>
+                {jugadoresFiltrados.length === 0 ? (
+                  <Alert severity="info" sx={{ m: 3 }}>
+                    {tab === 'pendientes' ? 'Este equipo no tiene jugadores con pagos pendientes.' : 'Este equipo no tiene jugadores con todo pagado.'}
+                  </Alert>
+                ) : (
+                  <>
+                    {!isMobile && (
+                      <Box sx={{ display: 'grid', gridTemplateColumns: COLS, alignItems: 'center', gap: 1, px: 2, py: 1.25, bgcolor: 'rgba(0,0,0,0.045)', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>
+                        {celdasHeader('Jugador')}
+                        {celdasHeader('Amarillas', 'center')}
+                        {celdasHeader('Rojas', 'center')}
+                        {celdasHeader('Estado')}
+                        {celdasHeader('', 'flex-end')}
+                      </Box>
+                    )}
+                    {jugadoresFiltrados.map((s, i) => (
+                      <Fila
+                        key={`${s.jugador_id ?? 'tec'}-${s.jugador}-${s.equipo}`}
+                        s={s}
+                        i={i}
+                        ultima={i === jugadoresFiltrados.length - 1}
+                        isMobile={isMobile}
+                        onPagar={abrirPago}
+                      />
+                    ))}
+                  </>
+                )}
+              </Card>
+
+              {totalPagadas > 0 && tab === 'pagadas' && (
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  {totalPagadas} amarilla{totalPagadas === 1 ? '' : 's'} pagada{totalPagadas === 1 ? '' : 's'}: no acumulan para suspensión.
+                </Typography>
+              )}
+            </Box>
           )}
         </Box>
       )}
@@ -318,28 +358,28 @@ export default function Sanciones({ selectedTorneoId }) {
               <Typography variant="body2" sx={{ fontWeight: 700 }}>{pagoSel.jugador}</Typography>
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>{pagoSel.equipo}</Typography>
                <Box sx={{ display: 'flex', gap: 0.75, flexWrap: 'wrap', mb: 2 }}>
-                 <Chip size="small" variant="outlined" color="warning"
-                   label={`${pagoSel.amarillas} amarilla${pagoSel.amarillas === 1 ? '' : 's'} · ${pagoSel.amarillas_pagadas || 0} pagada${pagoSel.amarillas_pagadas === 1 ? '' : 's'}`} />
-                 <Chip size="small" variant="outlined" color="error"
-                   label={`${pagoSel.rojas} roja${pagoSel.rojas === 1 ? '' : 's'} · ${pagoSel.rojas_pagadas || 0} pagada${pagoSel.rojas_pagadas === 1 ? '' : 's'}`} />
-                 {(pagoSel.deuda_tarjetas || 0) > 0 && (
-                   <Chip size="small" variant="outlined" color="error" label={`Debe ${mon(pagoSel.deuda_tarjetas)}`} />
-                 )}
-               </Box>
-               {pagoSel.proximo_pago === 'TARJETA_ROJA' && (
-                 <Alert severity="info" sx={{ mb: 2 }}>Doble amarilla → se paga como roja.</Alert>
-               )}
-               <TextField label="Monto" type="number" fullWidth required autoFocus
-                 inputProps={{ min: 0, step: 0.5 }}
-                 value={monto}
-                 onChange={(e) => setMonto(e.target.value)}
-                 helperText={
-                   pagoSel.proximo_pago === 'TARJETA_ROJA' && pagoSel.valor_tarjeta_roja > 0
-                     ? `Valor de la roja en las reglas del torneo: ${mon(pagoSel.valor_tarjeta_roja)}`
-                     : pagoSel.proximo_pago === 'TARJETA_AMARILLA' && pagoSel.valor_tarjeta_amarilla > 0
-                       ? `Valor de la amarilla en las reglas del torneo: ${mon(pagoSel.valor_tarjeta_amarilla)}`
-                       : 'Sin valor configurado en las reglas: ingresa el monto cobrado.'
-                 } />
+                <Chip size="small" variant="outlined" color="warning"
+                  label={`${pagoSel.amarillas} amarilla${pagoSel.amarillas === 1 ? '' : 's'} · ${pagoSel.amarillas_pagadas || 0} pagada${pagoSel.amarillas_pagadas === 1 ? '' : 's'}`} />
+                <Chip size="small" variant="outlined" color="error"
+                  label={`${pagoSel.rojas} roja${pagoSel.rojas === 1 ? '' : 's'} · ${pagoSel.rojas_pagadas || 0} pagada${pagoSel.rojas_pagadas === 1 ? '' : 's'}`} />
+                {(pagoSel.deuda_tarjetas || 0) > 0 && (
+                  <Chip size="small" variant="outlined" color="error" label={`Debe ${mon(pagoSel.deuda_tarjetas)}`} />
+                )}
+              </Box>
+              {pagoSel.proximo_pago === 'TARJETA_ROJA' && (
+                <Alert severity="info" sx={{ mb: 2 }}>Doble amarilla → se paga como roja.</Alert>
+              )}
+              <TextField label="Monto" type="number" fullWidth required autoFocus
+                inputProps={{ min: 0, step: 0.5 }}
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+                helperText={
+                  pagoSel.proximo_pago === 'TARJETA_ROJA' && pagoSel.valor_tarjeta_roja > 0
+                    ? `Valor de la roja en las reglas del torneo: ${mon(pagoSel.valor_tarjeta_roja)}`
+                    : pagoSel.proximo_pago === 'TARJETA_AMARILLA' && pagoSel.valor_tarjeta_amarilla > 0
+                      ? `Valor de la amarilla en las reglas del torneo: ${mon(pagoSel.valor_tarjeta_amarilla)}`
+                      : 'Sin valor configurado en las reglas: ingresa el monto cobrado.'
+                } />
               <TextField label="Nota (opcional)" fullWidth margin="dense"
                 value={nota} onChange={(e) => setNota(e.target.value)} />
             </>
