@@ -254,7 +254,8 @@ export default function Tesoreria({ selectedTorneoId }) {
           { label: 'Recaudado', value: mon(rus.recaudado), color: 'success' },
           { label: 'Por inscripción', value: mon(rus.recaudado_inscripcion), color: 'primary' },
           { label: 'Por tarjetas', value: mon(rus.recaudado_tarjetas), color: 'info' },
-          { label: 'Deuda inscripción', value: `${mon(rus.deuda_inscripcion)} · ${rus.jugadores_sin_inscripcion}`, color: 'error' },
+          { label: 'Deuda inscripción', value: mon(rus.deuda_inscripcion), color: 'error' },
+          { label: 'Jugadores sin inscripción', value: rus.jugadores_sin_inscripcion, color: 'warning' },
           { label: 'Deuda tarjetas', value: mon(rus.deuda_tarjetas), color: 'error' },
           { label: 'Bloqueados', value: rus.jugadores_bloqueados, color: 'warning' },
         ].map((s) => (
