@@ -32,6 +32,7 @@ import InputLabel from '@mui/material/InputLabel'
 import Select from '@mui/material/Select'
 import MenuItem from '@mui/material/MenuItem'
 import { alpha } from '@mui/material'
+import useMediaQuery from '@mui/material/useMediaQuery'
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -530,28 +531,25 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
   }
 
   const activos = jugadores.filter((j) => j.activo)
-  const edades = activos.map((j) => calcEdad(j.fecha_nacimiento)).filter((v) => v != null)
-  const alturas = activos.map((j) => j.altura_cm).filter(Boolean)
-  const promEdad = edades.length ? (edades.reduce((a, b) => a + b, 0) / edades.length).toFixed(1) : null
-  const promAltura = alturas.length ? (alturas.reduce((a, b) => a + b, 0) / alturas.length / 100).toFixed(2) : null
-  const conDoc = activos.filter((j) => j.documento_identidad).length
   const cupoPct = maxJugadores ? Math.round((activos.length / maxJugadores) * 100) : 0
 
-  const metricas = [
-    { label: 'Promedio Edad', valor: promEdad, unidad: 'años', color: 'text.primary' },
-    { label: 'Estatura Media', valor: promAltura, unidad: 'm', color: 'text.primary' },
-    { label: 'Documentos Cargados', valor: `${conDoc} / ${activos.length}`, unidad: 'habilitados', color: 'primary.main' },
-    { label: 'Cupo Utilizado', valor: `${activos.length}`, unidad: `de ${maxJugadores}`, color: 'success.main' },
-  ]
-
   const filtrados = useMemo(() => {
-    if (filtroPosicion === 'todos') return jugadores
-    return jugadores.filter((j) => j.posicion === filtroPosicion)
+    if (filtroPosicion === 'liberados') {
+      return jugadores.filter((j) => !j.activo)
+    }
+    if (filtroPosicion === 'todos') {
+      return jugadores.filter((j) => j.activo)
+    }
+    return jugadores.filter((j) => j.activo && j.posicion === filtroPosicion)
   }, [jugadores, filtroPosicion])
 
   const paginaFiltrada = filtrados.length ? filtrados.slice(pagina * rowsPerPage, pagina * rowsPerPage + rowsPerPage) : []
 
-  const conteoPos = (pos) => (pos === 'todos' ? jugadores.length : jugadores.filter((j) => j.posicion === pos).length)
+  const conteoPos = (pos) => {
+    if (pos === 'liberados') return jugadores.filter((j) => !j.activo).length
+    if (pos === 'todos') return activos.length
+    return activos.filter((j) => j.posicion === pos).length
+  }
 
   const filtros = [
     { key: 'todos', label: 'Todos' },
@@ -559,6 +557,7 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
     { key: 'DEFENSOR', label: 'Defensores' },
     { key: 'MEDIOCAMPISTA', label: 'Centrocampistas' },
     { key: 'DELANTERO', label: 'Delanteros' },
+    { key: 'liberados', label: 'Liberados' },
   ]
 
   const handleChangeFiltro = (key) => {
@@ -617,23 +616,6 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
               </Button>
             </Box>
           </Box>
-
-          {/* Metric cards */}
-          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', sm: { gridTemplateColumns: 'repeat(4, 1fr)' }, gap: 1, mt: 2 }}>
-            {metricas.map((m) => (
-              <Box key={m.label} sx={{ p: 1.25, bgcolor: 'background.default', borderRadius: 1.5 }}>
-                <Typography variant="caption" sx={{ textTransform: 'uppercase', letterSpacing: '0.04em', color: 'text.secondary', fontWeight: 600 }}>
-                  {m.label}
-                </Typography>
-                <Box sx={{ mt: 0.5, display: 'flex', alignItems: 'baseline', gap: 0.5 }}>
-                  <Typography variant="h6" sx={{ fontWeight: 800, color: m.color, lineHeight: 1 }}>
-                    {m.valor ?? '—'}
-                  </Typography>
-                  {m.valor != null && <Typography variant="body2" color="text.secondary">{m.unidad}</Typography>}
-                </Box>
-              </Box>
-            ))}
-          </Box>
         </CardContent>
       </Card>
 
@@ -666,23 +648,21 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
             '&::-webkit-scrollbar': { height: 6 },
             '&::-webkit-scrollbar-thumb': { bgcolor: 'action.disabled', borderRadius: 3 },
           }}>
-            <Table sx={{ minWidth: 680 }}>
+            <Table sx={{ minWidth: 520 }}>
               <TableHead>
                 <TableRow sx={{ bgcolor: 'background.default' }}>
-                  {['Dorsal', 'Jugador', 'Posición', 'Edad / Altura', 'Identificación', 'Estado', 'Acciones'].map((c, i) => (
+                  {['Dorsal', 'Jugador', 'Posición', 'Estado', 'Acciones'].map((c, i) => (
                     <TableCell key={c} sx={{
                       textTransform: 'uppercase', fontSize: 11, fontWeight: 700, letterSpacing: '0.05em', color: 'text.secondary',
-                      ...(c === 'Dorsal' || c === 'Edad / Altura' || c === 'Estado' ? { textAlign: 'center' } : {}),
+                      ...(c === 'Dorsal' || c === 'Estado' ? { textAlign: 'center' } : {}),
                       ...(i === 0 ? { width: 72 } : {}),
-                      ...(i === 6 ? {
+                      ...(c === 'Acciones' ? {
                         textAlign: 'right',
                         position: 'sticky',
                         right: 0,
                         bgcolor: 'background.default',
                         zIndex: 2,
                       } : {}),
-                      ...(c === 'Edad / Altura' ? { display: { xs: 'none', md: 'table-cell' } } : {}),
-                      ...(c === 'Identificación' ? { display: { xs: 'none', lg: 'table-cell' } } : {}),
                       ...(c === 'Posición' ? { display: { xs: 'none', sm: 'table-cell' } } : {}),
                     }}>
                       {c}
@@ -729,17 +709,6 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
                         {POSICION_LABEL[j.posicion] || 'Sin posición'}
                       </Pill>
                     </TableCell>
-                    <TableCell sx={{ textAlign: 'center', display: { xs: 'none', md: 'table-cell' } }}>
-                      <Typography sx={{ fontSize: 13, fontWeight: 600 }}>{calcEdad(j.fecha_nacimiento) ?? '—'} años</Typography>
-                      <Typography variant="caption" color="text.secondary">{j.altura_cm ? `${(j.altura_cm / 100).toFixed(2)} m` : '—'}</Typography>
-                    </TableCell>
-                    <TableCell sx={{ display: { xs: 'none', lg: 'table-cell' } }}>
-                      <Typography sx={{ fontSize: 13, fontFamily: 'monospace' }}>{j.documento_identidad ?? '—'}</Typography>
-                      <Typography variant="caption" sx={{ color: j.documento_identidad ? 'success.main' : 'warning.main', display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        <CheckCircleIcon sx={{ fontSize: 12 }} />
-                        {j.documento_identidad ? 'Habilitado' : 'Sin documento'}
-                      </Typography>
-                    </TableCell>
                     <TableCell sx={{ textAlign: 'center' }}>
                       {j.activo ? (
                         <Pill bg={alpha('#10b981', 0.12)} color="#065f46">Titular</Pill>
@@ -775,7 +744,7 @@ function JugadoresPanel({ equipo, torneoNombre = '', organizador = '', maxJugado
               })}
               {paginaFiltrada.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={7} sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
+                  <TableCell colSpan={5} sx={{ textAlign: 'center', py: 6, color: 'text.secondary' }}>
                     <Typography variant="body2">No hay jugadores{jugadores.length ? ' en esta posición' : ' en esta plantilla.'}</Typography>
                     {jugadores.length === 0 && (
                       <Button size="small" variant="contained" startIcon={<PersonAddIcon />} sx={{ mt: 1 }} onClick={() => setOpen(true)}>
@@ -910,6 +879,7 @@ export default function Equipos({ user, selectedTorneoId }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState(emptyEquipo)
   const [busqueda, setBusqueda] = useState('')
+  const isDesktop = useMediaQuery((theme) => theme.breakpoints.up('lg'))
 
   const { data: equipos = [], isLoading, isError, error } = useQuery({
     queryKey: ['equipos', selectedTorneoId],
@@ -1007,7 +977,7 @@ export default function Equipos({ user, selectedTorneoId }) {
         </Box>
       </Box>
 
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr', gap: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '300px minmax(0, 1fr)' }, gap: 2, alignItems: 'start' }}>
         {/* Clubs directory */}
         <Box sx={{
           display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0,
@@ -1041,17 +1011,33 @@ export default function Equipos({ user, selectedTorneoId }) {
             </Box>
           </Card>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(auto-fill, minmax(150px, 1fr))', md: 'repeat(auto-fill, minmax(165px, 1fr))', xl: 'repeat(auto-fill, minmax(180px, 1fr))' }, gap: { xs: 1, lg: 1.25 }, alignSelf: 'stretch' }}>
+          <Box sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'repeat(auto-fill, minmax(150px, 1fr))', sm: 'repeat(auto-fill, minmax(165px, 1fr))', lg: '1fr' },
+            gap: { xs: 1, lg: 1.25 },
+            alignSelf: 'stretch',
+            maxHeight: { lg: 'calc(100vh - 320px)' },
+            overflowY: { lg: 'auto' },
+            pr: { lg: 0.75 },
+            '&::-webkit-scrollbar': { width: 6 },
+            '&::-webkit-scrollbar-thumb': { bgcolor: 'action.disabled', borderRadius: 3 },
+          }}>
             {equiposVisibles.map((eq, idx) => {
               const q = teamQueries[idx]
-              const activos = q?.data?.filter((j) => j.activo).length || 0
+              const players = q?.data || []
+              const activos = players.filter((j) => j.activo).length || 0
+              const activosList = players.filter((j) => j.activo)
+              const edades = activosList.map((j) => calcEdad(j.fecha_nacimiento)).filter((v) => v != null)
+              const alturas = activosList.map((j) => j.altura_cm).filter(Boolean)
+              const prom = edades.length ? (edades.reduce((a, b) => a + b, 0) / edades.length).toFixed(1) : null
+              const promAlt = alturas.length ? (alturas.reduce((a, b) => a + b, 0) / alturas.length / 100).toFixed(2) : null
               const isSel = selected?.id === eq.id
               const completo = activos >= maxJugadores
               const pctPlantilla = maxJugadores ? Math.min(100, Math.round((activos / maxJugadores) * 100)) : 0
               return (
                 <Card
                   key={eq.id}
-                  onClick={() => { setSelected(eq); setDrawerOpen(true) }}
+                  onClick={() => { setSelected(eq); if (!isDesktop) setDrawerOpen(true) }}
                   sx={{
                     position: 'relative', cursor: 'pointer', overflow: 'hidden',
                     transition: 'transform 0.15s ease, box-shadow 0.15s ease',
@@ -1099,14 +1085,19 @@ export default function Equipos({ user, selectedTorneoId }) {
                           )}
                         </Box>
                       </Box>
-                      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75, mt: 1 }}>
-                        <Typography sx={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                          {activos}<Box component="span" sx={{ color: 'text.disabled', fontWeight: 500 }}>/{maxJugadores}</Box>
-                        </Typography>
-                        <Pill bg={completo ? alpha('#10b981', 0.12) : alpha('#0ea5e9', 0.1)} color={completo ? '#065f46' : '#0369a1'} sx={{ px: 1, py: 0.4, fontSize: 10 }}>
-                          {completo ? 'Listo' : `Faltan ${maxJugadores - activos}`}
-                        </Pill>
-                      </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 0.75, mt: 1, flexWrap: 'wrap' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
+                            <Typography sx={{ fontSize: 12, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
+                              {activos}<Box component="span" sx={{ color: 'text.disabled', fontWeight: 500 }}>/{maxJugadores}</Box>
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary" sx={{ fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                              {prom != null ? `${prom}a` : '—'} · {promAlt != null ? `${promAlt}m` : '—'}
+                            </Typography>
+                          </Box>
+                          <Pill bg={completo ? alpha('#10b981', 0.12) : alpha('#0ea5e9', 0.1)} color={completo ? '#065f46' : '#0369a1'} sx={{ px: 1, py: 0.4, fontSize: 10 }}>
+                            {completo ? 'Listo' : `Faltan ${maxJugadores - activos}`}
+                          </Pill>
+                        </Box>
                       <Box sx={{ mt: 1, height: 5, bgcolor: 'background.default', borderRadius: 3, overflow: 'hidden' }}>
                         <LinearProgress
                           variant="determinate"
@@ -1167,12 +1158,33 @@ export default function Equipos({ user, selectedTorneoId }) {
           </Card>
         </Box>
 
+          {isDesktop && (
+            <Box sx={{ minWidth: 0 }}>
+              {selected ? (
+                <JugadoresPanel
+                  key={selected.id}
+                  equipo={selected}
+                  torneoNombre={torneoNombre}
+                  organizador={user?.organizadorName || ''}
+                  maxJugadores={maxJugadores}
+                  onClose={() => setSelected(null)}
+                />
+              ) : (
+                <Card sx={{ p: 5, textAlign: 'center', border: '1px dashed', borderColor: 'divider', bgcolor: 'background.paper' }}>
+                  <GroupsIcon sx={{ fontSize: 44, color: 'text.disabled', mb: 1 }} />
+                  <Typography variant="body2" color="text.secondary">
+                    Seleccioná un club de la lista para ver y gestionar su plantilla.
+                  </Typography>
+                </Card>
+              )}
+            </Box>
+          )}
         </Box>
 
-      {/* Right sidebar: selected team roster */}
+      {/* Right sidebar: selected team roster (solo móvil; en desktop va inline) */}
       <Drawer
         anchor="right"
-        open={drawerOpen}
+        open={drawerOpen && !isDesktop}
         onClose={() => { setDrawerOpen(false); setSelected(null) }}
         keepMounted
         sx={{
@@ -1185,7 +1197,7 @@ export default function Equipos({ user, selectedTorneoId }) {
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
           {selected && (
-            <JugadoresPanel equipo={selected} torneoNombre={torneoNombre} organizador={user?.organizadorName || ''} maxJugadores={maxJugadores} onClose={() => { setDrawerOpen(false); setSelected(null) }} />
+            <JugadoresPanel key={selected.id} equipo={selected} torneoNombre={torneoNombre} organizador={user?.organizadorName || ''} maxJugadores={maxJugadores} onClose={() => { setDrawerOpen(false); setSelected(null) }} />
           )}
         </Box>
       </Drawer>

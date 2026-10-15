@@ -44,6 +44,10 @@ export default function App({ setDarkMode }) {
   })
   const [selectedTorneoId, setSelectedTorneoId] = useState(() => localStorage.getItem('tf_torneo') || '')
 
+  // Rutas públicas: landing del organizador, inscripción de jugadores y acta de
+  // partido. Se muestran con o sin sesión y sin disparar peticiones autenticadas.
+  const isPublicPath = ['/l/', '/r/', '/acta/'].some((p) => location.pathname.startsWith(p))
+
   const handleLogout = useCallback(() => {
     localStorage.removeItem('tf_user')
     localStorage.removeItem('tf_token')
@@ -59,7 +63,7 @@ export default function App({ setDarkMode }) {
   // Sesiones previas (antes de exponer organizadorSlug): refrescamos el usuario
   // desde /auth/me para que la página pública esté siempre disponible.
   useEffect(() => {
-    if (!user || user.organizadorSlug || user.role === 'SUPERADMIN') return
+    if (!user || user.organizadorSlug || user.role === 'SUPERADMIN' || isPublicPath) return
     let active = true
     apiGet('/auth/me')
       .then((me) => {
@@ -72,7 +76,7 @@ export default function App({ setDarkMode }) {
       })
       .catch(() => { /* noop */ })
     return () => { active = false }
-  }, [user])
+  }, [user, isPublicPath])
 
   const handleLogin = (userData, token) => {
     localStorage.setItem('tf_user', JSON.stringify(userData))
@@ -84,11 +88,12 @@ export default function App({ setDarkMode }) {
   const isReferee = user?.role === 'REFEREE'
   const isDelegado = user?.role === 'DELEGADO'
 
-  // Cargar torneos (no para SUPERADMIN)
+  // Cargar torneos (no para SUPERADMIN ni en rutas públicas, para no disparar el
+  // logout por 401 cuando el token expiró y solo se quiere ver una página pública).
   const { data: torneos = [] } = useQuery({
     queryKey: ['torneos'],
     queryFn: () => apiGet('/torneos'),
-    enabled: !!user && !isSuperadmin,
+    enabled: !!user && !isSuperadmin && !isPublicPath,
   })
 
   // Torneo activo: la selección del usuario SOLO si sigue en su lista de accesibles.
@@ -109,13 +114,15 @@ export default function App({ setDarkMode }) {
   }
 
   if (!user) {
-    // La landing pública y la inscripción de jugadores se ven sin sesión; el resto pide login
-    if (location.pathname.startsWith('/l/') || location.pathname.startsWith('/r/')) {
+    // La landing pública, la inscripción de jugadores y el acta del partido se ven sin
+    // sesión; el resto pide login
+    if (isPublicPath) {
       return (
         <Suspense fallback={<RouteFallback dark />}>
           <Routes>
             <Route path="/l/:slug" element={<PublicLanding onLogin={handleLogin} />} />
             <Route path="/r/:slug" element={<RegistroJugador />} />
+            <Route path="/acta/:id" element={<Acta />} />
           </Routes>
         </Suspense>
       )

@@ -623,7 +623,7 @@ function ResultadosPanel({ jornadas, loading, onOpenPartido, onClasificacion, to
     <Box className="pl-fade-up">
       {/* Pestañas por jornada + ver todas las fechas */}
       <Box className="pl-hscroll" sx={{
-        display: 'flex', gap: 1, mb: 2, overflowX: 'auto', pb: 0.75,
+        display: 'flex', flexWrap: { xs: 'nowrap', md: 'wrap' }, gap: 1, mb: 2, overflowX: 'auto', pb: 0.75,
       }}>
         <Box
           component="button"
@@ -846,12 +846,10 @@ function EstadisticasPanel({ resumen, goleadores, sanciones, loading }) {
 
   return (
     <Box>
-      <Box className="pl-fade-up" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(4, 1fr)' }, gap: 1.5, mb: 4 }}>
+      <Box className="pl-fade-up" sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr 1fr', md: 'repeat(2, 1fr)' }, gap: 1.5, mb: 4 }}>
         {[
           ['Goles totales', resumen?.goles_totales ?? 0],
           ['Goles por partido', resumen?.goles_partido ?? 0],
-          ['Tarjetas rojas', resumen?.rojas ?? 0],
-          ['Tarjetas amarillas', resumen?.amarillas ?? 0],
         ].map(([label, value]) => (
           <Box key={label} className="pl-fade-up" sx={{ background: PUB.panel, border: `1px solid ${PUB.line}`, borderRadius: 2, p: { xs: 1.5, sm: 2 }, textAlign: 'center' }}>
             <Typography className="pl-big-stat" sx={{ fontSize: { xs: 19, sm: 22 } }}>{value}</Typography>
