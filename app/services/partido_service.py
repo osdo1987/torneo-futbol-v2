@@ -10,6 +10,7 @@ from app.models.jugador import Jugador
 from app.models.equipo import Equipo
 from app.models.locacion import Locacion
 from app.schemas.partido_schema import PartidoSchema
+from app.services.reglas import reglas_normalizadas
 
 
 class PartidoService:
@@ -138,15 +139,22 @@ class PartidoService:
             fase_cond = Partido.fase_id == partido.fase_id
         else:
             fase_cond = Partido.fase_id.is_(None)
-        cruce_duplicado = Partido.query.filter(
+        cruce = Partido.query.filter(
             Partido.id != partido.id,
             Partido.torneo_id == partido.torneo_id,
             Partido.equipo_local_id.in_(ids),
             Partido.equipo_visitante_id.in_(ids),
             Partido.equipo_local_id != Partido.equipo_visitante_id,
             fase_cond,
-        ).first()
-        if cruce_duplicado:
+        )
+        # En ida y vuelta cada cruce se juega dos veces (una por cada localía):
+        # solo es duplicado si se repite en el mismo sentido (mismo local y visitante).
+        if reglas_normalizadas(partido.torneo)['rondas'] == 2:
+            cruce = cruce.filter(
+                Partido.equipo_local_id == local_id,
+                Partido.equipo_visitante_id == visit_id,
+            )
+        if cruce.first():
             return 'El enfrentamiento entre estos equipos ya existe en la fase actual'
 
         if fecha is not None and locacion_id:
