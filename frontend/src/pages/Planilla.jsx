@@ -1664,7 +1664,7 @@ export default function Planilla({ selectedTorneoId }) {
                                 <Typography sx={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'JetBrains Mono, Menlo, monospace', fontWeight: 800, fontSize: 11, color: ESTILO_EVENTO.CAMBIO.color }}>
                                   {ev.minuto}'
                                 </Typography>
-                                <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontSize: 12.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35 }}>
                                   <Box component="span" sx={{ fontWeight: 700, color: '#b91c1c' }}>{sala || '?'}</Box>
                                   <Box component="span" sx={{ color: 'text.secondary', mx: 0.5 }}>→</Box>
                                   <Box component="span" sx={{ fontWeight: 700, color: '#15803d' }}>{entra || '?'}</Box>
