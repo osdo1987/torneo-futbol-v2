@@ -146,6 +146,23 @@ def create_evento():
                 return jsonify({'error': 'El equipo no participa en este partido'}), 400
             data['equipo_id'] = eq_id
 
+    # Doble amarilla en el mismo partido -> expulsión (roja): se eliminan las
+    # amarillas previas del jugador en este partido y el evento queda como
+    # TARJETA_ROJA (valor/cobro de roja). Así solo permanece la roja.
+    if (data.get('tipo') == 'TARJETA_AMARILLA'
+            and data.get('tipo_sancionado') == 'JUGADOR'
+            and data.get('jugador_id')):
+        amarillas_previas = EventoPartido.query.filter_by(
+            partido_id=partido_id,
+            jugador_id=data['jugador_id'],
+            tipo='TARJETA_AMARILLA',
+        ).all()
+        if amarillas_previas:
+            for ev in amarillas_previas:
+                db.session.delete(ev)
+            data['tipo'] = 'TARJETA_ROJA'
+            data['descripcion'] = data.get('descripcion') or 'Expulsión por doble amarilla'
+
     if data.get('tipo') == 'CAMBIO':
         if not data.get('jugador_id') or not data.get('jugador_sale_id'):
             return jsonify({'error': 'Un cambio requiere jugador_id (entra) y jugador_sale_id (sale)'}), 400

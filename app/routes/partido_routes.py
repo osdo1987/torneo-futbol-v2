@@ -271,6 +271,7 @@ def upsert_alineacion(partido_id):
     if err:
         return jsonify({'error': err}), 400
     explicit = data.get('numero_camiseta') is not None
+    actualizar_base = bool(data.get('actualizar_dorsal_base', True))
     err = _error_convocatoria(user, partido, jugador, numero_camiseta)
     if err:
         return jsonify({'error': err[0]}), err[1]
@@ -314,6 +315,19 @@ def upsert_alineacion(partido_id):
     # Banco: None significa "usar el dorsal inscrito"; solo se guarda número propio
     # cuando difiere del inscrito (auto-asignado) o fue explícito.
     if explicit:
+        # Cambio explícito (p. ej. desde planilla): congela el dorsal base
+        # anterior en alineaciones de otros partidos que dependían de él (NULL),
+        # para que lo ya cargado no cambie, y asigna el nuevo número al jugador
+        # para partidos futuros. Se omite si actualizar_dorsal_base es False
+        # (p. ej. al copiar una alineación previa).
+        if actualizar_base and numero_camiseta != jugador.numero_camiseta:
+            old_base = jugador.numero_camiseta
+            PartidoAlineacion.query.filter(
+                PartidoAlineacion.jugador_id == jugador_id,
+                PartidoAlineacion.partido_id != partido_id,
+                PartidoAlineacion.numero_camiseta.is_(None),
+            ).update({PartidoAlineacion.numero_camiseta: old_base}, synchronize_session=False)
+            jugador.numero_camiseta = numero_camiseta
         item.numero_camiseta = numero_camiseta
     else:
         item.numero_camiseta = None if jugador.numero_camiseta == numero_efectivo else numero_efectivo
@@ -343,11 +357,13 @@ def bulk_alineacion(partido_id):
     if partido.resultado != 'PENDIENTE':
         return jsonify({'error': 'No se puede modificar la alineación de un partido jugado'}), 400
 
-    jugadores = (request.get_json() or {}).get('jugadores')
+    body = request.get_json() or {}
+    jugadores = body.get('jugadores')
     if not isinstance(jugadores, list) or not jugadores:
         return jsonify({'error': 'jugadores debe ser una lista no vacía'}), 400
     if len(jugadores) > 60:
         return jsonify({'error': 'Máximo 60 jugadores por llamada'}), 400
+    global_actualizar_base = bool(body.get('actualizar_dorsal_base', True))
 
     # --- Validación contra el ESTADO FINAL (no secuencial) ---
     # Se permite reasignar números en el mismo lote (swaps y renumeración): cada
@@ -378,6 +394,7 @@ def bulk_alineacion(partido_id):
         entradas.append({
             'jugador': jugador, 'numero': numero,
             'explicito': dato.get('numero_camiseta') is not None,
+            'actualizar_base': bool(dato.get('actualizar_dorsal_base', global_actualizar_base)),
             'titular': bool(dato.get('titular', False)),
             'posicion_tactica': dato.get('posicion_tactica'),
             'posicion_orden': dato.get('posicion_orden'),
@@ -452,7 +469,21 @@ def bulk_alineacion(partido_id):
             db.session.add(item)
         item.titular = e['titular']
         inscrito = inscritos.get(jugador_id)
-        if not e['explicito'] and e['efectivo'] == inscrito and inscrito is not None:
+        if e['explicito']:
+            # Cambio explícito: congela el dorsal base anterior en alineaciones de
+            # otros partidos que dependían de él (NULL) y asigna el nuevo número al
+            # jugador para partidos futuros. Se omite si actualizar_dorsal_base es
+            # False (p. ej. al copiar una alineación previa).
+            if e['actualizar_base'] and e['efectivo'] != e['jugador'].numero_camiseta:
+                old_base = e['jugador'].numero_camiseta
+                PartidoAlineacion.query.filter(
+                    PartidoAlineacion.jugador_id == jugador_id,
+                    PartidoAlineacion.partido_id != partido_id,
+                    PartidoAlineacion.numero_camiseta.is_(None),
+                ).update({PartidoAlineacion.numero_camiseta: old_base}, synchronize_session=False)
+                e['jugador'].numero_camiseta = e['efectivo']
+            item.numero_camiseta = e['efectivo']
+        elif e['efectivo'] == inscrito and inscrito is not None:
             item.numero_camiseta = None
         else:
             item.numero_camiseta = e['efectivo']

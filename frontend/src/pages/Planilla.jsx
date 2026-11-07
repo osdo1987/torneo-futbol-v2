@@ -354,6 +354,32 @@ export default function Planilla({ selectedTorneoId }) {
     return () => { active = false }
   }, [selId])
 
+  // Si el árbitro cambia de pestaña/app o vuelve al navegador, el intervalo local
+  // se atrasa (throttling) o se pierde. Al recuperar visibilidad se resincroniza
+  // con el tiempo autoritativo del servidor (seg_actual), que sigue corriendo.
+  useEffect(() => {
+    if (!selId || !partido || partido.resultado !== 'PENDIENTE') return
+    const resync = () => {
+      if (document.visibilityState && document.visibilityState !== 'visible') return
+      apiGet(`/partidos/${selId}/en_vivo`)
+        .then((d) => {
+          const seg = d.seg || 0
+          const running = !!d.running
+          const ini = !!d.iniciado
+          lastLiveRef.current = { seg, running, iniciado: ini }
+          setCrono((c) => ({ ...c, seg, running }))
+          setIniciado(ini)
+        })
+        .catch(() => {})
+    }
+    document.addEventListener('visibilitychange', resync)
+    window.addEventListener('focus', resync)
+    return () => {
+      document.removeEventListener('visibilitychange', resync)
+      window.removeEventListener('focus', resync)
+    }
+  }, [selId, partido?.resultado])
+
   useEffect(() => {
     if (!liveReadyRef.current) return
     if (!selId || !partido || partido.resultado !== 'PENDIENTE') return
@@ -446,7 +472,7 @@ export default function Planilla({ selectedTorneoId }) {
   // Carga masiva: reemplaza ~4 toques por jugador (88 por partido) por uno solo.
   // El backend responde con éxito parcial, así que un jugador rechazado no aborta el resto.
   const bulkMut = useMutation({
-    mutationFn: ({ jugadores }) => apiPost(`/partidos/${selId}/alineacion/bulk`, { jugadores }),
+    mutationFn: (body) => apiPost(`/partidos/${selId}/alineacion/bulk`, body),
     onSuccess: (res) => {
       qc.invalidateQueries(['alineacion', selId])
       const { total_agregados: n, total_omitidos: k, omitidos = [] } = res || {}
@@ -512,6 +538,9 @@ export default function Planilla({ selectedTorneoId }) {
       toast.show(`La jornada ${previo.jornada} tenía ${titularesPrevios} titulares y solo entran ${quedan}. Ajustá la lista.`, 'warning')
     }
     bulkMut.mutate({
+      // Copiar alineación previa no reasigna el dorsal base del jugador; solo
+      // replica la convocatoria/números de ese partido.
+      actualizar_dorsal_base: false,
       jugadores: nuevos
         .sort((a, b) => (a.posicion_orden ?? 999) - (b.posicion_orden ?? 999))
         .map((r) => ({
