@@ -59,6 +59,20 @@ class PartidoService:
             return None, str(e)
 
     @staticmethod
+    def delete(partido):
+        """Elimina un partido y sus datos asociados (alineación, eventos, en vivo).
+
+        Las FK de `partido_alineaciones` y `eventos_partido` hacia `partidos` son
+        NO ACTION, así que se limpian antes de borrar la fila principal.
+        """
+        PartidoAlineacion.query.filter_by(partido_id=partido.id).delete()
+        EventoPartido.query.filter_by(partido_id=partido.id).delete()
+        PartidoEnVivo.query.filter_by(partido_id=partido.id).delete()
+        db.session.delete(partido)
+        db.session.commit()
+        return True
+
+    @staticmethod
     def actualizar(partido, data):
         """Edita datos básicos de un partido aún no jugado (PENDIENTE/POSTERGADO).
 

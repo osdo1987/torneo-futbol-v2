@@ -139,6 +139,7 @@ CREADO → INSCRIPCIONES_ABIERTAS → INSCRIPCIONES_CERRADAS → SORTEADO → EN
 - **Aplazar** (estado POSTERGADO) y reprogramar.
 - **Registrar resultado** (goles local/visitante → LOCAL_GANO / VISITANTE_GANO / EMPATE).
 - **Walkover (W)** por inasistencia: gana el bando presente con **marcador configurable** del reglamento (W_LOCAL / W_VISITANTE).
+- **Eliminar partido** (PENDIENTE/POSTERGADO): borra el partido junto con sus alineaciones y eventos. Los partidos con resultado no se pueden eliminar.
 
 ### 8.2. Alineaciones
 
@@ -250,7 +251,7 @@ Sitio estilo TV premium (tema oscuro) **sin necesidad de login**:
 | Torneos | `GET/POST /torneos`, `GET/PUT/DELETE /torneos/{id}`, `POST /torneos/{id}/estado`, `PUT /torneos/{id}/reglas`, `POST /torneos/{id}/fixture`, `POST /torneos/{id}/fase-final`, `GET /torneos/{id}/equipos\|partidos\|fases` |
 | Equipos | `GET/POST /equipos`, `GET/PUT/DELETE /equipos/{id}`, `GET /equipos/{id}/jugadores`, `POST /equipos/{id}/link`, `POST /equipos/{id}/jugadores/importar` |
 | Jugadores | `GET/POST /jugadores`, `GET/PUT/DELETE /jugadores/{id}`, `POST /jugadores/{id}/foto`, `POST /jugadores/{id}/liberar` |
-| Partidos | `GET/POST /partidos`, `GET /partidos/{id}`, `POST /partidos/{id}/programar\|aplazar\|resultado\|marcador\|w`, `GET/POST /partidos/{id}/alineacion`, `DELETE /partidos/{id}/alineacion/{jugador}`, `POST /partidos/{id}/alineacion/orden`, `GET/POST /partidos/{id}/en_vivo` |
+| Partidos | `GET/POST /partidos`, `GET/PUT/DELETE /partidos/{id}`, `POST /partidos/{id}/programar\|aplazar\|resultado\|marcador\|w`, `GET/POST /partidos/{id}/alineacion`, `DELETE /partidos/{id}/alineacion/{jugador}`, `POST /partidos/{id}/alineacion/orden`, `GET/POST /partidos/{id}/en_vivo` |
 | Fases | `GET/POST /fases`, `PUT/DELETE /fases/{id}` |
 | Eventos | `GET/POST /eventos`, `DELETE /eventos/{id}` |
 | Panel | `GET /panel/{id}/tabla\|goleadores\|sanciones\|resumen` |

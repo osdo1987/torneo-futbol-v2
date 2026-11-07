@@ -111,6 +111,29 @@ def update_partido(partido_id):
     return jsonify(partido_schema.dump(partido)), 200
 
 
+@partido_bp.route('/<int:partido_id>', methods=['DELETE'])
+@jwt_required()
+def delete_partido(partido_id):
+    """Elimina un partido que todavía no tiene resultado.
+
+    Solo se permite en partidos PENDIENTE/POSTERGADO para no alterar la tabla de
+    posiciones ni actas ya cerradas. Se borran también alineaciones, eventos y
+    el estado en vivo asociados.
+    """
+    user = get_current_user()
+    partido = PartidoService.get_by_id(partido_id)
+    if not partido:
+        return jsonify({'error': 'Partido no encontrado'}), 404
+    if not ensure_torneo_organizador(user, partido.torneo):
+        return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
+    if partido.resultado not in ('PENDIENTE', 'POSTERGADO'):
+        return jsonify({'error': 'No se puede eliminar un partido que ya tiene resultado'}), 400
+    PartidoService.delete(partido)
+    return jsonify({'message': 'Partido eliminado'}), 200
+
+
 @partido_bp.route('', methods=['POST'])
 @jwt_required()
 def create_partido():

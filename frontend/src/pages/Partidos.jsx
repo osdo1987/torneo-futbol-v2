@@ -24,7 +24,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Chip from '@mui/material/Chip'
 import ToggleButton from '@mui/material/ToggleButton'
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup'
-import { apiGet, apiPost, apiPut } from '../api'
+import { apiDelete, apiGet, apiPost, apiPut } from '../api'
 import { useToast } from '../components/Toast'
 import {
   Add as AddIcon,
@@ -36,6 +36,7 @@ import {
   CheckCircle as CheckCircleIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  DeleteOutline as DeleteOutlineIcon,
   EditNote as EditNoteIcon,
   Edit as EditIcon,
   Place as PlaceIcon,
@@ -286,6 +287,18 @@ export default function Partidos({ selectedTorneoId, user }) {
     onSuccess: () => {
       qc.invalidateQueries(['partidos', selectedTorneoId]); qc.invalidateQueries(['tabla', selectedTorneoId]); qc.invalidateQueries(['resumen']); qc.invalidateQueries(['equipos', selectedTorneoId])
       toast.show('Partido actualizado', 'success'); setEditOpen(null)
+    },
+    onError: (e) => toast.show(e.message, 'error'),
+  })
+
+  const deleteMut = useMutation({
+    mutationFn: (id) => apiDelete(`/partidos/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries(['partidos', selectedTorneoId])
+      qc.invalidateQueries(['tabla', selectedTorneoId])
+      qc.invalidateQueries(['resumen'])
+      qc.invalidateQueries(['eventos'])
+      toast.show('Partido eliminado', 'success')
     },
     onError: (e) => toast.show(e.message, 'error'),
   })
@@ -655,6 +668,25 @@ export default function Partidos({ selectedTorneoId, user }) {
               >
                 <EditIcon sx={{ fontSize: 19 }} />
               </IconButton>
+            </Tooltip>
+          )}
+          {!isReferee && ['PENDIENTE', 'POSTERGADO'].includes(p.resultado) && (
+            <Tooltip title={deleteMut.isPending ? 'Eliminando…' : 'Eliminar partido'}>
+              <span>
+                <IconButton
+                  size="small" disabled={deleteMut.isPending}
+                  onClick={() => {
+                    const local = eqName(p.equipo_local_id)
+                    const visitante = eqName(p.equipo_visitante_id)
+                    if (window.confirm(`¿Eliminar el partido ${local} vs ${visitante} (jornada ${p.jornada})?\n\nSe borrarán también sus alineaciones y eventos. Esta acción no se puede deshacer.`)) {
+                      deleteMut.mutate(p.id)
+                    }
+                  }}
+                  sx={{ color: 'text.secondary', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', '&:hover': { color: 'error.main', bgcolor: 'action.hover' } }}
+                >
+                  <DeleteOutlineIcon sx={{ fontSize: 19 }} />
+                </IconButton>
+              </span>
             </Tooltip>
           )}
         </Box>
