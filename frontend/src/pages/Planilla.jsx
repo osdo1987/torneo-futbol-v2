@@ -237,6 +237,17 @@ export default function Planilla({ selectedTorneoId }) {
     enabled: !!selId,
   })
 
+  // Reglamento del torneo desde la caché compartida de App.jsx (incluye reglas).
+  const { data: torneos = [] } = useQuery({
+    queryKey: ['torneos'],
+    queryFn: () => apiGet('/torneos'),
+    enabled: !!selectedTorneoId,
+  })
+  const torneo = useMemo(
+    () => torneos.find((t) => String(t.id) === String(selectedTorneoId)),
+    [torneos, selectedTorneoId],
+  )
+
   const { data: eventos, isLoading: loadingEventos } = useQuery({
     queryKey: ['eventos', selId],
     queryFn: () => apiGet(`/eventos?partido_id=${selId}`),
@@ -626,6 +637,34 @@ export default function Planilla({ selectedTorneoId }) {
     return m
   }, [eventos])
 
+  // Jugadores que ya salieron de la cancha por un cambio: no pueden reingresar
+  // en el mismo partido (regla IFAB). Si se borra el cambio, se liberan.
+  const salieronDelPartido = useMemo(() => {
+    const set = new Set()
+    ;(eventos || []).forEach((e) => {
+      if (e.tipo === 'CAMBIO' && e.jugador_sale_id) set.add(e.jugador_sale_id)
+    })
+    return set
+  }, [eventos])
+
+  // Reglamento: cantidad de cambios y ventanas por equipo. Cada minuto distinto
+  // con cambios registrados cuenta como una ventana (los cambios simultáneos
+  // del mismo minuto comparten ventana).
+  const maxCambios = Math.max(0, Number(torneo?.reglas?.cambios_cantidad ?? 5))
+  const maxVentanas = Math.max(1, Number(torneo?.reglas?.ventanas_cambios ?? 3))
+  const cambiosDe = (equipoId) => cambiosPorEquipo[equipoId] || 0
+  const ventanasPorEquipo = useMemo(() => {
+    const m = {}
+    ;(eventos || []).forEach((e) => {
+      if (e.tipo !== 'CAMBIO') return
+      if (!m[e.equipo_id]) m[e.equipo_id] = []
+      if (!m[e.equipo_id].includes(e.minuto)) m[e.equipo_id].push(e.minuto)
+    })
+    return m
+  }, [eventos])
+  const ventanasDe = (equipoId) => ventanasPorEquipo[equipoId] || []
+  const sinCambiosDisponibles = (equipoId) => cambiosDe(equipoId) >= maxCambios
+
   const lineaEventos = useMemo(() => {
     if (!partido) return []
     const localId = partido.equipo_local_id
@@ -658,7 +697,7 @@ export default function Planilla({ selectedTorneoId }) {
       enCanchaDe(equipoId).map((j) => numCamiseta(j, alineacionMap[j.id]))
     )
     return plantel
-      .filter((j) => j.activo && !enCanchaIds.has(j.id) && !expulsados.has(j.id))
+      .filter((j) => j.activo && !enCanchaIds.has(j.id) && !expulsados.has(j.id) && !salieronDelPartido.has(j.id))
       .filter((j) => (numCamiseta(j, alineacionMap[j.id]) == null || !numerosEnCancha.has(numCamiseta(j, alineacionMap[j.id]))))
   }
 
@@ -673,6 +712,10 @@ export default function Planilla({ selectedTorneoId }) {
   const abrirAccion = (tipo, equipoId) => {
     if (!iniciado) {
       toast.show('El partido aún no ha iniciado. Pulsa Iniciar para registrar acciones.', 'info')
+      return
+    }
+    if (tipo === 'CAMBIO' && sinCambiosDisponibles(equipoId)) {
+      toast.show(`Ese equipo ya usó los ${maxCambios} cambios permitidos por el reglamento del torneo.`, 'error')
       return
     }
     const esTarjeta = tipo === 'TARJETA_AMARILLA' || tipo === 'TARJETA_ROJA'
@@ -761,11 +804,26 @@ export default function Planilla({ selectedTorneoId }) {
       toast.show('El jugador que sale y el que entra deben ser distintos', 'error')
       return
     }
+    if (salieronDelPartido.has(entra)) {
+      toast.show('Ese jugador ya salió de la cancha en este partido y no puede reingresar.', 'error')
+      return
+    }
+    const equipoId = Number(accForm.equipo_id)
+    if (sinCambiosDisponibles(equipoId)) {
+      toast.show(`Ese equipo ya usó los ${maxCambios} cambios permitidos por el reglamento del torneo.`, 'error')
+      return
+    }
+    const minuto = minutoEnvio()
+    const ventanas = ventanasDe(equipoId)
+    if (!ventanas.includes(minuto) && ventanas.length >= maxVentanas) {
+      toast.show(`Ventanas agotadas (${maxVentanas}). Este cambio debe registrarse en un minuto ya usado: ${[...ventanas].sort((a, b) => a - b).map((m) => `${m}'`).join(', ')}.`, 'error')
+      return
+    }
     eventoMut.mutate({
       partido_id: Number(selId),
       tipo: 'CAMBIO',
-      equipo_id: Number(accForm.equipo_id),
-      minuto: minutoEnvio(),
+      equipo_id: equipoId,
+      minuto,
       jugador_id: entra,
       jugador_sale_id: sale,
     })
@@ -930,9 +988,9 @@ export default function Planilla({ selectedTorneoId }) {
                           </IconButton>
                         </span>
                       </Tooltip>
-                      <Tooltip title={iniciado ? 'Registrar cambio' : 'Inicia el partido para registrar acciones'}>
+                      <Tooltip title={!iniciado ? 'Inicia el partido para registrar acciones' : sinCambiosDisponibles(partido.equipo_local_id) ? `Sin cambios disponibles: ya usó ${maxCambios} de ${maxCambios}` : `Registrar cambio (${maxCambios - cambiosDe(partido.equipo_local_id)} de ${maxCambios} disponibles)`}>
                         <span>
-                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_local_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado || sinCambiosDisponibles(partido.equipo_local_id)} onClick={() => abrirAccion('CAMBIO', partido.equipo_local_id)}>
                             <SwapIcon sx={{ color: '#60a5fa', fontSize: 19 }} />
                           </IconButton>
                         </span>
@@ -1021,9 +1079,9 @@ export default function Planilla({ selectedTorneoId }) {
                           </IconButton>
                         </span>
                       </Tooltip>
-                      <Tooltip title={iniciado ? 'Registrar cambio' : 'Inicia el partido para registrar acciones'}>
+                      <Tooltip title={!iniciado ? 'Inicia el partido para registrar acciones' : sinCambiosDisponibles(partido.equipo_visitante_id) ? `Sin cambios disponibles: ya usó ${maxCambios} de ${maxCambios}` : `Registrar cambio (${maxCambios - cambiosDe(partido.equipo_visitante_id)} de ${maxCambios} disponibles)`}>
                         <span>
-                          <IconButton size="small" sx={accIconSx} disabled={!iniciado} onClick={() => abrirAccion('CAMBIO', partido.equipo_visitante_id)}>
+                          <IconButton size="small" sx={accIconSx} disabled={!iniciado || sinCambiosDisponibles(partido.equipo_visitante_id)} onClick={() => abrirAccion('CAMBIO', partido.equipo_visitante_id)}>
                             <SwapIcon sx={{ color: '#60a5fa', fontSize: 19 }} />
                           </IconButton>
                         </span>
@@ -1539,8 +1597,11 @@ export default function Planilla({ selectedTorneoId }) {
                                                     }
                                                     alinearMut.mutate({ jugadorId: j.id, titular: v === 'T' })
                                                   }}>
-                                                  <ToggleButton value="T" sx={{ px: { xs: 1.5, sm: 1.2 }, py: { xs: 1, sm: 0 } }}>
-                                                    <Tooltip title="Titular"><Box sx={{ fontSize: 11, fontWeight: 700 }}>T</Box></Tooltip>
+                                                  <ToggleButton value="T" disabled={salieronDelPartido.has(j.id)}
+                                                    sx={{ px: { xs: 1.5, sm: 1.2 }, py: { xs: 1, sm: 0 } }}>
+                                                    <Tooltip title={salieronDelPartido.has(j.id) ? 'Ya salió: no puede reingresar' : 'Titular'}>
+                                                      <Box sx={{ fontSize: 11, fontWeight: 700 }}>T</Box>
+                                                    </Tooltip>
                                                   </ToggleButton>
                                                   <ToggleButton value="S" sx={{ px: { xs: 1.5, sm: 1.2 }, py: { xs: 1, sm: 0 } }}>
                                                     <Tooltip title="Suplente"><Box sx={{ fontSize: 11, fontWeight: 700 }}>S</Box></Tooltip>
@@ -1643,20 +1704,23 @@ export default function Planilla({ selectedTorneoId }) {
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                       <PublishedWithChangesIcon sx={{ color: 'primary.main' }} />
-                      <Typography variant="h6" fontWeight={700}>Cambios y ventanas FIFA</Typography>
+                      <Typography variant="h6" fontWeight={700}>Cambios y ventanas</Typography>
                     </Box>
-                    <Chip label="Regla IFAB 3" size="small" sx={{ bgcolor: 'rgba(29,78,216,0.10)', color: 'primary.main', fontWeight: 800, fontSize: 10, height: 22 }} />
+                    <Chip label={`Máx. ${maxCambios} cambios / ${maxVentanas} ventanas`} size="small" sx={{ bgcolor: 'rgba(29,78,216,0.10)', color: 'primary.main', fontWeight: 800, fontSize: 10, height: 22 }} />
                   </Box>
                   {loadingEventos ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}><CircularProgress /></Box>
-                  ) : !eventos || eventos.filter((e) => e.tipo === 'CAMBIO').length === 0 ? (
-                    <Alert severity="info">No hay cambios registrados aún.</Alert>
                   ) : (
                     <>
+                      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                        Hasta {maxCambios} cambio(s) por equipo, repartidos en {maxVentanas} ventana(s).
+                        Los cambios registrados en el mismo minuto comparten ventana.
+                      </Typography>
                       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1, mb: 1.5 }}>
                         {[partido.equipo_local_id, partido.equipo_visitante_id].map((eqId) => {
-                          const n = cambiosPorEquipo[eqId] || 0
-                          const ventanas = Math.min(3, Math.max(1, n))
+                          const n = cambiosDe(eqId)
+                          const usadas = ventanasDe(eqId).length
+                          const topeAlcanzado = n >= maxCambios
                           return (
                             <Box key={eqId}>
                               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
@@ -1664,18 +1728,23 @@ export default function Planilla({ selectedTorneoId }) {
                                   <Box component="span" sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: Number(eqId) === partido.equipo_local_id ? '#dc2626' : '#2563eb' }} />
                                   <Typography variant="body2" fontWeight={700} noWrap>{eqName(eqId)}</Typography>
                                 </Box>
-                                <Typography variant="caption" sx={{ fontWeight: 800, color: 'primary.main', fontFamily: 'JetBrains Mono, Menlo, monospace', fontSize: 11, whiteSpace: 'nowrap' }}>
-                                  {n} cambio(s) · {ventanas} de 3 ventanas
+                                <Typography variant="caption" sx={{ fontWeight: 800, color: topeAlcanzado ? 'error.main' : 'primary.main', fontFamily: 'JetBrains Mono, Menlo, monospace', fontSize: 11, whiteSpace: 'nowrap' }}>
+                                  {n} de {maxCambios} cambio(s) · {usadas} de {maxVentanas} ventana(s)
                                 </Typography>
                               </Box>
-                              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 0.75, mt: 0.5 }}>
-                                {[0, 1, 2].map((i) => <Box key={i} sx={{ height: 5, borderRadius: 1, bgcolor: i < ventanas ? 'primary.main' : 'divider' }} />)}
+                              <Box sx={{ display: 'grid', gridTemplateColumns: `repeat(${maxVentanas}, 1fr)`, gap: 0.75, mt: 0.5 }}>
+                                {Array.from({ length: maxVentanas }).map((_, i) => (
+                                  <Box key={i} sx={{ height: 5, borderRadius: 1, bgcolor: i < Math.min(usadas, maxVentanas) ? (topeAlcanzado ? 'error.main' : 'primary.main') : 'divider' }} />
+                                ))}
                               </Box>
                             </Box>
                           )
                         })}
                       </Box>
-                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      {(!eventos || eventos.filter((e) => e.tipo === 'CAMBIO').length === 0) ? (
+                        <Alert severity="info">No hay cambios registrados aún.</Alert>
+                      ) : (
+                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
                         {eventos
                           .filter((e) => e.tipo === 'CAMBIO')
                           .sort((a, b) => a.minuto - b.minuto || (a.id || 0) - (b.id || 0))
@@ -1708,7 +1777,8 @@ export default function Planilla({ selectedTorneoId }) {
                               </Box>
                             )
                           })}
-                      </Box>
+                        </Box>
+                      )}
                       {partido && (
                         <Box sx={{ mt: 2, p: 1.5, borderRadius: 2, bgcolor: 'rgba(0,104,70,0.06)', border: '1px solid', borderColor: 'rgba(0,104,70,0.20)', display: 'flex', alignItems: 'flex-start', gap: 1 }}>
                           <VerifiedUserIcon sx={{ color: '#006846', fontSize: 20, flexShrink: 0 }} />
@@ -1750,6 +1820,20 @@ export default function Planilla({ selectedTorneoId }) {
         <DialogContent>
           {accion === 'CAMBIO' ? (
             <>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'center', mb: 1.5 }}>
+                <Chip size="small" variant="outlined"
+                  color={sinCambiosDisponibles(accForm.equipo_id) ? 'error' : 'default'}
+                  label={`${Math.max(0, maxCambios - cambiosDe(accForm.equipo_id))} de ${maxCambios} cambios disponibles`} />
+                <Chip size="small" variant="outlined"
+                  color={ventanasDe(accForm.equipo_id).length >= maxVentanas ? 'warning' : 'default'}
+                  label={`${ventanasDe(accForm.equipo_id).length} de ${maxVentanas} ventanas usadas`} />
+              </Box>
+              {!sinCambiosDisponibles(accForm.equipo_id) && ventanasDe(accForm.equipo_id).length >= maxVentanas && (
+                <Alert severity="warning" sx={{ mb: 2 }}>
+                  Ventanas agotadas: este cambio debe registrarse en un minuto ya usado
+                  ({[...ventanasDe(accForm.equipo_id)].sort((a, b) => a - b).map((m) => `${m}'`).join(', ')}).
+                </Alert>
+              )}
               <Stepper activeStep={cambioPaso - 1} alternativeLabel sx={{ mb: 2 }}>
                 <Step><StepLabel>Sale</StepLabel></Step>
                 <Step><StepLabel>Entra</StepLabel></Step>
@@ -1806,6 +1890,11 @@ export default function Planilla({ selectedTorneoId }) {
                   {convocadosDe(accForm.equipo_id).some((j) => expulsados.has(j.id)) && (
                     <Alert severity="error" sx={{ mt: 2 }}>
                       Expulsados: {convocadosDe(accForm.equipo_id).filter((j) => expulsados.has(j.id)).map((j) => j.nombre).join(', ')} — no pueden participar en cambios.
+                    </Alert>
+                  )}
+                  {convocadosDe(accForm.equipo_id).some((j) => salieronDelPartido.has(j.id)) && (
+                    <Alert severity="warning" sx={{ mt: 2 }}>
+                      Ya salieron y no pueden reingresar: {convocadosDe(accForm.equipo_id).filter((j) => salieronDelPartido.has(j.id)).map((j) => j.nombre).join(', ')}.
                     </Alert>
                   )}
                 </>

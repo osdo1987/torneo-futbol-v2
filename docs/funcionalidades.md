@@ -78,6 +78,7 @@ CREADO → INSCRIPCIONES_ABIERTAS → INSCRIPCIONES_CERRADAS → SORTEADO → EN
 - **Desempates** (orden configurables): diferencia de gol, goles a favor, menos amarillas, menos rojas, goles en contra.
 - **Categoría por edades**: edad mínima/máxima.
 - **Plantilla**: máx. jugadores, **comodines** (cantidad y edad mínima), "no permitir baja tras jugar".
+- **Cambios**: cantidad de sustituciones por equipo y **ventanas de cambios** (los cambios del mismo minuto comparten ventana).
 - **Inasistencia (W)**: tolerancia en minutos y **marcador por W**.
 - **Sanciones**: fechas por doble amarilla y por roja directa.
 
@@ -150,7 +151,7 @@ CREADO → INSCRIPCIONES_ABIERTAS → INSCRIPCIONES_CERRADAS → SORTEADO → EN
 
 - Tipos: **GOL, AUTOGOL, TARJETA_AMARILLA, TARJETA_ROJA, CAMBIO**.
 - Cada evento con minuto y descripción.
-- Lógica de **cambios**: jugador que sale y entra (mismo equipo), no se permite cambio de expulsados.
+- Lógica de **cambios**: jugador que sale y entra (mismo equipo), no se permite cambio de expulsados. Se respetan la **cantidad de cambios** y las **ventanas** configuradas en el reglamento del torneo (los cambios del mismo minuto comparten ventana).
 - **Expulsados automáticos**: 2 amarillas o roja directa → fuera del partido.
 
 ### 8.4. Partido en vivo

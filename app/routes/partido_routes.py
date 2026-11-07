@@ -276,6 +276,10 @@ def upsert_alineacion(partido_id):
     if err:
         return jsonify({'error': err[0]}), err[1]
     titular = bool(data.get('titular', False))
+    # Regla IFAB: un jugador que ya salió por un cambio no puede volver a ser titular
+    # en este partido (el cambio debe eliminarse para corregirlo).
+    if titular and jugador.id in PartidoService.jugadores_que_salieron(partido_id):
+        return jsonify({'error': 'El jugador ya salió de la cancha por un cambio y no puede reingresar'}), 400
 
     # Números ya ocupados por otros convocados del mismo equipo en este partido
     otros = PartidoAlineacion.query.filter(
@@ -372,6 +376,7 @@ def bulk_alineacion(partido_id):
     inscritos = {j.id: j.numero_camiseta for j in Jugador.query.filter(
         Jugador.id.in_([d.get('jugador_id') for d in jugadores if d.get('jugador_id')])).all()}
     filas_db = {f.jugador_id: f for f in PartidoAlineacion.query.filter_by(partido_id=partido_id).all()}
+    ya_salieron = PartidoService.jugadores_que_salieron(partido_id)
 
     entradas, omitidos = [], []
     for dato in jugadores:
@@ -390,6 +395,10 @@ def bulk_alineacion(partido_id):
         falla = _error_convocatoria(user, partido, jugador, numero)
         if falla:
             omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre, 'motivo': falla[0]})
+            continue
+        if bool(dato.get('titular', False)) and jugador.id in ya_salieron:
+            omitidos.append({'jugador_id': jugador_id, 'nombre': jugador.nombre,
+                             'motivo': 'Ya salió de la cancha por un cambio y no puede reingresar'})
             continue
         entradas.append({
             'jugador': jugador, 'numero': numero,

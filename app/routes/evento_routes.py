@@ -7,6 +7,8 @@ from app.models.jugador import Jugador
 from app.models.partido_alineacion import PartidoAlineacion
 from app.schemas.evento_schema import EventoSchema
 from app.routes._authz import get_current_user, ensure_torneo_organizador, ensure_planilla_role, ensure_delegado_equipo
+from app.services.partido_service import PartidoService
+from app.services.reglas import reglas_normalizadas
 
 evento_bp = Blueprint('eventos', __name__)
 evento_schema = EventoSchema()
@@ -53,6 +55,29 @@ def _revertir_cambio(evento):
     if sale_item is not None:
         prev = snap.get('sale_prev_titular')
         sale_item.titular = bool(prev) if isinstance(prev, bool) else True
+
+
+def _limite_cambios(partido, equipo_id, minuto):
+    """Valida los cambios ya usados por un equipo contra el reglamento del torneo.
+
+    - `cambios_cantidad`: máximo de sustituciones por equipo en el partido.
+    - `ventanas_cambios`: máximo de ventanas. Dos o más cambios registrados en el
+      mismo minuto comparten ventana (así se cargan los cambios simultáneos).
+    Devuelve (mensaje, status) o None si el cambio está permitido.
+    """
+    reglas = reglas_normalizadas(partido.torneo)
+    max_cambios = int(reglas.get('cambios_cantidad') or 0)
+    max_ventanas = int(reglas.get('ventanas_cambios') or 0)
+    cambios = EventoPartido.query.filter_by(
+        partido_id=partido.id, equipo_id=equipo_id, tipo='CAMBIO').all()
+    if len(cambios) >= max_cambios:
+        return (f'Este equipo ya usó los {max_cambios} cambio(s) permitido(s) por el reglamento', 400)
+    ventanas_usadas = {c.minuto for c in cambios}
+    if minuto not in ventanas_usadas and len(ventanas_usadas) >= max_ventanas:
+        return (f'Este equipo ya usó las {max_ventanas} ventana(s) de cambios del reglamento. '
+                f'Los cambios restantes deben registrarse en un minuto ya usado '
+                f'({", ".join(str(m) for m in sorted(ventanas_usadas))}\').', 400)
+    return None
 
 
 @evento_bp.route('', methods=['GET'])
@@ -177,6 +202,21 @@ def create_evento():
         if entra.id == sale.id:
             return jsonify({'error': 'El jugador que sale y el que entra deben ser distintos'}), 400
         data['equipo_id'] = entra.equipo_id
+
+        # Regla IFAB: quien ya salió de la cancha por un cambio no puede reingresar
+        # en el mismo partido. Se libera solo si el cambio se elimina.
+        if entra.id in PartidoService.jugadores_que_salieron(partido_id):
+            return jsonify({'error': 'El jugador que entra ya salió de la cancha en este '
+                                     'partido y no puede reingresar'}), 400
+
+        # Límites del reglamento: cantidad de cambios y ventanas por equipo.
+        try:
+            minuto_cambio = int(data.get('minuto') or 0)
+        except (TypeError, ValueError):
+            return jsonify({'error': 'minuto inválido'}), 400
+        limite = _limite_cambios(partido, entra.equipo_id, minuto_cambio)
+        if limite:
+            return jsonify({'error': limite[0]}), limite[1]
 
         # Un cambio también mueve la alineación: el que sale deja de ser titular y el
         # que entra toma su lugar. Sin esto, partido_alineaciones queda con el XI

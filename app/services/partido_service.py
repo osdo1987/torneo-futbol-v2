@@ -28,6 +28,19 @@ class PartidoService:
         return Partido.query.get(partido_id)
 
     @staticmethod
+    def jugadores_que_salieron(partido_id):
+        """IDs de jugadores que ya salieron de la cancha por un cambio en el partido.
+
+        Regla IFAB: un jugador sustituido no puede reingresar. Si el cambio se
+        elimina, el jugador deja de estar en este conjunto.
+        """
+        return {
+            e.jugador_sale_id for e in EventoPartido.query.filter_by(
+                partido_id=partido_id, tipo='CAMBIO').all()
+            if e.jugador_sale_id
+        }
+
+    @staticmethod
     def create(data):
         try:
             partido = PartidoSchema().load(data)

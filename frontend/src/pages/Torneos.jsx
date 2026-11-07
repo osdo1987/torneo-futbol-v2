@@ -117,6 +117,8 @@ const toForm = (r) => {
     marcador_w: x.marcador_w ?? 3,
     fechas_doble_amarilla: x.fechas_doble_amarilla ?? 1,
     fechas_roja_directa: x.fechas_roja_directa ?? 2,
+    cambios_cantidad: x.cambios_cantidad ?? 5,
+    ventanas_cambios: x.ventanas_cambios ?? 3,
     valor_tarjeta_amarilla: x.valor_tarjeta_amarilla ?? 0,
     valor_tarjeta_roja: x.valor_tarjeta_roja ?? 0,
     modalidad_pago: x.modalidad_pago ?? 'INDIVIDUAL',
@@ -179,6 +181,8 @@ function ReglasDialog({ torneo, onClose }) {
       marcador_w: Number(form.marcador_w),
       fechas_doble_amarilla: Number(form.fechas_doble_amarilla),
       fechas_roja_directa: Number(form.fechas_roja_directa),
+      cambios_cantidad: Number(form.cambios_cantidad),
+      ventanas_cambios: Number(form.ventanas_cambios),
       valor_tarjeta_amarilla: Number(form.valor_tarjeta_amarilla),
       valor_tarjeta_roja: Number(form.valor_tarjeta_roja),
       modalidad_pago: form.modalidad_pago,
@@ -244,6 +248,20 @@ function ReglasDialog({ torneo, onClose }) {
             label="No permitir dar de baja a un jugador que ya disputó un partido"
             sx={{ mt: 1 }}
           />
+
+          <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>Cambios (sustituciones)</Typography>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2 }}>
+            <TextField label="Cambios por equipo" type="number" fullWidth
+              inputProps={{ min: 0, max: 20 }}
+              value={form.cambios_cantidad}
+              onChange={(e) => setForm({ ...form, cambios_cantidad: Number(e.target.value) })}
+              helperText="Máximo de cambios por equipo en cada partido (0 = sin cambios)." />
+            <TextField label="Ventanas de cambios" type="number" fullWidth
+              inputProps={{ min: 1, max: 10 }}
+              value={form.ventanas_cambios}
+              onChange={(e) => setForm({ ...form, ventanas_cambios: Number(e.target.value) })}
+              helperText="Los cambios registrados en el mismo minuto cuentan como una sola ventana." />
+          </Box>
 
           <Typography variant="subtitle2" sx={{ mt: 2, mb: 0.5 }}>Inasistencia (W) y sanciones</Typography>
           <Box sx={{ display: 'flex', gap: 2 }}>

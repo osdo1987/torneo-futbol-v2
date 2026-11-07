@@ -38,6 +38,11 @@ class ReglasSchema(ma.Schema):
     fechas_doble_amarilla = fields.Int(load_default=1, validate=validate.Range(min=0, max=10))
     fechas_roja_directa = fields.Int(load_default=2, validate=validate.Range(min=0, max=10))
 
+    # Sustituciones: cuántos cambios puede hacer cada equipo y en cuántas
+    # ventanas (los cambios registrados en el mismo minuto comparten ventana).
+    cambios_cantidad = fields.Int(load_default=5, validate=validate.Range(min=0, max=20))
+    ventanas_cambios = fields.Int(load_default=3, validate=validate.Range(min=1, max=10))
+
     # Configuración financiera (reglamento económico)
     valor_tarjeta_amarilla = fields.Float(load_default=0.0, validate=validate.Range(min=0))
     valor_tarjeta_roja = fields.Float(load_default=0.0, validate=validate.Range(min=0))
