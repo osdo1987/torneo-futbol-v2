@@ -119,43 +119,44 @@ const accIconBtnSx = {
 const JugadorBtn = ({ num, nombre, base, sel, seleccionado = false, onClick }) => {
   const colores = seleccionado ? sel : base
   return (
-    <Box
-      component="button"
-      type="button"
-      onClick={onClick}
-      title={`${num} · ${nombre}`}
-      sx={{
-        width: '100%', maxWidth: 88, borderRadius: 1.5, px: 0.5, py: 0.5,
-        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.4,
-        cursor: 'pointer', bgcolor: seleccionado ? 'action.selected' : 'transparent',
-        border: '1px solid', borderColor: seleccionado ? colores.border : 'transparent',
-        transition: 'all .15s',
-        '&:hover': { bgcolor: 'action.hover' },
-      }}
-    >
+    <Tooltip title={`${num} · ${nombre}`}>
       <Box
+        component="button"
+        type="button"
+        onClick={onClick}
         sx={{
-          width: 54, height: 54, borderRadius: '50%', flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontWeight: 800, fontSize: String(num).length > 2 ? 12 : 16, lineHeight: 1,
-          border: `2px solid ${colores.border}`, bgcolor: colores.bg, color: colores.color,
-          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
-          transition: 'all .15s',
-          '&:hover': { transform: 'scale(1.06)' },
+          width: "100%", maxWidth: 104, borderRadius: 1.5, px: 0.5, py: 0.75,
+          display: "flex", flexDirection: "column", alignItems: "center", gap: 0.5,
+          cursor: "pointer", bgcolor: seleccionado ? "action.selected" : "transparent",
+          border: "1px solid", borderColor: seleccionado ? colores.border : "transparent",
+          transition: "all .15s",
+          "&:hover": { bgcolor: "action.hover" },
         }}
       >
-        <span>{num}</span>
+        <Box
+          sx={{
+            width: 54, height: 54, borderRadius: "50%", flexShrink: 0,
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontWeight: 800, fontSize: String(num).length > 2 ? 12 : 16, lineHeight: 1,
+            border: `2px solid ${colores.border}`, bgcolor: colores.bg, color: colores.color,
+            boxShadow: "0 1px 4px rgba(0,0,0,0.12)", transition: "all .15s",
+            "&:hover": { transform: "scale(1.06)" },
+          }}
+        >
+          <span>{num}</span>
+        </Box>
+        <Box
+          sx={{
+            fontSize: 9, fontWeight: 700, lineHeight: 1.2, width: "100%",
+            maxWidth: 96, overflow: "hidden",
+            display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical",
+            textAlign: "center", color: seleccionado ? "text.primary" : "text.secondary",
+          }}
+        >
+          {nombre}
+        </Box>
       </Box>
-      <Box
-        sx={{
-          fontSize: 10, fontWeight: 700, lineHeight: 1.2, width: '100%',
-          maxWidth: 86, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          textAlign: 'center', color: seleccionado ? 'text.primary' : 'text.secondary',
-        }}
-      >
-        {nombre}
-      </Box>
-    </Box>
+    </Tooltip>
   )
 }
 
