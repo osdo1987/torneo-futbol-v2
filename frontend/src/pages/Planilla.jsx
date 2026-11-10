@@ -101,6 +101,7 @@ const ESTILO_EVENTO = {
 }
 
 const MAX_TITULARES = 11
+const MIN_TITULARES_INICIO = 7
 
 // Reparto por defecto cuando el equipo no tiene posiciones cargadas (todo OTROS):
 // 4-3-3 para que la vista de formación sea homogénea.
@@ -319,7 +320,7 @@ export default function Planilla({ selectedTorneoId }) {
 
   const liveMut = useMutation({
     mutationFn: ({ id, body }) => apiPost(`/partidos/${id}/en_vivo`, body),
-    onError: () => {},
+    onError: () => { },
   })
 
   useEffect(() => {
@@ -381,7 +382,7 @@ export default function Planilla({ selectedTorneoId }) {
           setCrono((c) => ({ ...c, seg, running }))
           setIniciado(ini)
         })
-        .catch(() => {})
+        .catch(() => { })
     }
     document.addEventListener('visibilitychange', resync)
     window.addEventListener('focus', resync)
@@ -609,7 +610,7 @@ export default function Planilla({ selectedTorneoId }) {
   const titularesDe = (equipoId) => convocadosDe(equipoId).filter((j) => alineacionMap[j.id]?.titular).length
   const faltantesInicio = partido
     ? [partido.equipo_local_id, partido.equipo_visitante_id]
-      .map((eqId) => ({ eqId, faltan: MAX_TITULARES - titularesDe(eqId) }))
+      .map((eqId) => ({ eqId, faltan: MIN_TITULARES_INICIO - titularesDe(eqId) }))
       .filter((x) => x.faltan > 0)
     : []
   const planillaCompleta = faltantesInicio.length === 0
@@ -622,18 +623,18 @@ export default function Planilla({ selectedTorneoId }) {
   const expulsados = useMemo(() => {
     const contAmarillas = {}
     const set = new Set()
-    ;(eventos || []).forEach((e) => {
-      if (!e.jugador_id) return
-      if (e.tipo === 'TARJETA_ROJA') set.add(e.jugador_id)
-      if (e.tipo === 'TARJETA_AMARILLA') contAmarillas[e.jugador_id] = (contAmarillas[e.jugador_id] || 0) + 1
-    })
+      ; (eventos || []).forEach((e) => {
+        if (!e.jugador_id) return
+        if (e.tipo === 'TARJETA_ROJA') set.add(e.jugador_id)
+        if (e.tipo === 'TARJETA_AMARILLA') contAmarillas[e.jugador_id] = (contAmarillas[e.jugador_id] || 0) + 1
+      })
     Object.entries(contAmarillas).forEach(([id, n]) => { if (n >= 2) set.add(Number(id)) })
     return set
   }, [eventos])
 
   const cambiosPorEquipo = useMemo(() => {
     const m = {}
-    ;(eventos || []).forEach((e) => { if (e.tipo === 'CAMBIO') m[e.equipo_id] = (m[e.equipo_id] || 0) + 1 })
+      ; (eventos || []).forEach((e) => { if (e.tipo === 'CAMBIO') m[e.equipo_id] = (m[e.equipo_id] || 0) + 1 })
     return m
   }, [eventos])
 
@@ -641,9 +642,9 @@ export default function Planilla({ selectedTorneoId }) {
   // en el mismo partido (regla IFAB). Si se borra el cambio, se liberan.
   const salieronDelPartido = useMemo(() => {
     const set = new Set()
-    ;(eventos || []).forEach((e) => {
-      if (e.tipo === 'CAMBIO' && e.jugador_sale_id) set.add(e.jugador_sale_id)
-    })
+      ; (eventos || []).forEach((e) => {
+        if (e.tipo === 'CAMBIO' && e.jugador_sale_id) set.add(e.jugador_sale_id)
+      })
     return set
   }, [eventos])
 
@@ -655,11 +656,11 @@ export default function Planilla({ selectedTorneoId }) {
   const cambiosDe = (equipoId) => cambiosPorEquipo[equipoId] || 0
   const ventanasPorEquipo = useMemo(() => {
     const m = {}
-    ;(eventos || []).forEach((e) => {
-      if (e.tipo !== 'CAMBIO') return
-      if (!m[e.equipo_id]) m[e.equipo_id] = []
-      if (!m[e.equipo_id].includes(e.minuto)) m[e.equipo_id].push(e.minuto)
-    })
+      ; (eventos || []).forEach((e) => {
+        if (e.tipo !== 'CAMBIO') return
+        if (!m[e.equipo_id]) m[e.equipo_id] = []
+        if (!m[e.equipo_id].includes(e.minuto)) m[e.equipo_id].push(e.minuto)
+      })
     return m
   }, [eventos])
   const ventanasDe = (equipoId) => ventanasPorEquipo[equipoId] || []
@@ -740,7 +741,7 @@ export default function Planilla({ selectedTorneoId }) {
           setEquipoTab(String(primero) === String(partido.equipo_local_id) ? 'local' : 'visitante')
           setMobileTab('equipos')
         }
-        toast.show(`No se puede iniciar: la planilla está incompleta. Cada equipo debe tener ${MAX_TITULARES} titulares. ${detalleFaltantes}`, 'error')
+        toast.show(`No se puede iniciar: la planilla está incompleta. Cada equipo debe tener ${MIN_TITULARES_INICIO} titulares. ${detalleFaltantes}`, 'error')
         return
       }
       setIniciado(true)
@@ -1161,7 +1162,7 @@ export default function Planilla({ selectedTorneoId }) {
             </ToggleButtonGroup>
             <Grid container spacing={2}>
               {[{ nombre: eqName(partido.equipo_local_id), plantel: plantelLocal, q: jugadoresLocalQ, id: partido.equipo_local_id },
-                { nombre: eqName(partido.equipo_visitante_id), plantel: plantelVisit, q: jugadoresVisitQ, id: partido.equipo_visitante_id }].map((eq) => {
+              { nombre: eqName(partido.equipo_visitante_id), plantel: plantelVisit, q: jugadoresVisitQ, id: partido.equipo_visitante_id }].map((eq) => {
                 const lado = Number(eq.id) === Number(partido.equipo_local_id) ? 'local' : 'visitante'
                 const alEquipo = eq.plantel.filter((j) => alineacionMap[j.id])
                 const disponibles = eq.plantel.filter((j) => j.activo && !alineacionMap[j.id])
@@ -1270,9 +1271,9 @@ export default function Planilla({ selectedTorneoId }) {
                     <Card elevation={0} variant="outlined" sx={{ height: '100%' }}>
                       <CardContent sx={{ pt: 1.5 }}>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.5 }}>
-                        <Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: Number(eq.id) === partido.equipo_local_id ? '#dc2626' : '#2563eb' }} />
-                        <Typography variant="subtitle1" fontWeight={700}>{eq.nombre} <Box component="span" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: 12 }}>· Plantel</Box></Typography>
-                      </Box>
+                          <Box component="span" sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: Number(eq.id) === partido.equipo_local_id ? '#dc2626' : '#2563eb' }} />
+                          <Typography variant="subtitle1" fontWeight={700}>{eq.nombre} <Box component="span" sx={{ color: 'text.secondary', fontWeight: 600, fontSize: 12 }}>· Plantel</Box></Typography>
+                        </Box>
                         <Typography variant="caption" color="text.secondary">
                           {alEquipo.length} jugando · {titulares} titular(es) · {suplentes} suplente(s)
                         </Typography>
@@ -1658,8 +1659,8 @@ export default function Planilla({ selectedTorneoId }) {
                         const primary = ev.tipo === 'CAMBIO'
                           ? `${sala || '?'} ↔ ${entra || '?'}`
                           : (ev.tipo_sancionado === 'TECNICO'
-                              ? `${ev.nombre_sancionado || 'DT'} (técnico)`
-                              : (ev.jugador_id ? entra : 'Sin jugador asociado'))
+                            ? `${ev.nombre_sancionado || 'DT'} (técnico)`
+                            : (ev.jugador_id ? entra : 'Sin jugador asociado'))
                         return (
                           <Box key={ev.id} sx={{
                             display: 'flex', alignItems: 'center', gap: 1, py: 0.6, px: 0.75,
@@ -1745,38 +1746,38 @@ export default function Planilla({ selectedTorneoId }) {
                         <Alert severity="info">No hay cambios registrados aún.</Alert>
                       ) : (
                         <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                        {eventos
-                          .filter((e) => e.tipo === 'CAMBIO')
-                          .sort((a, b) => a.minuto - b.minuto || (a.id || 0) - (b.id || 0))
-                          .map((ev) => {
-                            const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : '?'
-                            const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : '?'
-                            return (
-                              <Box key={ev.id} sx={{
-                                display: 'flex', alignItems: 'center', gap: 1, py: 0.6, px: 0.75,
-                                borderBottom: '1px solid', borderColor: 'divider', minWidth: 0,
-                                '&:last-of-type': { borderBottom: 'none' },
-                                '&:hover': { bgcolor: 'action.hover' },
-                              }}>
-                                <SwapIcon sx={{ fontSize: 16, color: ESTILO_EVENTO.CAMBIO.color, flexShrink: 0 }} />
-                                <Typography sx={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'JetBrains Mono, Menlo, monospace', fontWeight: 800, fontSize: 11, color: ESTILO_EVENTO.CAMBIO.color }}>
-                                  {ev.minuto}'
-                                </Typography>
-                                <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35 }}>
-                                  <Box component="span" sx={{ fontWeight: 700, color: '#b91c1c' }}>{sala || '?'}</Box>
-                                  <Box component="span" sx={{ color: 'text.secondary', mx: 0.5 }}>→</Box>
-                                  <Box component="span" sx={{ fontWeight: 700, color: '#15803d' }}>{entra || '?'}</Box>
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary" noWrap sx={{ flexShrink: 0, display: { xs: 'none', sm: 'block' } }}>{eqName(ev.equipo_id)}</Typography>
-                                {editable && (
-                                  <IconButton edge="end" size="small" color="error" sx={{ p: 0.25, flexShrink: 0 }}
-                                    onClick={() => { if (window.confirm('¿Eliminar este cambio?')) borrarEventoMut.mutate(ev.id) }}>
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                )}
-                              </Box>
-                            )
-                          })}
+                          {eventos
+                            .filter((e) => e.tipo === 'CAMBIO')
+                            .sort((a, b) => a.minuto - b.minuto || (a.id || 0) - (b.id || 0))
+                            .map((ev) => {
+                              const sala = ev.jugador_sale_id ? nombreDe(ev.jugador_sale_id, ev.equipo_id) : '?'
+                              const entra = ev.jugador_id ? nombreDe(ev.jugador_id, ev.equipo_id) : '?'
+                              return (
+                                <Box key={ev.id} sx={{
+                                  display: 'flex', alignItems: 'center', gap: 1, py: 0.6, px: 0.75,
+                                  borderBottom: '1px solid', borderColor: 'divider', minWidth: 0,
+                                  '&:last-of-type': { borderBottom: 'none' },
+                                  '&:hover': { bgcolor: 'action.hover' },
+                                }}>
+                                  <SwapIcon sx={{ fontSize: 16, color: ESTILO_EVENTO.CAMBIO.color, flexShrink: 0 }} />
+                                  <Typography sx={{ width: 32, flexShrink: 0, textAlign: 'right', fontFamily: 'JetBrains Mono, Menlo, monospace', fontWeight: 800, fontSize: 11, color: ESTILO_EVENTO.CAMBIO.color }}>
+                                    {ev.minuto}'
+                                  </Typography>
+                                  <Typography variant="body2" sx={{ flex: 1, minWidth: 0, fontSize: 12.5, whiteSpace: 'normal', wordBreak: 'break-word', lineHeight: 1.35 }}>
+                                    <Box component="span" sx={{ fontWeight: 700, color: '#b91c1c' }}>{sala || '?'}</Box>
+                                    <Box component="span" sx={{ color: 'text.secondary', mx: 0.5 }}>→</Box>
+                                    <Box component="span" sx={{ fontWeight: 700, color: '#15803d' }}>{entra || '?'}</Box>
+                                  </Typography>
+                                  <Typography variant="caption" color="text.secondary" noWrap sx={{ flexShrink: 0, display: { xs: 'none', sm: 'block' } }}>{eqName(ev.equipo_id)}</Typography>
+                                  {editable && (
+                                    <IconButton edge="end" size="small" color="error" sx={{ p: 0.25, flexShrink: 0 }}
+                                      onClick={() => { if (window.confirm('¿Eliminar este cambio?')) borrarEventoMut.mutate(ev.id) }}>
+                                      <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                  )}
+                                </Box>
+                              )
+                            })}
                         </Box>
                       )}
                       {partido && (
