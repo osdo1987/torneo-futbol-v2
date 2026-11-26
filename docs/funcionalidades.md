@@ -138,7 +138,7 @@ CREADO → INSCRIPCIONES_ABIERTAS → INSCRIPCIONES_CERRADAS → SORTEADO → EN
 - **Programar** fecha/hora (`datetime`).
 - **Aplazar** (estado POSTERGADO) y reprogramar.
 - **Registrar resultado** (goles local/visitante → LOCAL_GANO / VISITANTE_GANO / EMPATE).
-- **Walkover (W)** por inasistencia: gana el bando presente con **marcador configurable** del reglamento (W_LOCAL / W_VISITANTE).
+- **Walkover (W)** por inasistencia: gana el bando presente con **marcador configurable** del reglamento (W_LOCAL / W_VISITANTE). Se declara desde **Partidos → botón «W (W/O)»** de la tarjeta (solo partidos PENDIENTES y roles de gestión); una vez registrado no se puede deshacer.
 - **Eliminar partido** (PENDIENTE/POSTERGADO): borra el partido junto con sus alineaciones y eventos. Los partidos con resultado no se pueden eliminar.
 
 ### 8.2. Alineaciones

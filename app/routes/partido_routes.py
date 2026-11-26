@@ -730,6 +730,8 @@ def registrar_walkover(partido_id):
         return jsonify({'error': 'Partido no encontrado'}), 404
     if not ensure_torneo_organizador(user, partido.torneo):
         return jsonify({'error': 'No autorizado'}), 403
+    if not ensure_management_role(user):
+        return jsonify({'error': 'No autorizado'}), 403
     data = request.get_json() or {}
     partido, error = PartidoService.registrar_walkover(partido, (data.get('bando') or '').upper())
     if error:

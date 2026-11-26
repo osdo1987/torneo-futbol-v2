@@ -39,6 +39,7 @@ import {
   DeleteOutline as DeleteOutlineIcon,
   EditNote as EditNoteIcon,
   Edit as EditIcon,
+  Flag as FlagIcon,
   Place as PlaceIcon,
   Schedule as ScheduleIcon,
   Sports as SportsIcon,
@@ -660,6 +661,17 @@ export default function Partidos({ selectedTorneoId, user }) {
               </IconButton>
             </Tooltip>
           )}
+          {!isReferee && p.resultado === 'PENDIENTE' && (
+            <Tooltip title="Declarar W (W/O) por inasistencia">
+              <IconButton
+                size="small"
+                onClick={() => { setWForm({ bando: 'LOCAL' }); setWOpen(p) }}
+                sx={{ color: 'text.secondary', bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', '&:hover': { color: 'error.main', bgcolor: 'action.hover' } }}
+              >
+                <FlagIcon sx={{ fontSize: 19 }} />
+              </IconButton>
+            </Tooltip>
+          )}
           {!isReferee && ['PENDIENTE', 'POSTERGADO'].includes(p.resultado) && (
             <Tooltip title="Editar partido">
               <IconButton
@@ -1272,7 +1284,7 @@ export default function Partidos({ selectedTorneoId, user }) {
           {wOpen && (
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
               {eqName(wOpen.equipo_local_id)} vs {eqName(wOpen.equipo_visitante_id)} — elige el equipo que se PRESENTÓ.
-              Gana por W con el marcador definido en el reglamento.
+              Gana por W con el marcador definido en el reglamento ({torneo?.reglas?.marcador_w ?? 3} - 0).
             </Typography>
           )}
           <TextField select label="Gana por W" fullWidth value={wForm.bando}
@@ -1280,6 +1292,9 @@ export default function Partidos({ selectedTorneoId, user }) {
             <MenuItem value="LOCAL">Local — {wOpen ? eqName(wOpen.equipo_local_id) : ''}</MenuItem>
             <MenuItem value="VISITANTE">Visitante — {wOpen ? eqName(wOpen.equipo_visitante_id) : ''}</MenuItem>
           </TextField>
+          <Alert severity="warning" sx={{ mt: 2 }}>
+            El W se contabiliza en la tabla como una victoria y no se puede deshacer.
+          </Alert>
         </DialogContent>
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setWOpen(null)}>Cancelar</Button>
